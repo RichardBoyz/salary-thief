@@ -1,0 +1,45 @@
+# 薪水小偷
+
+即時告訴你「你今天坐在這裡已經賺了多少錢」。
+
+輸入月薪和班表,畫面上的數字就開始跳。午休時間會停住,因為午休不算工時 —— 那段時間老闆沒在付你錢。
+
+**[設計決策與後續計畫](PLAN.md)**(線上版待部署)
+
+## 跑起來
+
+```bash
+npm install
+npm run dev
+```
+
+## 這專案唯一有趣的技術決定
+
+金額**永遠**從當下的時鐘重新推導,絕不用 `setInterval` 累加:
+
+```ts
+const worked = Math.min(now, shift.end) - shift.start - lunchOverlap;
+return (worked / shift.paidMs) * shift.dailyPay;
+```
+
+累加版本會在三個地方壞掉:分頁切到背景時瀏覽器把計時器降頻、電腦睡眠時計時器完全停掉、使用者改系統時間時直接歪掉。你午休回來會發現自己少賺了一小時。
+
+推導版本對這三種情況全部免疫,而且附帶兩個好處:`setInterval` 只負責叫 React 重畫,所以間隔可以放到 100ms(不需要 60fps 去重畫一個每秒只變 8 次的數字,這個 app 會被開一整天,不值得為此燒 CPU);以及 `earnedToday(cfg, t)` 是純函式,測試不用假時鐘、不用 `vi.useFakeTimers`,直接餵時間戳斷言就好。
+
+## 技術
+
+React + TypeScript + Vite + Tailwind + Zustand。執行期依賴三個。
+
+沒有 router(網址列出現 `/salary-thief` 是最大的破綻,整個 app 活在同一個 URL 上)、沒有圖表庫、沒有日期庫、沒有 UI 元件庫 —— 理由都寫在 [PLAN.md](PLAN.md) 裡,包含「什麼條件下該把它們裝回來」。
+
+## 測試
+
+```bash
+npm test
+```
+
+只測 `src/money.ts`。那是唯一有邊界條件、而且算錯會讓整個 app 失去意義的地方(上班前、下班後、跨午休、剛好卡在邊界、以及 localStorage 被亂改之後不能吐 NaN)。元件不測。
+
+## 資料
+
+只存在你自己瀏覽器的 localStorage 裡。沒有後端、沒有帳號、不會上傳。
