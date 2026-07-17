@@ -107,12 +107,17 @@ export default function Counter({ onSettings }: { onSettings: () => void }) {
           <span className={`size-2 rounded-full ${s.dot}`} />
           <span className={`text-sm font-medium ${s.text}`}>{s.label}</span>
         </div>
-        <button
-          onClick={onSettings}
-          className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
-        >
-          {t.settings}
-        </button>
+        <div className="flex items-center gap-3">
+          <kbd className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-500">
+            {t.bossKeyHint}
+          </kbd>
+          <button
+            onClick={onSettings}
+            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            {t.settings}
+          </button>
+        </div>
       </header>
 
       <div>

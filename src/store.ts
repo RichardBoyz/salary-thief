@@ -12,8 +12,12 @@ export const defaultConfig: Config = {
 };
 
 type State = {
+  /** money.ts 的輸入。純算錢用,不放偏好設定 —— 純函式不該知道偽裝的存在 */
   config: Config;
+  /** 離開分頁時自動切成偽裝殼 */
+  autoDisguise: boolean;
   setConfig: (patch: Partial<Config>) => void;
+  setAutoDisguise: (v: boolean) => void;
 };
 
 // persist middleware 直接處理 localStorage 讀寫和 JSON 序列化。
@@ -22,7 +26,9 @@ export const useStore = create<State>()(
   persist(
     (set) => ({
       config: defaultConfig,
+      autoDisguise: true,
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
+      setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
     }),
     { name: "salary-thief" },
   ),

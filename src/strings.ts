@@ -20,8 +20,13 @@ export const t = {
   quipLunch: "午休不算工時,這段時間老闆沒在付你錢。",
   quipAfter: "今天的份全部到手了。可以走了。",
 
+  disguiseTitle: "Q3_forecast_v7_FINAL_修正版.xlsx - Excel",
+  bossKeyHint: "Esc 裝忙",
+
   settings: "設定",
   back: "返回",
+  autoDisguise: "離開分頁時自動偽裝",
+  autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 解除。",
   monthlySalary: "月薪",
   workdaysPerMonth: "每月上班天數",
   shiftStart: "上班時間",

@@ -18,6 +18,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export default function Settings({ onBack }: { onBack: () => void }) {
   const cfg = useStore((s) => s.config);
   const setConfig = useStore((s) => s.setConfig);
+  const autoDisguise = useStore((s) => s.autoDisguise);
+  const setAutoDisguise = useStore((s) => s.setAutoDisguise);
 
   const shift = todayShift(cfg, Date.now());
   const error =
@@ -108,6 +110,19 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           </Field>
         </div>
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-3">
+        <input
+          type="checkbox"
+          checked={autoDisguise}
+          onChange={(e) => setAutoDisguise(e.target.checked)}
+          className="mt-0.5 size-4 accent-emerald-500"
+        />
+        <span>
+          <span className="text-sm text-slate-200">{t.autoDisguise}</span>
+          <span className="mt-0.5 block text-xs text-slate-500">{t.autoDisguiseHint}</span>
+        </span>
+      </label>
 
       {error && (
         <p className="rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-400">
