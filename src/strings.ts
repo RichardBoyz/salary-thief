@@ -23,6 +23,20 @@ export const t = {
   disguiseTitle: "Q3_forecast_v7_FINAL_修正版.xlsx - Excel",
   bossKeyHint: "Esc 裝忙",
 
+  startSlacking: "開始摸魚",
+  stopSlacking: "結束摸魚",
+
+  stats: "摸魚報告",
+  monthSlack: "本月摸魚",
+  stolen: "偷到的錢",
+  longest: "最長一次",
+  sessions: "摸魚次數",
+  heatmap: "過去 12 週",
+  less: "少",
+  more: "多",
+  noSlackData: "還沒有任何摸魚紀錄。回去按「開始摸魚」就會開始累積。",
+  slackedFor: "摸魚",
+
   settings: "設定",
   back: "返回",
   autoDisguise: "離開分頁時自動偽裝",

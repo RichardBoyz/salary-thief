@@ -91,8 +91,22 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function Counter({ onSettings }: { onSettings: () => void }) {
+const dur = (ms: number): string => {
+  const m = Math.floor(ms / 60_000);
+  return m < 60 ? `${m} 分` : `${Math.floor(m / 60)} 小時 ${m % 60} 分`;
+};
+
+export default function Counter({
+  onSettings,
+  onStats,
+}: {
+  onSettings: () => void;
+  onStats: () => void;
+}) {
   const cfg = useStore((s) => s.config);
+  const activeSince = useStore((s) => s.activeSince);
+  const startSlacking = useStore((s) => s.startSlacking);
+  const stopSlacking = useStore((s) => s.stopSlacking);
   const now = useNow();
 
   const state = workState(cfg, now);
@@ -111,6 +125,12 @@ export default function Counter({ onSettings }: { onSettings: () => void }) {
           <kbd className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-500">
             {t.bossKeyHint}
           </kbd>
+          <button
+            onClick={onStats}
+            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            {t.stats}
+          </button>
           <button
             onClick={onSettings}
             className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
@@ -146,6 +166,22 @@ export default function Counter({ onSettings }: { onSettings: () => void }) {
         <Stat label={t.untilOffWork} value={countdown(msUntilOffWork(cfg, now))} />
         <Stat label={t.dailyPay} value={twd.format(todayShift(cfg, now).dailyPay)} />
       </div>
+
+      {activeSince === null ? (
+        <button
+          onClick={startSlacking}
+          className="rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-800"
+        >
+          {t.startSlacking}
+        </button>
+      ) : (
+        <button
+          onClick={stopSlacking}
+          className="rounded-xl border border-amber-600/50 bg-amber-950/40 py-3 text-sm font-medium text-amber-300 transition hover:bg-amber-950/70"
+        >
+          {t.stopSlacking} · <span className="tabular-nums">{dur(now - activeSince)}</span>
+        </button>
+      )}
     </div>
   );
 }

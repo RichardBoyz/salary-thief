@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Config } from "./money";
+import type { SlackEvent } from "./slack";
 
 export const defaultConfig: Config = {
   monthlySalary: 50_000,
@@ -16,8 +17,14 @@ type State = {
   config: Config;
   /** 離開分頁時自動切成偽裝殼 */
   autoDisguise: boolean;
+  /** append-only。只有 push,沒有 update 也沒有 delete */
+  slackEvents: SlackEvent[];
+  /** 正在摸魚中的起始時間。這是暫時狀態,按下結束才會變成一筆 SlackEvent */
+  activeSince: number | null;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
+  startSlacking: () => void;
+  stopSlacking: () => void;
 };
 
 // persist middleware 直接處理 localStorage 讀寫和 JSON 序列化。
@@ -27,8 +34,26 @@ export const useStore = create<State>()(
     (set) => ({
       config: defaultConfig,
       autoDisguise: true,
+      slackEvents: [],
+      activeSince: null,
+
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
+
+      startSlacking: () => set({ activeSince: Date.now() }),
+      stopSlacking: () =>
+        set((s) => {
+          if (s.activeSince === null) return {};
+          return {
+            activeSince: null,
+            // crypto.randomUUID() 是瀏覽器原生的,不需要 uuid 套件。
+            // id 在 client 端產生 → Phase 3 兩台裝置合併時不會撞,聯集就是答案。
+            slackEvents: [
+              ...s.slackEvents,
+              { id: crypto.randomUUID(), startedAt: s.activeSince, endedAt: Date.now() },
+            ],
+          };
+        }),
     }),
     { name: "salary-thief" },
   ),

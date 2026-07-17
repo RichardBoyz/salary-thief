@@ -24,8 +24,8 @@ const at = (now: number, hhmm: string): number => {
   return d.getTime();
 };
 
-/** 兩個區間重疊的毫秒數,不重疊為 0 */
-const overlap = (a1: number, a2: number, b1: number, b2: number): number =>
+/** 兩個區間重疊的毫秒數,不重疊為 0。slack.ts 也用同一個,別再寫第二份 */
+export const overlap = (a1: number, a2: number, b1: number, b2: number): number =>
   Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
 
 export type Shift = {
