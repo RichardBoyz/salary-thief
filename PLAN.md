@@ -13,8 +13,8 @@
 | **Phase 0** | 即時薪水計數器 + 設定頁 + localStorage | 否 | ✅ 已完成 |
 | **Phase 1** | 老闆鍵 + 一套偽裝殼(Excel) | 否 | ✅ 已完成 |
 | **Phase 2** | 摸魚紀錄 + 統計熱力圖 | 否 | ✅ 已完成 |
-| **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | ⛔ 等 Supabase 專案 |
-| **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ v0 完成;同事顯示等 Phase 3 |
+| **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | 🔨 程式碼完成,等兩步 dashboard 設定(見下) |
+| **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ 完成;同事 avatar 已接上 Phase 3 資料 |
 | **Phase 5**(保留) | i18n、貢獻指南、發布流程 | — | 之後再說 |
 
 ### Phase 3 — 從「跨裝置同步」改成「多人社交」
@@ -51,14 +51,15 @@ handle 上 check (char_length <= 20) —— 唯一的使用者輸入字串,長�
 
 **隱私是這階段的設計前提,不是加分項**(見 3.2):暱稱不綁真名、不存公司欄位、個人信箱登入。多人版把「別用公司信箱」從小提醒升級成硬規則 —— 這是一整個團隊、綁身分、有時間戳的摸魚紀錄,外流傷的是真人。
 
-### Phase 3 卡在哪
+### Phase 3 剩兩步 dashboard 設定(只有專案擁有者能做)
 
-需要一個 Supabase 專案,而開帳號這件事我不能代做。要往下走:
+程式碼(`sync.ts`、`Team.tsx`、`supabase/schema.sql`)已完成。啟用前要在
+[Supabase dashboard](https://supabase.com/dashboard/project/xpjrbnnlxoebkcyuzovx) 做兩件事:
 
-1. 開一個 Supabase 專案(免費方案就夠;用哪個 Gmail 開都行),把 project URL 和 anon key 給我。anon key 設計上是公開的,貼在聊天裡沒關係;真正擋資料的是 RLS(見 3.2)
-2. 決定 repo 要不要轉 public(現在是 private)—— 影響部署選擇
+1. **SQL Editor → 貼上 `supabase/schema.sql` 全部 → Run**(跑一次就好)。這會建三張表、開 RLS、鎖 emoji 白名單和 handle 長度
+2. **Authentication → URL Configuration → Site URL 填 `http://localhost:5173`**(之後部署了再加正式網址)。不設的話 magic link 會把人導去錯的地方
 
-在那之前 Phase 0~2 + 辦公室單人版是完整可用的,只是資料留在單一裝置上。**在有專案能實測之前不會寫 `sync.ts` 或建表 SQL 推上去** —— 沒測過的後端程式碼正是這專案一路避開的東西。
+注意:免費專案用內建 SMTP 寄 magic link,**每小時只有個位數封**的額度 —— 測登入省著點寄,之後真的要多人用再接自己的 SMTP。
 
 ---
 

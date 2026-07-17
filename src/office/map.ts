@@ -49,3 +49,28 @@ export const tryMove = (p: Pos, dx: number, dy: number): Pos => {
   const next = { x: p.x + dx, y: p.y + dy };
   return walkable(next) ? next : p;
 };
+
+/**
+ * 同事 avatar 的站位。上班中 → 座位,摸魚中 → 茶水間/沙發,滿了站走道。
+ * 同事的走位不同步(PLAN Phase 4),他們只會在狀態改變時「走」到對應區域。
+ */
+export const SPOTS = {
+  chairs: [
+    { x: 5, y: 3 },
+    { x: 8, y: 3 },
+    { x: 11, y: 3 },
+  ] as Pos[],
+  breaks: [
+    { x: 16, y: 8 },
+    { x: 5, y: 9 },
+    { x: 15, y: 8 },
+  ] as Pos[],
+  floor: [
+    { x: 3, y: 5 },
+    { x: 5, y: 5 },
+    { x: 7, y: 5 },
+    { x: 9, y: 5 },
+    { x: 11, y: 5 },
+    { x: 13, y: 5 },
+  ] as Pos[],
+};

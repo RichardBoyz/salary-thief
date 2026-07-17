@@ -69,10 +69,12 @@ export default function Counter({
   onSettings,
   onStats,
   onOffice,
+  onTeam,
 }: {
   onSettings: () => void;
   onStats: () => void;
   onOffice: () => void;
+  onTeam: () => void;
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
@@ -101,6 +103,12 @@ export default function Counter({
             className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
           >
             {t.office}
+          </button>
+          <button
+            onClick={onTeam}
+            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            {t.team}
           </button>
           <button
             onClick={onStats}

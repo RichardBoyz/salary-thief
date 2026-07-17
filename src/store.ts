@@ -21,6 +21,12 @@ type State = {
   slackEvents: SlackEvent[];
   /** 正在摸魚中的起始時間。這是暫時狀態,按下結束才會變成一筆 SlackEvent */
   activeSince: number | null;
+  /**
+   * 這次摸魚的事件 id,開始的當下就產生 —— 這樣登入時 sync.ts 能先 insert
+   * 一筆 open event(ended_at null)讓同事看到「摸魚中」,結束時 update 同
+   * 一列。有 persist,重新整理不會弄丟,server 上那筆 open event 關得掉。
+   */
+  activeId: string | null;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   startSlacking: () => void;
@@ -36,21 +42,29 @@ export const useStore = create<State>()(
       autoDisguise: true,
       slackEvents: [],
       activeSince: null,
+      activeId: null,
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
 
-      startSlacking: () => set({ activeSince: Date.now() }),
+      // crypto.randomUUID() 是瀏覽器原生的,不需要 uuid 套件。
+      // id 在 client 端產生 → 兩台裝置合併時不會撞,聯集就是答案。
+      startSlacking: () =>
+        set({ activeSince: Date.now(), activeId: crypto.randomUUID() }),
       stopSlacking: () =>
         set((s) => {
           if (s.activeSince === null) return {};
           return {
             activeSince: null,
-            // crypto.randomUUID() 是瀏覽器原生的,不需要 uuid 套件。
-            // id 在 client 端產生 → Phase 3 兩台裝置合併時不會撞,聯集就是答案。
+            activeId: null,
             slackEvents: [
               ...s.slackEvents,
-              { id: crypto.randomUUID(), startedAt: s.activeSince, endedAt: Date.now() },
+              {
+                // ?? 只為了舊版 persist 資料(還沒有 activeId 就開始摸魚)不炸
+                id: s.activeId ?? crypto.randomUUID(),
+                startedAt: s.activeSince,
+                endedAt: Date.now(),
+              },
             ],
           };
         }),

@@ -3,6 +3,8 @@ import { dur, twd } from "../fmt";
 import { earnedToday } from "../money";
 import { useStore } from "../store";
 import { t } from "../strings";
+import { useSession, useTeam } from "../sync";
+import type { Standing } from "../team";
 import { useNow } from "../useNow";
 import {
   COLS,
@@ -10,11 +12,29 @@ import {
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
+  SPOTS,
   TILE,
   tryMove,
   zoneAt,
   type Pos,
 } from "./map";
+
+/**
+ * 同事站哪:上班中 → 座位,摸魚中 → 茶水間,離線 → 不出現。位置由狀態
+ * 推導(排行榜同一份輪詢資料),不同步逐格走位。userId 排序讓每個人的
+ * 站位在兩次輪詢之間穩定,不會無故換位。
+ */
+function placeTeammates(rows: Standing[], me: string | undefined) {
+  const others = rows
+    .filter((r) => r.userId !== me && r.state !== "offline")
+    .sort((a, b) => a.userId.localeCompare(b.userId));
+  const spots = { slacking: [...SPOTS.breaks], working: [...SPOTS.chairs] };
+  const overflow = [...SPOTS.floor];
+  return others.map((r) => ({
+    ...r,
+    pos: spots[r.state as "slacking" | "working"].shift() ?? overflow.shift() ?? SPOTS.floor[0],
+  }));
+}
 
 const DIRS: Record<string, [number, number]> = {
   arrowup: [0, -1],
@@ -108,6 +128,9 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
   const now = useNow();
+  const session = useSession();
+  const team = useTeam(45_000); // 沒登入回傳 null,辦公室就是單人版
+  const teammates = placeTeammates(team?.rows ?? [], session?.user.id);
 
   // 出生點跟著狀態走:摸魚中進來就站在茶水間,不會出現「人在座位卻在摸魚」
   const [pos, setPos] = useState<Pos>(activeSince ? SPAWN_BREAK : SPAWN_DESK);
@@ -202,6 +225,21 @@ export default function Office({ onBack }: { onBack: () => void }) {
           style={{ width: COLS * TILE, height: ROWS * TILE }}
         >
           {map}
+          {teammates.map((m) => (
+            <div
+              key={m.userId}
+              data-teammate={m.handle}
+              // 狀態變了(座位↔茶水間)靠 transition 自己「走」過去
+              className="absolute top-0 left-0 flex size-8 flex-col items-center justify-center transition-transform duration-700 ease-in-out"
+              style={{ transform: `translate(${m.pos.x * TILE}px, ${m.pos.y * TILE}px)` }}
+              title={`${m.handle} · ${m.state === "slacking" ? t.officeSlacking : t.stateWorking}`}
+            >
+              <span className="text-xl opacity-90">🧑‍💼</span>
+              <span className="max-w-16 truncate rounded bg-slate-950/70 px-1 text-[9px] leading-tight text-slate-300">
+                {m.handle}
+              </span>
+            </div>
+          ))}
           <div
             data-player
             className="absolute top-0 left-0 flex size-8 items-center justify-center transition-transform duration-130 ease-linear"

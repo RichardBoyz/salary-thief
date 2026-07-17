@@ -5,6 +5,7 @@ import {
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
+  SPOTS,
   tryMove,
   walkable,
   zoneAt,
@@ -35,6 +36,17 @@ describe("地圖本身", () => {
   it("兩個出生點都站得住", () => {
     expect(walkable(SPAWN_DESK)).toBe(true);
     expect(walkable(SPAWN_BREAK)).toBe(true);
+  });
+
+  it("同事的每個站位都站得住 —— 改地圖字串時這條會擋住把人埋進牆裡", () => {
+    for (const p of [...SPOTS.chairs, ...SPOTS.breaks, ...SPOTS.floor]) {
+      expect(walkable(p)).toBe(true);
+    }
+  });
+
+  it("摸魚站位真的在摸魚區,座位站位不在 —— 站錯區會觸發錯的狀態語意", () => {
+    for (const p of SPOTS.breaks) expect(zoneAt(p)).toBe("break");
+    for (const p of SPOTS.chairs) expect(zoneAt(p)).toBe("floor");
   });
 });
 
