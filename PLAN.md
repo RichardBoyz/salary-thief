@@ -13,8 +13,9 @@
 | **Phase 0** | 即時薪水計數器 + 設定頁 + localStorage | 否 | ✅ 已完成 |
 | **Phase 1** | 老闆鍵 + 一套偽裝殼(Excel) | 否 | ✅ 已完成 |
 | **Phase 2** | 摸魚紀錄 + 統計熱力圖 | 否 | ✅ 已完成 |
-| **Phase 3** | Supabase 多人社交(排行榜/在線/團隊總計/起鬨) | 是 | ⛔ 卡在開帳號 |
-| **Phase 4**(保留) | i18n、貢獻指南、發布流程 | — | 之後再說 |
+| **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | ⛔ 等 Supabase 專案 |
+| **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ v0 完成;同事顯示等 Phase 3 |
+| **Phase 5**(保留) | i18n、貢獻指南、發布流程 | — | 之後再說 |
 
 ### Phase 3 — 從「跨裝置同步」改成「多人社交」
 
@@ -22,26 +23,31 @@
 
 **核心決定:除了在線狀態,其他都不做即時連線;在線狀態用時間戳算,不用 websocket。**
 
-- 排行榜、團隊總計:開頁查一次 + 下拉刷新。純聚合查詢,慢個 30 秒沒人在乎。
+- 排行榜、團隊總計:開頁查一次 + 下拉刷新。純聚合查詢,慢個 30 秒沒人在乎。RLS 已把可見範圍鎖在同隊,所以查詢就是 `started_at >= 週一`,拉回來在 client 端 group by —— 一隊撐死二十人、一週幾百筆事件,直接重用 `slack.ts` 裡已經寫好測好的純函式算,不用寫 server-side view/RPC(量真的大了再說)。
 - 起鬨:非同步。你摸魚,同事晚點給那次一個 emoji,你下次開 app 看到。它不是聊天。
-- 在線:不需要 websocket 才知道誰在摸魚。「最新那筆摸魚還開著(`ended_at` 為 null)、而且最近幾分鐘有心跳」就是在線。`activeSince` 這個欄位一份兩用:既是本地的計時起點,同步上去就是在線訊號。
+- 在線:不需要 websocket。兩個訊號拼出來 —— `profiles.last_seen_at` 心跳(分頁可見時每 60 秒 update 自己那一列)+ 有一筆 `ended_at` 為 null 的摸魚。**在線** = 心跳 < 2 分鐘;**摸魚中** = 在線且有開著的事件。斷線不用通知任何人:心跳自然老化就下線了 —— 這正是別人要用 `onDisconnect` 才做得到的事,用一個時間戳比較做掉。
 
 這樣整個階段沒有 Realtime 訂閱、沒有 `onDisconnect`、沒有 websocket 生命週期。**也因此不用 Firebase** —— 它唯一比 Supabase 強的地方(`onDisconnect` 在線偵測)被這個設計繞過了,而聚合查詢和「同組看得到彼此」用 Postgres + RLS 反而更好寫。
 
-**三張表(全部 append-only 或單列):**
+**三張表:**
 
 ```
-profiles(user_id pk, handle, team_code)          -- 暱稱與分組。不存真名、不存公司
-slack_events(id pk, user_id, team_code,          -- Phase 2 那張表多了 user_id
-             started_at, ended_at null)          -- ended_at 為 null = 正在摸魚 = 在線訊號
-reactions(id pk, event_id, from_user, emoji, created_at)  -- 只有 emoji,沒有自由文字
+profiles(user_id pk, handle, team_code, last_seen_at)   -- 暱稱與分組。不存真名、不存公司
+slack_events(id pk, user_id, team_code,                 -- Phase 2 那張表多了 user_id
+             started_at, ended_at null)                 -- 開始時 insert(ended_at null),結束時 update 補上
+reactions(id pk, event_id, from_user, emoji, created_at) -- 只有 emoji,沒有自由文字
+handle 上 check (char_length <= 20) —— 唯一的使用者輸入字串,長度在 DB 層鎖死
 ```
+
+「append-only」修正為「**單寫者**」:為了讓同事看得到「摸魚中」,事件改成開始就 insert、結束 update 同一列補 `ended_at`。合併不變性沒破 —— 每一列只有建立它的裝置會寫它,跨使用者仍是純聯集,一樣不需要合併邏輯。
+
+**排行榜比時數,永遠不比錢。** 這不是口味,是隱私設計:算錢需要月薪,而月薪只存在各自的 localStorage,**永遠不上傳**——schema 裡沒有任何薪資欄位。「偷到多少錢」只在你自己的裝置上、用你自己的月薪算給你自己看。
 
 **團隊怎麼圈**:一個 `team_code` —— 你們私下傳的一串亂碼(像房間代碼),誰有誰就在同一組。不做邀請、不做管理員、不做成員審核,那串碼本身就是成員資格。
 - RLS 只讓你讀到同 `team_code` 的列;聚合查詢自動只算你讀得到的資料,排行榜天然只有你這組。
 - `team_code` 刻意反正規化到 `slack_events` 上,讓 RLS 檢查是一次直接比對而不是 join。ponytail:v1 的 team_code 設一次不改,真要換組再處理改列的成本。
 
-**起鬨只做 emoji,不做文字留言(v1)**:自由文字正是大家會把自己招出來的地方(「剛睡兩小時被老闆抓到 lol」),而且要處理長度、跳脫、XSS。emoji 反應拿到八成的樂趣、兩成的風險和工作量。要文字是之後的事。
+**起鬨只做 emoji,不做文字留言(已拍板)**:自由文字正是大家會把自己招出來的地方(「剛睡兩小時被老闆抓到 lol」),而且要處理長度、跳脫、XSS。emoji 反應拿到八成的樂趣、兩成的風險和工作量。要文字是之後的事。
 
 **隱私是這階段的設計前提,不是加分項**(見 3.2):暱稱不綁真名、不存公司欄位、個人信箱登入。多人版把「別用公司信箱」從小提醒升級成硬規則 —— 這是一整個團隊、綁身分、有時間戳的摸魚紀錄,外流傷的是真人。
 
@@ -49,11 +55,24 @@ reactions(id pk, event_id, from_user, emoji, created_at)  -- 只有 emoji,沒有
 
 需要一個 Supabase 專案,而開帳號這件事我不能代做。要往下走:
 
-1. 開一個 Supabase 專案(免費方案就夠),把 project URL 和 anon key 給我
-2. 確認起鬨要 emoji-only 還是也要文字
-3. 決定 repo 要不要轉 public(現在是 private)—— 影響部署選擇
+1. 開一個 Supabase 專案(免費方案就夠;用哪個 Gmail 開都行),把 project URL 和 anon key 給我。anon key 設計上是公開的,貼在聊天裡沒關係;真正擋資料的是 RLS(見 3.2)
+2. 決定 repo 要不要轉 public(現在是 private)—— 影響部署選擇
 
-在那之前 Phase 0~2 是完整可用的,只是資料留在單一裝置上。**在有專案能實測之前不會寫 `sync.ts` 或建表 SQL 推上去** —— 沒測過的後端程式碼正是這專案一路避開的東西。
+在那之前 Phase 0~2 + 辦公室單人版是完整可用的,只是資料留在單一裝置上。**在有專案能實測之前不會寫 `sync.ts` 或建表 SQL 推上去** —— 沒測過的後端程式碼正是這專案一路避開的東西。
+
+---
+
+## Phase 4 — 2D 辦公室
+
+需求:操作角色移動的 2D 辦公室。做法上最重要的三個決定:
+
+**1. 不裝 Phaser,不裝任何遊戲引擎。** 格子地圖、十個以內的 avatar、上下左右走 —— DOM/CSS transform 加一張 render 出來的 SVG 地圖就夠了。引擎買到的是物理、資產管線、場景管理,這裡全用不到。地圖用 ASCII 字串手繪在 `map.ts` 裡,要改辦公室格局改字串就好,不需要地圖編輯器。
+
+**2. 走位有語意,辦公室是現有狀態機的皮。** 走到茶水間或沙發 = `startSlacking()`,走回自己座位 = `stopSlacking()`,走廊中性(路過不誤觸)。沒有新增任何狀態 —— 辦公室只是把 Phase 2 那顆按鈕變成一個可以走進去的空間。計數器頁的按鈕照常運作,兩邊動同一個 store。
+
+**3. 你的角色真的能走,同事的 avatar 由狀態擺位(v1 不同步走位)。** 接上 Phase 3 之後,同事顯示規則:上班中 → 站他的座位;摸魚中 → 站茶水間;離線 → 不顯示。資料就是排行榜同一套輪詢(30~60 秒一次),狀態變了 CSS transition 讓 avatar 自己走過去。逐格位置廣播是明確的升級路徑 —— Supabase Realtime broadcast、只播 zone 變化省訊息量 —— 但 v1 不做,因為「看到誰在茶水間」的樂趣九成來自狀態,不來自路徑。emoji 起鬨在辦公室裡 = 點同事 avatar 選 emoji,對方下次輪詢看到氣泡。
+
+**v0(單人版,不需後端):** 你的角色 + 完整地圖 + 走位觸發摸魚,今天就能上線。鍵盤限定(WASD/方向鍵);手機 tap-to-move 等有人真的在手機上玩再說。老闆鍵照常蓋在辦公室上面。
 
 ### 建議砍掉的東西
 

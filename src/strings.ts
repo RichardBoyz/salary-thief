@@ -26,6 +26,10 @@ export const t = {
   startSlacking: "開始摸魚",
   stopSlacking: "結束摸魚",
 
+  office: "辦公室",
+  officeSlacking: "摸魚中",
+  officeHint: "方向鍵 / WASD 移動 —— 走到茶水間或沙發就開始摸魚,回到自己座位結束。",
+
   stats: "摸魚報告",
   monthSlack: "本月摸魚",
   stolen: "偷到的錢",

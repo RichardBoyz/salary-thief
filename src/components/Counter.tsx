@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { dur, twd } from "../fmt";
 import {
   earnedToday,
   msUntilOffWork,
@@ -10,33 +10,7 @@ import {
 } from "../money";
 import { useStore } from "../store";
 import { t } from "../strings";
-
-/**
- * 每 100ms 重讀一次時鐘。
- *
- * 這裡的 setInterval 只負責「叫 React 重畫」,不負責算錢 —— 錢是 money.ts
- * 從 now 推導的。所以瀏覽器把背景分頁的計時器降頻到每秒一次也無所謂,
- * 切回來的第一次 tick 就是正確數字。
- *
- * 為什麼是 100ms 而不是 rAF:金額只顯示到小數點後兩位,每秒大約變 8 次,
- * 60fps 等於把同樣的數字重畫 52 次。這個 app 會被開著一整天,不值得為了
- * 看不出來的滑順度燒一整天的 CPU。
- */
-function useNow(): number {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 100);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
-
-const twd = new Intl.NumberFormat("zh-TW", {
-  style: "currency",
-  currency: "TWD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+import { useNow } from "../useNow";
 
 const twdFine = new Intl.NumberFormat("zh-TW", {
   style: "currency",
@@ -91,17 +65,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const dur = (ms: number): string => {
-  const m = Math.floor(ms / 60_000);
-  return m < 60 ? `${m} 分` : `${Math.floor(m / 60)} 小時 ${m % 60} 分`;
-};
-
 export default function Counter({
   onSettings,
   onStats,
+  onOffice,
 }: {
   onSettings: () => void;
   onStats: () => void;
+  onOffice: () => void;
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
@@ -125,6 +96,12 @@ export default function Counter({
           <kbd className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-500">
             {t.bossKeyHint}
           </kbd>
+          <button
+            onClick={onOffice}
+            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            {t.office}
+          </button>
           <button
             onClick={onStats}
             className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"

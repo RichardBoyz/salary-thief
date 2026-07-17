@@ -1,3 +1,4 @@
+import { dur } from "../fmt";
 import {
   addDays,
   dayKey,
@@ -20,12 +21,6 @@ const twd = new Intl.NumberFormat("zh-TW", {
   currency: "TWD",
   maximumFractionDigits: 0,
 });
-
-const dur = (ms: number): string => {
-  const m = Math.round(ms / MIN);
-  if (m < 60) return `${m} 分`;
-  return `${Math.floor(m / 60)} 小時 ${m % 60} 分`;
-};
 
 // GitHub 那張圖就是一個 CSS grid 裡塞方塊。裝 Recharts 只為了畫 84 個
 // 有背景色的 div 是純虧損。等真的需要 tooltip 以外的互動再說。

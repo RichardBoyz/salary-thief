@@ -3,6 +3,7 @@ import Counter from "./components/Counter";
 import Disguise from "./components/Disguise";
 import Settings from "./components/Settings";
 import Stats from "./components/Stats";
+import Office from "./office/Office";
 import { useStore } from "./store";
 import { t } from "./strings";
 
@@ -15,7 +16,7 @@ const setFavicon = (emoji: string) => {
 
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
-type View = "counter" | "settings" | "stats";
+type View = "counter" | "settings" | "stats" | "office";
 
 export default function App() {
   const [view, setView] = useState<View>("counter");
@@ -56,10 +57,15 @@ export default function App() {
   return (
     <main className="min-h-dvh bg-slate-950 text-slate-100 antialiased">
       {view === "counter" && (
-        <Counter onSettings={() => setView("settings")} onStats={() => setView("stats")} />
+        <Counter
+          onSettings={() => setView("settings")}
+          onStats={() => setView("stats")}
+          onOffice={() => setView("office")}
+        />
       )}
       {view === "settings" && <Settings onBack={() => setView("counter")} />}
       {view === "stats" && <Stats onBack={() => setView("counter")} />}
+      {view === "office" && <Office onBack={() => setView("counter")} />}
     </main>
   );
 }
