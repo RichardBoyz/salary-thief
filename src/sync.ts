@@ -9,6 +9,8 @@ import {
   standings,
   teamTotalMs,
   type CatchRow,
+  type CompanyRanking,
+  type Employment,
   type EventRow,
   type ProfileRow,
   type ReactionRow,
@@ -71,6 +73,7 @@ export async function saveProfile(
   handle: string,
   companyCode: string | null,
   team: string | null,
+  employment: Employment = "current",
 ) {
   const uid = (await sb.auth.getSession()).data.session?.user.id;
   if (!uid) return;
@@ -79,6 +82,7 @@ export async function saveProfile(
     handle,
     company_code: companyCode,
     team,
+    employment,
     last_seen_at: Date.now(),
   });
   // 入司時把歷史事件補上公司碼,不然加入前偷的時數不會出現在榜上。
@@ -91,6 +95,17 @@ export async function saveProfile(
       .then(({ error }) => error && warn("backfill")(error));
   }
   pushLocalEvents();
+}
+
+/** 只改在職/離職。離職者不列入公司統計(company_rankings RPC 過濾掉) */
+export async function setEmployment(employment: Employment) {
+  const uid = (await sb.auth.getSession()).data.session?.user.id;
+  if (!uid) return;
+  await sb
+    .from("profiles")
+    .update({ employment })
+    .eq("user_id", uid)
+    .then(({ error }) => error && warn("employment")(error));
 }
 
 // ---------- 事件上傳(單寫者:每一列只有這台裝置會寫) ----------
@@ -264,6 +279,39 @@ export function useSpots(): { spots: Spot[]; refresh: () => void } {
     };
   }, [session, tick]);
   return { spots, refresh: () => setTick((n) => n + 1) };
+}
+
+/**
+ * 跨公司排行。RPC 是 k-anon 聚合(只回 >= 5 人的公司、只回聚合不回個人),
+ * 名字靠 client 的 companies.ts 反查 —— 只有目錄公司會被具名。還沒跑
+ * migrate-v5 → RPC 404 → 空陣列,這個區塊就不顯示。
+ */
+export function useCompanyRankings(pollMs: number): CompanyRanking[] {
+  const session = useSession();
+  const [rows, setRows] = useState<CompanyRanking[]>([]);
+  useEffect(() => {
+    if (!session) {
+      setRows([]);
+      return;
+    }
+    let alive = true;
+    const load = () => {
+      const now = Date.now();
+      sb.rpc("company_rankings", { week_start: weekStart(now), now_ms: now }).then(
+        ({ data, error }) => {
+          if (error) return warn("rankings")(error);
+          if (alive) setRows((data ?? []) as CompanyRanking[]);
+        },
+      );
+    };
+    load();
+    const id = setInterval(load, pollMs);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [session, pollMs]);
+  return rows;
 }
 
 /**

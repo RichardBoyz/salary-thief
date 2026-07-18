@@ -42,12 +42,31 @@ export const t = {
   loginPrivacy: "只用信箱登入,不設密碼。你的月薪和金額永遠不上傳 —— 排行榜只比時數。",
   setupTitle: "取個代號",
   setupHandlePlaceholder: "暱稱(同事認得出、老闆認不出的那種)",
-  setupCreate: "開新公司",
-  setupJoin: "加入公司",
-  setupJoinPlaceholder: "貼上同事給你的公司碼",
-  companyCode: "公司碼",
-  copyCode: "複製",
+
+  // 真實公司目錄:選公司名加入,不用貼 UUID。DB 只存代碼不存公司名。
+  companyPick: "選你的公司",
+  companySearch: "搜尋公司(台積電、TSMC…)",
+  companyCustomHint: "找不到?打完整公司名自己開一間:",
+  companyCustomPlaceholder: "公司全名(同事打一樣的就會同房)",
+  companyJoin: "加入",
+  companyMine: "你的公司",
+  companyDirectoryOnly: "只有目錄裡的公司會出現在跨公司統計;自訂公司永遠不具名。",
+  companyPrivacy: "選公司只是用來配對同事,DB 不存公司名、你的紀錄只綁暱稱。",
+  copyCode: "複製代碼",
   copied: "已複製",
+
+  // 在職/離職自報
+  employment: "任職狀態",
+  employmentCurrent: "在職",
+  employmentFormer: "離職",
+  employmentHint: "離職後不列入公司統計,但你自己的摸魚紀錄還在。",
+  formerBadge: "離職",
+
+  // 跨公司統計(k-anon:≥5 人才顯示聚合、不點名個人)
+  crossCompany: "各公司本週摸魚",
+  crossCompanyHint: "只顯示 5 人以上的公司聚合,永遠不點名個人。人均排序。",
+  crossCompanyEmpty: "還沒有公司達到 5 人門檻 —— 揪滿 5 個同事,你們公司就會上榜。",
+  crossOtherCompany: "其他公司",
   weekBoard: "本週摸魚排行",
   boardAll: "全公司",
   boardMine: "我的隊伍",

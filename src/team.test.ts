@@ -22,6 +22,7 @@ const member = (
   handle,
   company_code: "company-1",
   team,
+  employment: "current",
   last_seen_at: now - seenAgo,
 });
 

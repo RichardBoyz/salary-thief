@@ -27,8 +27,15 @@ type State = {
    * 一列。有 persist,重新整理不會弄丟,server 上那筆 open event 關得掉。
    */
   activeId: string | null;
+  /**
+   * 自己公司的顯示名,只存在本機、永不上傳。目錄公司靠 companies.ts 反查真名,
+   * 但自訂公司 DB 只有 uuid、反查不到,就靠這個本機標籤顯示。這樣 DB 仍然
+   * 「不存公司名」—— 外洩看不出是哪家公司。
+   */
+  companyLabel: string | null;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
+  setCompanyLabel: (label: string | null) => void;
   startSlacking: () => void;
   stopSlacking: () => void;
 };
@@ -43,9 +50,11 @@ export const useStore = create<State>()(
       slackEvents: [],
       activeSince: null,
       activeId: null,
+      companyLabel: null,
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
+      setCompanyLabel: (companyLabel) => set({ companyLabel }),
 
       // crypto.randomUUID() 是瀏覽器原生的,不需要 uuid 套件。
       // id 在 client 端產生 → 兩台裝置合併時不會撞,聯集就是答案。

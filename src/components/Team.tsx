@@ -1,4 +1,11 @@
 import { useState } from "react";
+import {
+  companyName,
+  isDirectoryCompany,
+  normalizeCustom,
+  searchCompanies,
+  slugToUuid,
+} from "../companies";
 import { dur } from "../fmt";
 import { ratePerSecond } from "../money";
 import { useStore } from "../store";
@@ -7,12 +14,14 @@ import {
   react,
   saveProfile,
   sendMagicLink,
+  setEmployment,
   signInWithGoogle,
   signOut,
+  useCompanyRankings,
   useSession,
   useTeam,
 } from "../sync";
-import { EMOJIS, teamAggregates, type MemberState } from "../team";
+import { EMOJIS, teamAggregates, type Employment, type MemberState } from "../team";
 
 const input = "px-input";
 const btn = "px-btn px-4 py-2 text-crt-gold";
@@ -39,10 +48,7 @@ function Login() {
         <p className="mt-1 text-crt-dim">{t.loginDesc}</p>
       </div>
       <div>
-        <button
-          onClick={() => signInWithGoogle()}
-          className="px-btn w-full py-2.5 text-crt-gold"
-        >
+        <button onClick={() => signInWithGoogle()} className="px-btn w-full py-2.5 text-crt-gold">
           {t.loginGoogle}
         </button>
         <p className="mt-1.5 text-crt-dim">{t.loginGoogleHint}</p>
@@ -79,13 +85,24 @@ function Login() {
   );
 }
 
-/** 取代號 + 開/加入公司。公司沒有名字,只有匿名邀請碼 —— 「不存公司」是隱私硬約束 */
+/**
+ * 取代號 + 選公司。公司從真實目錄選(或自訂),房間鍵由公司名決定性導出
+ * —— 兩個同事各自選台積電就同房,不用互傳碼。DB 只存 uuid、不存公司名;
+ * 自訂公司的顯示名只記在本機(setCompanyLabel)。
+ */
 function Setup({ onDone }: { onDone: () => void }) {
   const [handle, setHandle] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const [query, setQuery] = useState("");
+  const [custom, setCustom] = useState("");
+  const setCompanyLabel = useStore((s) => s.setCompanyLabel);
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
-  const submit = (companyCode: string) =>
-    saveProfile(handle.trim(), companyCode, null).then(onDone);
+  const results = searchCompanies(query).slice(0, 8);
+
+  const join = (code: string, label: string) => {
+    setCompanyLabel(label);
+    saveProfile(handle.trim(), code, null).then(onDone);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-crt-white">{t.setupTitle}</h2>
@@ -96,26 +113,123 @@ function Setup({ onDone }: { onDone: () => void }) {
         placeholder={t.setupHandlePlaceholder}
         className={input}
       />
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <button disabled={!ok} onClick={() => submit(crypto.randomUUID())} className={btn}>
-          {t.setupCreate}
-        </button>
-        <div className="flex flex-1 gap-2">
+
+      <div className="flex flex-col gap-2">
+        <span className="text-crt-dim">{t.companyPick}</span>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t.companySearch}
+          className={input}
+        />
+        <ul className="flex flex-col gap-1">
+          {results.map((c) => (
+            <li key={c.slug}>
+              <button
+                disabled={!ok}
+                onClick={() => join(slugToUuid(c.slug), c.name)}
+                className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-crt-white hover:bg-crt-bg disabled:opacity-40"
+              >
+                <span className="flex-1">{c.name}</span>
+                {c.aka && <span className="text-[10px] text-crt-dim">{c.aka}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <form
+        className="flex flex-col gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const name = custom.trim();
+          if (!ok || name.length < 2) return;
+          join(slugToUuid(normalizeCustom(name)), name);
+        }}
+      >
+        <span className="text-crt-dim">{t.companyCustomHint}</span>
+        <div className="flex gap-2">
           <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-            placeholder={t.setupJoinPlaceholder}
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            maxLength={30}
+            placeholder={t.companyCustomPlaceholder}
             className={input}
           />
-          <button
-            disabled={!ok || joinCode.trim().length < 8}
-            onClick={() => submit(joinCode.trim())}
-            className={btn}
-          >
-            {t.setupJoin}
+          <button type="submit" className={btn} disabled={!ok || custom.trim().length < 2}>
+            {t.companyJoin}
           </button>
         </div>
+      </form>
+
+      <p className="text-crt-dim">{t.companyPrivacy}</p>
+    </div>
+  );
+}
+
+/** 在職/離職切換 */
+function EmploymentToggle({
+  value,
+  onChange,
+}: {
+  value: Employment;
+  onChange: (e: Employment) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-crt-dim">{t.employment}</span>
+      <div className="flex gap-1">
+        {(["current", "former"] as const).map((e) => (
+          <button
+            key={e}
+            onClick={() => onChange(e)}
+            className={`px-2.5 py-1 text-xs ${
+              value === e ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
+            }`}
+          >
+            {e === "current" ? t.employmentCurrent : t.employmentFormer}
+          </button>
+        ))}
       </div>
+      <span className="text-[10px] text-crt-dim">{t.employmentHint}</span>
+    </div>
+  );
+}
+
+/** 各公司本週摸魚:k-anon 聚合(server 只回 ≥5 人),名字靠 client 目錄反查 */
+function CrossCompany({ myCode }: { myCode: string | null }) {
+  const rankings = useCompanyRankings(60_000);
+  const rows = [...rankings]
+    .map((r) => ({ ...r, perCap: r.members > 0 ? r.total_ms / r.members : 0 }))
+    .sort((a, b) => b.perCap - a.perCap);
+  return (
+    <div>
+      <div className="mb-2 text-crt-dim">{t.crossCompany}</div>
+      {rows.length === 0 ? (
+        <p className="text-crt-dim">{t.crossCompanyEmpty}</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {rows.map((r, i) => (
+            <li
+              key={r.company_code}
+              className={`flex items-center gap-3 px-3 py-2 text-sm ${
+                r.company_code === myCode ? "px-row-me" : "px-row"
+              }`}
+            >
+              <span className="w-5 text-right tabular-nums text-crt-dim">{i + 1}</span>
+              <span className="flex-1 truncate text-crt-white">
+                {/* 只有目錄公司具名;自訂公司即使湊滿 5 人也只顯示「其他公司」 */}
+                {isDirectoryCompany(r.company_code) ? companyName(r.company_code) : t.crossOtherCompany}
+              </span>
+              <span className="text-crt-dim">{r.members} {t.membersUnit}</span>
+              <span className="text-xs tabular-nums text-amber-400/80">
+                {t.perCap} {dur(r.perCap)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1.5 text-[10px] text-crt-dim">{t.crossCompanyHint}</p>
     </div>
   );
 }
@@ -123,8 +237,8 @@ function Setup({ onDone }: { onDone: () => void }) {
 export default function Team({ onBack }: { onBack: () => void }) {
   const session = useSession();
   const cfg = useStore((s) => s.config);
+  const companyLabel = useStore((s) => s.companyLabel);
   const team = useTeam(30_000);
-  const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState(false);
   const [teamInput, setTeamInput] = useState("");
   const [boardMine, setBoardMine] = useState(false);
@@ -137,13 +251,11 @@ export default function Team({ onBack }: { onBack: () => void }) {
   const received = (team?.reactions ?? []).filter(
     (r) => r.from_user !== me && eventOwner.get(r.event_id) === me,
   );
-  // 隊伍清單 = 同公司 distinct team。不開 teams 表,標籤即隊伍
   const teamNames = [
     ...new Set((team?.members ?? []).map((m) => m.team).filter((x): x is string => !!x)),
   ].sort();
   const aggregates = teamAggregates(team?.rows ?? []);
   const boardRows = (team?.rows ?? []).filter((r) => !boardMine || r.team === myTeam);
-
   const teamTag = (name: string | null) => name ?? t.lobby;
 
   return (
@@ -176,20 +288,10 @@ export default function Team({ onBack }: { onBack: () => void }) {
       {session && profile?.company_code && !changing && (
         <>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-crt-dim">{t.companyCode}</span>
-            <code className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-gold">
-              {profile.company_code}
-            </code>
-            <button
-              className={btnGhost}
-              onClick={() => {
-                navigator.clipboard.writeText(profile.company_code ?? "");
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
-            >
-              {copied ? t.copied : t.copyCode}
-            </button>
+            <span className="text-crt-dim">{t.companyMine}</span>
+            <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
+              {companyName(profile.company_code, companyLabel)}
+            </span>
             <button className={btnGhost} onClick={() => setChanging(true)}>
               {t.changeCompany}
             </button>
@@ -198,13 +300,16 @@ export default function Team({ onBack }: { onBack: () => void }) {
             </button>
           </div>
 
+          <EmploymentToggle
+            value={profile.employment}
+            onChange={(e) => setEmployment(e).then(() => team!.refresh())}
+          />
+
           {/* 我的隊伍:標籤即隊伍,datalist 給既有隊名,打新名字就是開新隊 */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-crt-dim">{t.myTeam}</span>
             {myTeam ? (
-              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-white">
-                {myTeam}
-              </span>
+              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-white">{myTeam}</span>
             ) : (
               <span className="text-crt-dim">{t.teamNone}</span>
             )}
@@ -214,7 +319,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
                 e.preventDefault();
                 const name = teamInput.trim();
                 if (!name || !profile) return;
-                saveProfile(profile.handle, profile.company_code, name).then(() => {
+                saveProfile(profile.handle, profile.company_code, name, profile.employment).then(() => {
                   setTeamInput("");
                   team!.refresh();
                 });
@@ -241,15 +346,15 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
           <div className="px-panel px-4 py-3 text-sm">
             <span className="text-crt-dim">{t.teamTotal} </span>
-            <span className="tabular-nums text-crt-gold">
-              {dur(team!.totalMs)}
-            </span>
+            <span className="tabular-nums text-crt-gold">{dur(team!.totalMs)}</span>
             <span className="ml-2 text-crt-dim">
               {t.teamTotalPrivate}$
               {Math.round((team!.totalMs / 1000) * ratePerSecond(cfg, Date.now())).toLocaleString()}
               {t.onlyYouSee}
             </span>
           </div>
+
+          <CrossCompany myCode={profile.company_code} />
 
           {aggregates.length > 1 && (
             <div>
@@ -259,16 +364,12 @@ export default function Team({ onBack }: { onBack: () => void }) {
                   <li
                     key={a.team ?? "__lobby"}
                     className={`flex items-center gap-3 px-3 py-2 text-sm ${
-                      a.team === myTeam
-                        ? "px-row-me"
-                        : "px-row"
+                      a.team === myTeam ? "px-row-me" : "px-row"
                     }`}
                   >
                     <span className="w-5 text-right tabular-nums text-crt-dim">{i + 1}</span>
                     <span className="flex-1 truncate text-crt-white">{teamTag(a.team)}</span>
-                    <span className="text-crt-dim">
-                      {a.members} {t.membersUnit}
-                    </span>
+                    <span className="text-crt-dim">{a.members} {t.membersUnit}</span>
                     <span className="tabular-nums text-crt-gold">{dur(a.totalMs)}</span>
                     <span className="text-xs tabular-nums text-amber-400/80">
                       {t.perCap} {dur(a.perCapMs)}
@@ -303,23 +404,21 @@ export default function Team({ onBack }: { onBack: () => void }) {
                 <li
                   key={r.userId}
                   className={`flex items-center gap-3 px-3 py-2 ${
-                    r.userId === me
-                      ? "px-row-me"
-                      : "px-row"
-                  }`}
+                    r.userId === me ? "px-row-me" : "px-row"
+                  } ${r.employment === "former" ? "opacity-55" : ""}`}
                 >
-                  <span className="w-5 text-right text-sm tabular-nums text-crt-dim">
-                    {i + 1}
-                  </span>
-                  <span
-                    className={`size-2 ${stateDot[r.state]}`}
-                    title={stateLabel[r.state]}
-                  />
+                  <span className="w-5 text-right text-sm tabular-nums text-crt-dim">{i + 1}</span>
+                  <span className={`size-2 ${stateDot[r.state]}`} title={stateLabel[r.state]} />
                   <span className="flex-1 truncate text-sm text-crt-white">
                     {r.handle}
                     <span className="ml-2 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-dim">
                       {teamTag(r.team)}
                     </span>
+                    {r.employment === "former" && (
+                      <span className="ml-1 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-red">
+                        {t.formerBadge}
+                      </span>
+                    )}
                   </span>
                   {r.fishes > 0 && (
                     <span className="text-xs tabular-nums text-crt-dim" title={t.fishToday}>
@@ -344,9 +443,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
                 </li>
               ))}
             </ul>
-            {(team?.rows.length ?? 0) <= 1 && (
-              <p className="mt-3 text-crt-dim">{t.noTeammates}</p>
-            )}
+            {(team?.rows.length ?? 0) <= 1 && <p className="mt-3 text-crt-dim">{t.noTeammates}</p>}
           </div>
 
           {received.length > 0 && (

@@ -3,13 +3,17 @@
 import { unionMs, weekStart, type SlackEvent } from "./slack";
 
 // 跟 supabase 三張表一一對應(schema.sql),時間都是 epoch ms
+export type Employment = "current" | "former";
+
 export type ProfileRow = {
   user_id: string;
   handle: string;
-  /** 匿名邀請碼。公司沒有名字 —— 「不存公司」是隱私硬約束 */
+  /** 公司房間鍵(uuid)。真實公司靠 companies.ts 反查名字,DB 不存名字 */
   company_code: string | null;
   /** 隊伍是標籤不是實體。null = 還沒選隊,在大廳 */
   team: string | null;
+  /** 在職/離職自報。離職者不列入公司統計 */
+  employment: Employment;
   last_seen_at: number;
 };
 export type EventRow = {
@@ -36,6 +40,7 @@ export type Standing = {
   userId: string;
   handle: string;
   team: string | null;
+  employment: Employment;
   state: MemberState;
   /** 本週摸魚毫秒(摸魚中的那段算到 now) */
   weekMs: number;
@@ -84,6 +89,7 @@ export function standings(
         userId: m.user_id,
         handle: m.handle,
         team: m.team,
+        employment: m.employment,
         state: (!online ? "offline" : open ? "slacking" : "working") as MemberState,
         // unionMs 不用 totalMs:排行榜跨公司可見,重疊事件求和會被灌水虛報
         weekMs: unionMs(clipped, from, now),
@@ -124,6 +130,16 @@ export function teamAggregates(rows: Standing[]): TeamAggregate[] {
     })
     .sort((a, b) => b.perCapMs - a.perCapMs);
 }
+
+/**
+ * 跨公司排行的一列。company_rankings() RPC 的回傳型別 —— 只有聚合,
+ * 沒有個人。company_code 靠 client 的 companies.ts 反查名字。
+ */
+export type CompanyRanking = {
+  company_code: string;
+  members: number;
+  total_ms: number;
+};
 
 // schema.sql 的 emoji 白名單是同一份 —— 改這裡要一起改 DB 的 check
 export const EMOJIS = ["👍", "🔥", "🐟", "👀", "😂", "🫡"] as const;
