@@ -62,6 +62,39 @@ export const tryMove = (p: Pos, dx: number, dy: number): Pos => {
 };
 
 /**
+ * BFS 找從 from 到 to 的路徑,回傳步驟座標陣列(不含 from,含 to)。
+ * 走不到或 to 不可走就回空陣列。給手機 tap-to-move 用 —— 點一格就走過去。
+ * 地圖才 20×12,BFS 成本可以忽略。
+ */
+export const pathTo = (from: Pos, to: Pos): Pos[] => {
+  if (!walkable(to)) return [];
+  if (from.x === to.x && from.y === to.y) return [];
+  const key = (p: Pos) => `${p.x},${p.y}`;
+  const queue: Pos[] = [from];
+  const prev = new Map<string, Pos | null>([[key(from), null]]);
+  while (queue.length) {
+    const cur = queue.shift()!;
+    if (cur.x === to.x && cur.y === to.y) {
+      const path: Pos[] = [];
+      let step: Pos | null = cur;
+      while (step && !(step.x === from.x && step.y === from.y)) {
+        path.unshift(step);
+        step = prev.get(key(step)) ?? null;
+      }
+      return path;
+    }
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+      const next = { x: cur.x + dx, y: cur.y + dy };
+      if (walkable(next) && !prev.has(key(next))) {
+        prev.set(key(next), cur);
+        queue.push(next);
+      }
+    }
+  }
+  return [];
+};
+
+/**
  * 同事 avatar 的站位。上班中 → 座位,摸魚中 → 茶水間/沙發,滿了站走道。
  * 同事的走位不同步(PLAN Phase 4),他們只會在狀態改變時「走」到對應區域。
  */

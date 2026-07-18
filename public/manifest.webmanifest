@@ -1,0 +1,13 @@
+{
+  "name": "薪水小偷 Salary Thief",
+  "short_name": "薪水小偷",
+  "description": "即時告訴你今天坐在這裡已經賺了多少錢。",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#16181d",
+  "theme_color": "#16181d",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

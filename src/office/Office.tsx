@@ -9,6 +9,7 @@ import { useNow } from "../useNow";
 import {
   COLS,
   FLOOR_TILES,
+  pathTo,
   RAW,
   ROWS,
   SPAWN_BREAK,
@@ -166,6 +167,10 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const [facing, setFacing] = useState(1);
   const [moving, setMoving] = useState(false);
   const pressed = useRef(new Set<string>());
+  const posRef = useRef(pos);
+  posRef.current = pos;
+  // 手機 tap-to-move:點一格 → BFS 算好路徑塞這裡,interval 一格一格消化
+  const path = useRef<Pos[]>([]);
 
   useEffect(() => {
     const step = (k: string) => {
@@ -177,7 +182,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
       const k = e.key.toLowerCase();
       if (!(k in DIRS)) return;
       e.preventDefault(); // 方向鍵不捲頁面
-      // e.repeat 靠 pressed 擋掉:OS 的自動重複不算新按鍵,節奏由 interval 控制
+      path.current = []; // 鍵盤介入就取消 tap 走路
       if (!pressed.current.has(k)) {
         pressed.current.add(k);
         setMoving(true);
@@ -186,12 +191,21 @@ export default function Office({ onBack }: { onBack: () => void }) {
     };
     const up = (e: KeyboardEvent) => {
       pressed.current.delete(e.key.toLowerCase());
-      if (pressed.current.size === 0) setMoving(false);
+      if (pressed.current.size === 0 && path.current.length === 0) setMoving(false);
     };
-    // 按著不放:固定節奏一格一格走
+    // 按著不放 / tap 路徑:固定節奏一格一格走。鍵盤優先,其次消化 tap 路徑
     const id = setInterval(() => {
       const k = [...pressed.current][0];
-      if (k) step(k);
+      if (k) {
+        step(k);
+      } else if (path.current.length) {
+        const next = path.current.shift()!;
+        if (next.x !== posRef.current.x) setFacing(next.x > posRef.current.x ? 1 : -1);
+        setPos(next);
+        setMoving(true);
+      } else {
+        setMoving(false);
+      }
     }, 140);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -201,6 +215,15 @@ export default function Office({ onBack }: { onBack: () => void }) {
       window.removeEventListener("keyup", up);
     };
   }, []);
+
+  // 點/觸控地圖某一格 → 走過去(BFS)。座標沒縮放(1px=1格線性),直接換算
+  const tapMove: React.MouseEventHandler = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const tx = Math.floor((e.clientX - rect.left) / TILE);
+    const ty = Math.floor((e.clientY - rect.top) / TILE);
+    const p = pathTo(posRef.current, { x: tx, y: ty });
+    if (p.length) path.current = p;
+  };
 
   // 魚點:今天的時刻表由伺服器種子決定,只在自己房間出現
   const { spots, refresh: refreshSpots } = useSpots();
@@ -322,8 +345,9 @@ export default function Office({ onBack }: { onBack: () => void }) {
 
       <div className="px-bevel overflow-x-auto">
         <div
-          className="relative"
-          style={{ width: COLS * TILE, height: ROWS * TILE }}
+          className="relative cursor-pointer select-none"
+          style={{ width: COLS * TILE, height: ROWS * TILE, touchAction: "manipulation" }}
+          onClick={tapMove}
         >
           {map}
           {/* 魚點只長在自己房間。站上去 = 摸魚 + 抓魚 */}

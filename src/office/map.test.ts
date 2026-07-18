@@ -3,6 +3,7 @@ import {
   COLS,
   RAW,
   ROWS,
+  pathTo,
   SPAWN_BREAK,
   SPAWN_DESK,
   SPAWN_VISIT,
@@ -83,5 +84,34 @@ describe("tryMove", () => {
   it("地圖外當牆:就算資料壞掉指到外面,也走不出去", () => {
     const p = { x: 0, y: 0 };
     expect(tryMove(p, -1, -1)).toBe(p);
+  });
+});
+
+describe("pathTo(手機 tap-to-move)", () => {
+  it("直線路徑:步數 = 曼哈頓距離,每步都可走", () => {
+    const from = { x: 3, y: 4 };
+    const to = { x: 7, y: 4 };
+    const path = pathTo(from, to);
+    expect(path.length).toBe(4);
+    expect(path.at(-1)).toEqual(to);
+    for (const p of path) expect(walkable(p)).toBe(true);
+  });
+
+  it("每一步都跟前一步相鄰(沒有跳格)", () => {
+    const path = pathTo({ x: 2, y: 3 }, { x: 15, y: 8 });
+    let prev = { x: 2, y: 3 };
+    for (const p of path) {
+      expect(Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y)).toBe(1);
+      prev = p;
+    }
+    expect(path.at(-1)).toEqual({ x: 15, y: 8 });
+  });
+
+  it("目標是牆 → 空路徑(點不進去)", () => {
+    expect(pathTo({ x: 2, y: 3 }, { x: 0, y: 0 })).toEqual([]);
+  });
+
+  it("原地不動 → 空路徑", () => {
+    expect(pathTo({ x: 5, y: 5 }, { x: 5, y: 5 })).toEqual([]);
   });
 });
