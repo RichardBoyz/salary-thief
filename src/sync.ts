@@ -66,20 +66,26 @@ export async function fetchMyProfile(): Promise<ProfileRow | null> {
   return data;
 }
 
-export async function saveProfile(handle: string, teamCode: string | null) {
+export async function saveProfile(
+  handle: string,
+  companyCode: string | null,
+  team: string | null,
+) {
   const uid = (await sb.auth.getSession()).data.session?.user.id;
   if (!uid) return;
   await sb.from("profiles").upsert({
     user_id: uid,
     handle,
-    team_code: teamCode,
+    company_code: companyCode,
+    team,
     last_seen_at: Date.now(),
   });
-  // 入隊時把歷史事件補上隊伍碼,不然入隊前偷的時數不會出現在榜上
-  if (teamCode) {
+  // 入司時把歷史事件補上公司碼,不然加入前偷的時數不會出現在榜上。
+  // 隊伍不用補 —— 事件表不存隊,歸屬看人現在的隊(換組歷史帶著走)
+  if (companyCode) {
     await sb
       .from("slack_events")
-      .update({ team_code: teamCode })
+      .update({ company_code: companyCode })
       .eq("user_id", uid)
       .then(({ error }) => error && warn("backfill")(error));
   }
@@ -102,7 +108,7 @@ export async function pushLocalEvents() {
     .map((e) => ({
       id: e.id,
       user_id: session.user.id,
-      team_code: profile?.team_code ?? null,
+      company_code: profile?.company_code ?? null,
       started_at: e.startedAt,
       ended_at: e.endedAt,
     }));
@@ -110,7 +116,7 @@ export async function pushLocalEvents() {
     rows.push({
       id: s.activeId,
       user_id: session.user.id,
-      team_code: profile?.team_code ?? null,
+      company_code: profile?.company_code ?? null,
       started_at: s.activeSince,
       ended_at: null as unknown as number,
     });
@@ -139,7 +145,7 @@ export function watchStore() {
           .upsert({
             id: state.activeId,
             user_id: data.session.user.id,
-            team_code: profile?.team_code ?? null,
+            company_code: profile?.company_code ?? null,
             started_at: state.activeSince,
             ended_at: null,
           })
@@ -219,7 +225,7 @@ export async function react(eventId: string, emoji: string) {
     .from("reactions")
     .insert({
       event_id: eventId,
-      team_code: profile?.team_code ?? null,
+      company_code: profile?.company_code ?? null,
       from_user: session.user.id,
       emoji,
       created_at: Date.now(),

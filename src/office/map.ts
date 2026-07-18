@@ -43,6 +43,8 @@ const find = (ch: string): Pos => {
 /** 進辦公室時的出生點:工作中站座位,摸魚中站茶水間 */
 export const SPAWN_DESK = find("y");
 export const SPAWN_BREAK = find("b");
+/** 串門子(進別隊房間)的出生點:門口附近的走道,不是任何人的座位 */
+export const SPAWN_VISIT: Pos = { x: 10, y: 5 };
 
 /** 撞牆就站在原地。回傳同一個物件參考 = 沒動,呼叫端可以直接比較 */
 export const tryMove = (p: Pos, dx: number, dy: number): Pos => {

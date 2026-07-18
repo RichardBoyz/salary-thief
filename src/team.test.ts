@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ONLINE_MS,
   standings,
+  teamAggregates,
   teamTotalMs,
   type EventRow,
   type ProfileRow,
@@ -11,10 +12,16 @@ const MIN = 60_000;
 // 2026-07-17 是星期五,本週從 07-12(日)開始
 const now = new Date("2026-07-17T15:00:00").getTime();
 
-const member = (id: string, handle: string, seenAgo = 0): ProfileRow => ({
+const member = (
+  id: string,
+  handle: string,
+  seenAgo = 0,
+  team: string | null = null,
+): ProfileRow => ({
   user_id: id,
   handle,
-  team_code: "team-1",
+  company_code: "company-1",
+  team,
   last_seen_at: now - seenAgo,
 });
 
@@ -91,12 +98,43 @@ describe("standings", () => {
 });
 
 describe("teamTotalMs", () => {
-  it("全隊加總", () => {
+  it("全公司加總", () => {
     const rows = standings(
       [member("a", "阿明"), member("b", "小華")],
       [ev("a", 200, 30), ev("b", 200, 60)],
       now,
     );
     expect(teamTotalMs(rows)).toBe(90 * MIN);
+  });
+});
+
+describe("teamAggregates(隊伍對抗)", () => {
+  it("依隊分組、比人均不比總量 —— 大隊總量高但人均低就是輸", () => {
+    const rows = standings(
+      [
+        member("a", "阿明", 0, "後端"),
+        member("b", "小華", 0, "後端"),
+        member("c", "老王", 0, "行銷"),
+      ],
+      // 後端兩人共 60 分(人均 30),行銷一人 45 分(人均 45)→ 行銷贏
+      [ev("a", 200, 40), ev("b", 200, 20), ev("c", 200, 45)],
+      now,
+    );
+    const agg = teamAggregates(rows);
+    expect(agg.map((t) => t.team)).toEqual(["行銷", "後端"]);
+    expect(agg[1].totalMs).toBe(60 * MIN);
+    expect(agg[1].members).toBe(2);
+    expect(agg[1].perCapMs).toBe(30 * MIN);
+  });
+
+  it("沒選隊的人歸在 null(大廳)那組", () => {
+    const rows = standings(
+      [member("a", "阿明", 0, "後端"), member("b", "遊魂")],
+      [ev("b", 200, 10)],
+      now,
+    );
+    const lobby = teamAggregates(rows).find((t) => t.team === null);
+    expect(lobby?.members).toBe(1);
+    expect(lobby?.totalMs).toBe(10 * MIN);
   });
 });

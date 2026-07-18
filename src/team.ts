@@ -6,7 +6,10 @@ import { totalMs, weekStart, type SlackEvent } from "./slack";
 export type ProfileRow = {
   user_id: string;
   handle: string;
-  team_code: string | null;
+  /** 匿名邀請碼。公司沒有名字 —— 「不存公司」是隱私硬約束 */
+  company_code: string | null;
+  /** 隊伍是標籤不是實體。null = 還沒選隊,在大廳 */
+  team: string | null;
   last_seen_at: number;
 };
 export type EventRow = {
@@ -31,6 +34,7 @@ export type MemberState = "slacking" | "working" | "offline";
 export type Standing = {
   userId: string;
   handle: string;
+  team: string | null;
   state: MemberState;
   /** 本週摸魚毫秒(摸魚中的那段算到 now) */
   weekMs: number;
@@ -71,6 +75,7 @@ export function standings(
       return {
         userId: m.user_id,
         handle: m.handle,
+        team: m.team,
         state: (!online ? "offline" : open ? "slacking" : "working") as MemberState,
         weekMs: totalMs(clipped, from, now),
         latestEventId: latest?.id ?? null,
@@ -79,9 +84,36 @@ export function standings(
     .sort((a, b) => b.weekMs - a.weekMs);
 }
 
-/** 本週全隊總偷(毫秒) */
+/** 本週全公司總偷(毫秒) */
 export const teamTotalMs = (rows: Standing[]): number =>
   rows.reduce((sum, r) => sum + r.weekMs, 0);
+
+export type TeamAggregate = {
+  /** null = 大廳(還沒選隊的人) */
+  team: string | null;
+  members: number;
+  totalMs: number;
+  perCapMs: number;
+};
+
+/**
+ * 隊伍對抗。事件的隊伍歸屬看「人現在的隊」—— 換組歷史帶著走,事件表上
+ * 不存隊伍。排序比人均不比總量,不然大隊躺著贏。
+ */
+export function teamAggregates(rows: Standing[]): TeamAggregate[] {
+  const byTeam = new Map<string | null, Standing[]>();
+  for (const r of rows) {
+    const list = byTeam.get(r.team) ?? [];
+    list.push(r);
+    byTeam.set(r.team, list);
+  }
+  return [...byTeam.entries()]
+    .map(([team, list]) => {
+      const totalMs = list.reduce((s, r) => s + r.weekMs, 0);
+      return { team, members: list.length, totalMs, perCapMs: totalMs / list.length };
+    })
+    .sort((a, b) => b.perCapMs - a.perCapMs);
+}
 
 // schema.sql 的 emoji 白名單是同一份 —— 改這裡要一起改 DB 的 check
 export const EMOJIS = ["👍", "🔥", "🐟", "👀", "😂", "🫡"] as const;

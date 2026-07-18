@@ -12,6 +12,7 @@ import {
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
+  SPAWN_VISIT,
   SPOTS,
   TILE,
   tryMove,
@@ -130,7 +131,20 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const now = useNow();
   const session = useSession();
   const team = useTeam(45_000); // 沒登入回傳 null,辦公室就是單人版
-  const teammates = placeTeammates(team?.rows ?? [], session?.user.id);
+
+  // 一隊一房。你預設在自己隊的房間;串門子 = 切到別隊房間旁觀。
+  // 房間清單 = 公司裡實際存在的隊(有沒選隊的人就多一間大廳)。
+  const myTeam = team?.profile?.team ?? null;
+  const [visitingRaw, setVisiting] = useState<string | null | "OWN">("OWN");
+  const room = visitingRaw === "OWN" ? myTeam : visitingRaw;
+  const isOwnRoom = room === myTeam;
+  const roomNames = [
+    ...new Set((team?.rows ?? []).map((r) => r.team)),
+  ].sort((a, b) => (a === myTeam ? -1 : b === myTeam ? 1 : (a ?? "").localeCompare(b ?? "")));
+  const teammates = placeTeammates(
+    (team?.rows ?? []).filter((r) => r.team === room),
+    session?.user.id,
+  );
 
   // 出生點跟著狀態走:摸魚中進來就站在茶水間,不會出現「人在座位卻在摸魚」
   const [pos, setPos] = useState<Pos>(activeSince ? SPAWN_BREAK : SPAWN_DESK);
@@ -175,11 +189,21 @@ export default function Office({ onBack }: { onBack: () => void }) {
 
   // 走位的語意:茶水間 = 開始摸魚,自己座位 = 結束,走廊中性(路過不誤觸)。
   // 辦公室是 Phase 2 那顆按鈕的皮,動的是同一個 store。
+  // 只在自己房間生效 —— 串門子是旁觀,別隊的茶水間不是你的茶水間。
   const zone = zoneAt(pos);
   useEffect(() => {
+    if (!isOwnRoom) return;
     if (zone === "break" && activeSince === null) startSlacking();
     if (zone === "desk" && activeSince !== null) stopSlacking();
-  }, [zone, activeSince, startSlacking, stopSlacking]);
+  }, [zone, activeSince, isOwnRoom, startSlacking, stopSlacking]);
+
+  // 換房間重生:回自己房照狀態站位,去別隊房站門口走道。
+  // deps 只有 room —— 摸魚開始/結束不該把人瞬移回出生點
+  useEffect(() => {
+    const s = useStore.getState();
+    setPos(isOwnRoom ? (s.activeSince ? SPAWN_BREAK : SPAWN_DESK) : SPAWN_VISIT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room]);
 
   const map = useMemo(
     () => (
@@ -219,6 +243,29 @@ export default function Office({ onBack }: { onBack: () => void }) {
         </span>
       </div>
 
+      {/* 一隊一房,點分頁串門子。只有一間(或沒登入)就不顯示 */}
+      {roomNames.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1 text-xs">
+          <span className="mr-1 text-slate-600">{t.visitTabs}</span>
+          {roomNames.map((name) => (
+            <button
+              key={name ?? "__lobby"}
+              onClick={() => setVisiting(name === myTeam ? "OWN" : name)}
+              className={`rounded-lg px-2.5 py-1 transition ${
+                room === name
+                  ? "bg-slate-800 text-slate-100"
+                  : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"
+              }`}
+            >
+              {name ?? t.lobby}
+              {name === myTeam && (
+                <span className="ml-0.5 text-slate-500">{t.yourRoomSuffix}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <div
           className="relative"
@@ -249,13 +296,14 @@ export default function Office({ onBack }: { onBack: () => void }) {
               className="text-2xl drop-shadow"
               style={{ transform: `scaleX(${facing})` }}
             >
-              {moving ? "🚶" : "🧍"}
+              {/* 串門子時你是幽靈:對方看不到你,你也踩不動任何機關 */}
+              {!isOwnRoom ? "👻" : moving ? "🚶" : "🧍"}
             </span>
           </div>
         </div>
       </div>
 
-      <p className="text-xs text-slate-600">{t.officeHint}</p>
+      <p className="text-xs text-slate-600">{isOwnRoom ? t.officeHint : t.visitHint}</p>
     </div>
   );
 }

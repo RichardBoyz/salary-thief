@@ -12,7 +12,7 @@ import {
   useSession,
   useTeam,
 } from "../sync";
-import { EMOJIS, type MemberState } from "../team";
+import { EMOJIS, teamAggregates, type MemberState } from "../team";
 
 const input =
   "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100 outline-none transition focus:border-emerald-500";
@@ -50,7 +50,6 @@ function Login() {
         </button>
         <p className="mt-1.5 text-xs text-slate-600">{t.loginGoogleHint}</p>
       </div>
-
       {sent ? (
         <p className="rounded-lg border border-emerald-900 bg-emerald-950/50 px-3 py-2 text-sm text-emerald-400">
           {t.loginSent}
@@ -85,12 +84,13 @@ function Login() {
   );
 }
 
+/** 取代號 + 開/加入公司。公司沒有名字,只有匿名邀請碼 —— 「不存公司」是隱私硬約束 */
 function Setup({ onDone }: { onDone: () => void }) {
   const [handle, setHandle] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
-  const submit = (teamCode: string) =>
-    saveProfile(handle.trim(), teamCode).then(onDone);
+  const submit = (companyCode: string) =>
+    saveProfile(handle.trim(), companyCode, null).then(onDone);
   return (
     <div className="flex flex-col gap-4">
       <h2 className="font-semibold text-slate-100">{t.setupTitle}</h2>
@@ -131,14 +131,25 @@ export default function Team({ onBack }: { onBack: () => void }) {
   const team = useTeam(30_000);
   const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState(false);
+  const [teamInput, setTeamInput] = useState("");
+  const [boardMine, setBoardMine] = useState(false);
 
   const me = session?.user.id;
+  const profile = team?.profile ?? null;
+  const myTeam = profile?.team ?? null;
   const handleOf = new Map((team?.members ?? []).map((m) => [m.user_id, m.handle]));
   const eventOwner = new Map((team?.events ?? []).map((e) => [e.id, e.user_id]));
-  // 你收到的起鬨:別人的 reaction、目標是你的事件
   const received = (team?.reactions ?? []).filter(
     (r) => r.from_user !== me && eventOwner.get(r.event_id) === me,
   );
+  // 隊伍清單 = 同公司 distinct team。不開 teams 表,標籤即隊伍
+  const teamNames = [
+    ...new Set((team?.members ?? []).map((m) => m.team).filter((x): x is string => !!x)),
+  ].sort();
+  const aggregates = teamAggregates(team?.rows ?? []);
+  const boardRows = (team?.rows ?? []).filter((r) => !boardMine || r.team === myTeam);
+
+  const teamTag = (name: string | null) => name ?? t.lobby;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-6 py-12">
@@ -158,7 +169,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
       {!session && <Login />}
 
-      {session && team && (!team.profile || changing) && (
+      {session && team && (!profile?.company_code || changing) && (
         <Setup
           onDone={() => {
             setChanging(false);
@@ -167,17 +178,17 @@ export default function Team({ onBack }: { onBack: () => void }) {
         />
       )}
 
-      {session && team?.profile && !changing && (
+      {session && profile?.company_code && !changing && (
         <>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-slate-500">{t.teamCode}</span>
+            <span className="text-slate-500">{t.companyCode}</span>
             <code className="rounded bg-slate-900 px-2 py-1 text-xs text-slate-300">
-              {team.profile.team_code}
+              {profile.company_code}
             </code>
             <button
               className={btnGhost}
               onClick={() => {
-                navigator.clipboard.writeText(team.profile!.team_code ?? "");
+                navigator.clipboard.writeText(profile.company_code ?? "");
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
@@ -185,29 +196,115 @@ export default function Team({ onBack }: { onBack: () => void }) {
               {copied ? t.copied : t.copyCode}
             </button>
             <button className={btnGhost} onClick={() => setChanging(true)}>
-              {t.changeTeam}
+              {t.changeCompany}
             </button>
-            <button className={btnGhost} onClick={team.refresh}>
+            <button className={btnGhost} onClick={team!.refresh}>
               {t.refresh}
             </button>
+          </div>
+
+          {/* 我的隊伍:標籤即隊伍,datalist 給既有隊名,打新名字就是開新隊 */}
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-slate-500">{t.myTeam}</span>
+            {myTeam ? (
+              <span className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200">
+                {myTeam}
+              </span>
+            ) : (
+              <span className="text-xs text-slate-600">{t.teamNone}</span>
+            )}
+            <form
+              className="flex flex-1 gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const name = teamInput.trim();
+                if (!name || !profile) return;
+                saveProfile(profile.handle, profile.company_code, name).then(() => {
+                  setTeamInput("");
+                  team!.refresh();
+                });
+              }}
+            >
+              <input
+                list="team-names"
+                value={teamInput}
+                onChange={(e) => setTeamInput(e.target.value)}
+                maxLength={20}
+                placeholder={t.teamPickPlaceholder}
+                className={`${input} min-w-40 flex-1`}
+              />
+              <datalist id="team-names">
+                {teamNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+              <button type="submit" className={btn} disabled={!teamInput.trim()}>
+                {t.teamSave}
+              </button>
+            </form>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
             <span className="text-slate-500">{t.teamTotal} </span>
             <span className="font-semibold tabular-nums text-slate-100">
-              {dur(team.totalMs)}
+              {dur(team!.totalMs)}
             </span>
             <span className="ml-2 text-xs text-slate-600">
               {t.teamTotalPrivate}$
-              {Math.round((team.totalMs / 1000) * ratePerSecond(cfg, Date.now())).toLocaleString()}
+              {Math.round((team!.totalMs / 1000) * ratePerSecond(cfg, Date.now())).toLocaleString()}
               {t.onlyYouSee}
             </span>
           </div>
 
+          {aggregates.length > 1 && (
+            <div>
+              <div className="mb-2 text-xs text-slate-500">{t.teamVs}</div>
+              <ul className="flex flex-col gap-1.5">
+                {aggregates.map((a, i) => (
+                  <li
+                    key={a.team ?? "__lobby"}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
+                      a.team === myTeam
+                        ? "border-emerald-900 bg-emerald-950/30"
+                        : "border-slate-800 bg-slate-900/40"
+                    }`}
+                  >
+                    <span className="w-5 text-right tabular-nums text-slate-600">{i + 1}</span>
+                    <span className="flex-1 truncate text-slate-200">{teamTag(a.team)}</span>
+                    <span className="text-xs text-slate-600">
+                      {a.members} {t.membersUnit}
+                    </span>
+                    <span className="tabular-nums text-slate-400">{dur(a.totalMs)}</span>
+                    <span className="text-xs tabular-nums text-amber-400/80">
+                      {t.perCap} {dur(a.perCapMs)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div>
-            <div className="mb-2 text-xs text-slate-500">{t.weekBoard}</div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-slate-500">{t.weekBoard}</span>
+              <div className="flex gap-1 text-xs">
+                {([false, true] as const).map((mine) => (
+                  <button
+                    key={String(mine)}
+                    onClick={() => setBoardMine(mine)}
+                    className={`rounded px-2 py-1 transition ${
+                      boardMine === mine
+                        ? "bg-slate-800 text-slate-200"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {mine ? t.boardMine : t.boardAll}
+                  </button>
+                ))}
+              </div>
+            </div>
             <ul className="flex flex-col gap-1.5">
-              {team.rows.map((r, i) => (
+              {boardRows.map((r, i) => (
                 <li
                   key={r.userId}
                   className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
@@ -223,7 +320,12 @@ export default function Team({ onBack }: { onBack: () => void }) {
                     className={`size-2 rounded-full ${stateDot[r.state]}`}
                     title={stateLabel[r.state]}
                   />
-                  <span className="flex-1 truncate text-sm text-slate-200">{r.handle}</span>
+                  <span className="flex-1 truncate text-sm text-slate-200">
+                    {r.handle}
+                    <span className="ml-2 rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-500">
+                      {teamTag(r.team)}
+                    </span>
+                  </span>
                   <span className="text-sm tabular-nums text-slate-400">{dur(r.weekMs)}</span>
                   {r.userId !== me && r.latestEventId && (
                     <span className="flex gap-0.5">
@@ -242,7 +344,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
                 </li>
               ))}
             </ul>
-            {team.rows.length <= 1 && (
+            {(team?.rows.length ?? 0) <= 1 && (
               <p className="mt-3 text-sm text-slate-500">{t.noTeammates}</p>
             )}
           </div>

@@ -5,6 +5,7 @@ import {
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
+  SPAWN_VISIT,
   SPOTS,
   tryMove,
   walkable,
@@ -33,9 +34,11 @@ describe("地圖本身", () => {
     expect([...all].filter((c) => c === "b").length).toBeGreaterThan(0);
   });
 
-  it("兩個出生點都站得住", () => {
+  it("三個出生點都站得住,串門子出生點是中性走道", () => {
     expect(walkable(SPAWN_DESK)).toBe(true);
     expect(walkable(SPAWN_BREAK)).toBe(true);
+    expect(walkable(SPAWN_VISIT)).toBe(true);
+    expect(zoneAt(SPAWN_VISIT)).toBe("floor");
   });
 
   it("同事的每個站位都站得住 —— 改地圖字串時這條會擋住把人埋進牆裡", () => {
