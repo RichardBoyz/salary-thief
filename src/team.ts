@@ -1,6 +1,6 @@
 // 隊伍資料的純函式層。不 import supabase —— 網路歸 sync.ts,這裡只算數,
 // 所以可以直接餵假資料測試。
-import { totalMs, weekStart, type SlackEvent } from "./slack";
+import { unionMs, weekStart, type SlackEvent } from "./slack";
 
 // 跟 supabase 三張表一一對應(schema.sql),時間都是 epoch ms
 export type ProfileRow = {
@@ -85,7 +85,8 @@ export function standings(
         handle: m.handle,
         team: m.team,
         state: (!online ? "offline" : open ? "slacking" : "working") as MemberState,
-        weekMs: totalMs(clipped, from, now),
+        // unionMs 不用 totalMs:排行榜跨公司可見,重疊事件求和會被灌水虛報
+        weekMs: unionMs(clipped, from, now),
         fishes: fishByUser.get(m.user_id) ?? 0,
         latestEventId: latest?.id ?? null,
       };

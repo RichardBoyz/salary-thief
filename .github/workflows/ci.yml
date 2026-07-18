@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# 最小權限:CI 只需讀 repo,不需要寫。收斂預設 token 的權限面。
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest

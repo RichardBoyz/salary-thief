@@ -47,6 +47,34 @@ export const totalMs = (events: SlackEvent[], from: number, to: number): number 
   events.reduce((sum, e) => sum + overlap(e.startedAt, e.endedAt, from, to), 0);
 
 /**
+ * [from, to) 內的摸魚總毫秒,但重疊區間只算一次。
+ *
+ * totalMs 是純加總,對「自己看自己」夠用;但排行榜是跨公司可見的攻擊面 ——
+ * 惡意成員可以塞 100 筆都覆蓋整週的事件,用 sum 就虛報 100 倍。先把區間
+ * union 起來再算長度,結構上免疫這種灌水:你不可能同時摸兩次魚,重疊的
+ * 部分本來就只該算一次。誠實使用者的事件不重疊,union 的結果跟 sum 一樣。
+ */
+export const unionMs = (events: SlackEvent[], from: number, to: number): number => {
+  const clipped = events
+    .map((e) => [Math.max(e.startedAt, from), Math.min(e.endedAt, to)] as const)
+    .filter(([s, e]) => e > s)
+    .sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let curStart = 0;
+  let curEnd = 0;
+  for (const [s, e] of clipped) {
+    if (s > curEnd) {
+      total += curEnd - curStart;
+      curStart = s;
+      curEnd = e;
+    } else if (e > curEnd) {
+      curEnd = e;
+    }
+  }
+  return total + (curEnd - curStart);
+};
+
+/**
  * 每天摸魚幾毫秒。
  *
  * 一個事件會被拆到它實際跨過的每一天 —— 因為忘記按「結束」是這個 app 最
