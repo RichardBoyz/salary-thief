@@ -14,17 +14,14 @@ import {
 } from "../sync";
 import { EMOJIS, teamAggregates, type MemberState } from "../team";
 
-const input =
-  "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100 outline-none transition focus:border-emerald-500";
-const btn =
-  "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40";
-const btnGhost =
-  "rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200";
+const input = "px-input";
+const btn = "px-btn px-4 py-2 text-crt-gold";
+const btnGhost = "px-btn";
 
 const stateDot: Record<MemberState, string> = {
-  slacking: "bg-amber-400 animate-pulse",
-  working: "bg-emerald-400",
-  offline: "bg-slate-600",
+  slacking: "bg-crt-gold animate-pulse",
+  working: "bg-crt-green",
+  offline: "bg-crt-dim",
 };
 const stateLabel: Record<MemberState, string> = {
   slacking: t.officeSlacking,
@@ -38,25 +35,23 @@ function Login() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="font-semibold text-slate-100">{t.loginTitle}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t.loginDesc}</p>
+        <h2 className="text-crt-white">{t.loginTitle}</h2>
+        <p className="mt-1 text-crt-dim">{t.loginDesc}</p>
       </div>
       <div>
         <button
           onClick={() => signInWithGoogle()}
-          className="w-full rounded-lg bg-slate-100 py-2.5 text-sm font-medium text-slate-900 transition hover:bg-white"
+          className="px-btn w-full py-2.5 text-crt-gold"
         >
           {t.loginGoogle}
         </button>
-        <p className="mt-1.5 text-xs text-slate-600">{t.loginGoogleHint}</p>
+        <p className="mt-1.5 text-crt-dim">{t.loginGoogleHint}</p>
       </div>
       {sent ? (
-        <p className="rounded-lg border border-emerald-900 bg-emerald-950/50 px-3 py-2 text-sm text-emerald-400">
-          {t.loginSent}
-        </p>
+        <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-green">{t.loginSent}</p>
       ) : (
         <details className="text-sm">
-          <summary className="cursor-pointer text-slate-500">{t.loginOr}</summary>
+          <summary className="cursor-pointer text-crt-dim">{t.loginOr}</summary>
           <form
             className="mt-2 flex gap-2"
             onSubmit={(e) => {
@@ -79,7 +74,7 @@ function Login() {
           </form>
         </details>
       )}
-      <p className="text-xs text-slate-600">{t.loginPrivacy}</p>
+      <p className="text-crt-dim">{t.loginPrivacy}</p>
     </div>
   );
 }
@@ -93,7 +88,7 @@ function Setup({ onDone }: { onDone: () => void }) {
     saveProfile(handle.trim(), companyCode, null).then(onDone);
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="font-semibold text-slate-100">{t.setupTitle}</h2>
+      <h2 className="text-crt-white">{t.setupTitle}</h2>
       <input
         value={handle}
         onChange={(e) => setHandle(e.target.value)}
@@ -154,7 +149,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-6 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-100">{t.team}</h1>
+        <h1 className="text-2xl text-crt-white">{t.team}</h1>
         <div className="flex items-center gap-2">
           {session && (
             <button onClick={() => signOut()} className={btnGhost}>
@@ -181,8 +176,8 @@ export default function Team({ onBack }: { onBack: () => void }) {
       {session && profile?.company_code && !changing && (
         <>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-slate-500">{t.companyCode}</span>
-            <code className="rounded bg-slate-900 px-2 py-1 text-xs text-slate-300">
+            <span className="text-crt-dim">{t.companyCode}</span>
+            <code className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-gold">
               {profile.company_code}
             </code>
             <button
@@ -205,13 +200,13 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
           {/* 我的隊伍:標籤即隊伍,datalist 給既有隊名,打新名字就是開新隊 */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-slate-500">{t.myTeam}</span>
+            <span className="text-crt-dim">{t.myTeam}</span>
             {myTeam ? (
-              <span className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200">
+              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-white">
                 {myTeam}
               </span>
             ) : (
-              <span className="text-xs text-slate-600">{t.teamNone}</span>
+              <span className="text-crt-dim">{t.teamNone}</span>
             )}
             <form
               className="flex flex-1 gap-2"
@@ -244,12 +239,12 @@ export default function Team({ onBack }: { onBack: () => void }) {
             </form>
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
-            <span className="text-slate-500">{t.teamTotal} </span>
-            <span className="font-semibold tabular-nums text-slate-100">
+          <div className="px-panel px-4 py-3 text-sm">
+            <span className="text-crt-dim">{t.teamTotal} </span>
+            <span className="tabular-nums text-crt-gold">
               {dur(team!.totalMs)}
             </span>
-            <span className="ml-2 text-xs text-slate-600">
+            <span className="ml-2 text-crt-dim">
               {t.teamTotalPrivate}$
               {Math.round((team!.totalMs / 1000) * ratePerSecond(cfg, Date.now())).toLocaleString()}
               {t.onlyYouSee}
@@ -258,23 +253,23 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
           {aggregates.length > 1 && (
             <div>
-              <div className="mb-2 text-xs text-slate-500">{t.teamVs}</div>
+              <div className="mb-2 text-crt-dim">{t.teamVs}</div>
               <ul className="flex flex-col gap-1.5">
                 {aggregates.map((a, i) => (
                   <li
                     key={a.team ?? "__lobby"}
-                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
+                    className={`flex items-center gap-3 px-3 py-2 text-sm ${
                       a.team === myTeam
-                        ? "border-emerald-900 bg-emerald-950/30"
-                        : "border-slate-800 bg-slate-900/40"
+                        ? "px-row-me"
+                        : "px-row"
                     }`}
                   >
-                    <span className="w-5 text-right tabular-nums text-slate-600">{i + 1}</span>
-                    <span className="flex-1 truncate text-slate-200">{teamTag(a.team)}</span>
-                    <span className="text-xs text-slate-600">
+                    <span className="w-5 text-right tabular-nums text-crt-dim">{i + 1}</span>
+                    <span className="flex-1 truncate text-crt-white">{teamTag(a.team)}</span>
+                    <span className="text-crt-dim">
                       {a.members} {t.membersUnit}
                     </span>
-                    <span className="tabular-nums text-slate-400">{dur(a.totalMs)}</span>
+                    <span className="tabular-nums text-crt-gold">{dur(a.totalMs)}</span>
                     <span className="text-xs tabular-nums text-amber-400/80">
                       {t.perCap} {dur(a.perCapMs)}
                     </span>
@@ -286,16 +281,16 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs text-slate-500">{t.weekBoard}</span>
+              <span className="text-crt-dim">{t.weekBoard}</span>
               <div className="flex gap-1 text-xs">
                 {([false, true] as const).map((mine) => (
                   <button
                     key={String(mine)}
                     onClick={() => setBoardMine(mine)}
-                    className={`rounded px-2 py-1 transition ${
+                    className={`px-2 py-1 ${
                       boardMine === mine
-                        ? "bg-slate-800 text-slate-200"
-                        : "text-slate-500 hover:text-slate-300"
+                        ? "px-bevel-in bg-crt-deep text-crt-white"
+                        : "text-crt-dim hover:text-crt-white"
                     }`}
                   >
                     {mine ? t.boardMine : t.boardAll}
@@ -307,33 +302,33 @@ export default function Team({ onBack }: { onBack: () => void }) {
               {boardRows.map((r, i) => (
                 <li
                   key={r.userId}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
+                  className={`flex items-center gap-3 px-3 py-2 ${
                     r.userId === me
-                      ? "border-emerald-900 bg-emerald-950/30"
-                      : "border-slate-800 bg-slate-900/40"
+                      ? "px-row-me"
+                      : "px-row"
                   }`}
                 >
-                  <span className="w-5 text-right text-sm tabular-nums text-slate-600">
+                  <span className="w-5 text-right text-sm tabular-nums text-crt-dim">
                     {i + 1}
                   </span>
                   <span
-                    className={`size-2 rounded-full ${stateDot[r.state]}`}
+                    className={`size-2 ${stateDot[r.state]}`}
                     title={stateLabel[r.state]}
                   />
-                  <span className="flex-1 truncate text-sm text-slate-200">
+                  <span className="flex-1 truncate text-sm text-crt-white">
                     {r.handle}
-                    <span className="ml-2 rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-500">
+                    <span className="ml-2 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-dim">
                       {teamTag(r.team)}
                     </span>
                   </span>
-                  <span className="text-sm tabular-nums text-slate-400">{dur(r.weekMs)}</span>
+                  <span className="text-sm tabular-nums text-crt-gold">{dur(r.weekMs)}</span>
                   {r.userId !== me && r.latestEventId && (
                     <span className="flex gap-0.5">
                       {EMOJIS.slice(0, 3).map((e) => (
                         <button
                           key={e}
                           title={e}
-                          className="rounded px-1 text-sm opacity-50 transition hover:scale-125 hover:opacity-100"
+                          className="px-1 text-sm opacity-60 hover:opacity-100"
                           onClick={() => react(r.latestEventId!, e)}
                         >
                           {e}
@@ -345,13 +340,13 @@ export default function Team({ onBack }: { onBack: () => void }) {
               ))}
             </ul>
             {(team?.rows.length ?? 0) <= 1 && (
-              <p className="mt-3 text-sm text-slate-500">{t.noTeammates}</p>
+              <p className="mt-3 text-crt-dim">{t.noTeammates}</p>
             )}
           </div>
 
           {received.length > 0 && (
-            <div className="text-sm text-slate-400">
-              <span className="text-xs text-slate-500">{t.received}:</span>{" "}
+            <div className="text-crt-dim">
+              <span className="text-crt-dim">{t.received}:</span>{" "}
               {received.slice(0, 8).map((r) => (
                 <span key={r.id} className="mr-2">
                   {handleOf.get(r.from_user) ?? "?"} {r.emoji}

@@ -25,42 +25,24 @@ const countdown = (ms: number): string => {
   return `${pad(Math.floor(total / 3600))}:${pad(Math.floor(total / 60) % 60)}:${pad(total % 60)}`;
 };
 
-const style: Record<WorkState, { label: string; quip: string; dot: string; text: string; bar: string }> = {
-  before: {
-    label: t.stateBefore,
-    quip: t.quipBefore,
-    dot: "bg-slate-400",
-    text: "text-slate-400",
-    bar: "bg-slate-500",
-  },
+// 進度條永遠是金色 —— 它量的是錢,不是心情。狀態只染 label
+const style: Record<WorkState, { label: string; quip: string; dot: string; text: string }> = {
+  before: { label: t.stateBefore, quip: t.quipBefore, dot: "bg-crt-dim", text: "text-crt-dim" },
   working: {
     label: t.stateWorking,
     quip: t.quipWorking,
-    dot: "bg-emerald-400 animate-pulse",
-    text: "text-emerald-400",
-    bar: "bg-emerald-500",
+    dot: "bg-crt-green animate-pulse",
+    text: "text-crt-green",
   },
-  lunch: {
-    label: t.stateLunch,
-    quip: t.quipLunch,
-    dot: "bg-amber-400",
-    text: "text-amber-400",
-    bar: "bg-amber-500",
-  },
-  after: {
-    label: t.stateAfter,
-    quip: t.quipAfter,
-    dot: "bg-sky-400",
-    text: "text-sky-400",
-    bar: "bg-sky-500",
-  },
+  lunch: { label: t.stateLunch, quip: t.quipLunch, dot: "bg-crt-gold", text: "text-crt-gold" },
+  after: { label: t.stateAfter, quip: t.quipAfter, dot: "bg-crt-white", text: "text-crt-white" },
 };
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 font-semibold tabular-nums text-slate-200">{value}</div>
+    <div className="px-panel px-4 py-3">
+      <div className="text-crt-dim">{label}</div>
+      <div className="mt-1 tabular-nums text-crt-white">{value}</div>
     </div>
   );
 }
@@ -89,36 +71,36 @@ export default function Counter({
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-6 py-12">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className={`size-2 rounded-full ${s.dot}`} />
-          <span className={`text-sm font-medium ${s.text}`}>{s.label}</span>
+          <span className={`size-3 ${s.dot}`} />
+          <span className={s.text}>{s.label}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <kbd className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-2">
+          <kbd className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-dim">
             {t.bossKeyHint}
           </kbd>
           <button
             onClick={onOffice}
-            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            className="px-btn"
           >
             {t.office}
           </button>
           <button
             onClick={onTeam}
-            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            className="px-btn"
           >
             {t.team}
           </button>
           <button
             onClick={onStats}
-            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            className="px-btn"
           >
             {t.stats}
           </button>
           <button
             onClick={onSettings}
-            className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            className="px-btn"
           >
             {t.settings}
           </button>
@@ -126,23 +108,23 @@ export default function Counter({
       </header>
 
       <div>
-        <div className="text-sm text-slate-500">{t.todayEarned}</div>
-        <div className="mt-2 text-5xl font-bold tabular-nums tracking-tight text-slate-50 sm:text-7xl">
+        <div className="text-crt-dim">{t.todayEarned}</div>
+        {/* 48/72px 都是 12 的整數倍 —— 像素字型只在整數倍下乾淨 */}
+        <div className="mt-2 text-5xl tabular-nums text-crt-gold sm:text-7xl">
           {twd.format(earned)}
+          <span className="px-cursor">▍</span>
         </div>
-        <p className="mt-3 text-sm text-slate-500">{s.quip}</p>
+        <p className="mt-3 text-crt-dim">{s.quip}</p>
       </div>
 
       <div>
-        <div className="mb-2 flex justify-between text-xs text-slate-500">
+        <div className="mb-2 flex justify-between text-crt-dim">
           <span>{t.progressOfDay}</span>
           <span className="tabular-nums">{pct.toFixed(1)}%</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-          <div
-            className={`h-full rounded-full transition-[width] duration-200 ${s.bar}`}
-            style={{ width: `${Math.min(100, pct)}%` }}
-          />
+        {/* 分段金條:量錢的儀表要一格一格,平滑漸層是現代網頁的東西 */}
+        <div className="px-bevel-in h-4 overflow-hidden bg-crt-deep">
+          <div className="px-meter h-full" style={{ width: `${Math.min(100, pct)}%` }} />
         </div>
       </div>
 
@@ -153,17 +135,11 @@ export default function Counter({
       </div>
 
       {activeSince === null ? (
-        <button
-          onClick={startSlacking}
-          className="rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-800"
-        >
+        <button onClick={startSlacking} className="px-btn py-3">
           {t.startSlacking}
         </button>
       ) : (
-        <button
-          onClick={stopSlacking}
-          className="rounded-xl border border-amber-600/50 bg-amber-950/40 py-3 text-sm font-medium text-amber-300 transition hover:bg-amber-950/70"
-        >
+        <button onClick={stopSlacking} className="px-btn py-3 text-crt-gold">
           {t.stopSlacking} · <span className="tabular-nums">{dur(now - activeSince)}</span>
         </button>
       )}

@@ -24,12 +24,13 @@ const twd = new Intl.NumberFormat("zh-TW", {
 
 // GitHub 那張圖就是一個 CSS grid 裡塞方塊。裝 Recharts 只為了畫 84 個
 // 有背景色的 div 是純虧損。等真的需要 tooltip 以外的互動再說。
+// 熱度 = 金色的濃度 —— 摸魚就是偷錢,愈燙愈金。單色階不出調色盤
 const LEVEL_BG = [
-  "bg-slate-800/80",
-  "bg-emerald-900",
-  "bg-emerald-700",
-  "bg-emerald-500",
-  "bg-emerald-300",
+  "bg-crt-deep",
+  "bg-crt-gold/20",
+  "bg-crt-gold/45",
+  "bg-crt-gold/70",
+  "bg-crt-gold",
 ];
 
 const level = (ms: number): number =>
@@ -37,9 +38,9 @@ const level = (ms: number): number =>
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 font-semibold tabular-nums text-slate-100">{value}</div>
+    <div className="px-panel px-4 py-3">
+      <div className="text-crt-dim">{label}</div>
+      <div className="mt-1 tabular-nums text-crt-white">{value}</div>
     </div>
   );
 }
@@ -52,9 +53,9 @@ function Heatmap({ events }: { events: SlackEvent[] }) {
 
   return (
     <div>
-      <div className="mb-2 text-xs text-slate-500">{t.heatmap}</div>
+      <div className="mb-2 text-crt-dim">{t.heatmap}</div>
       <div className="flex gap-1.5">
-        <div className="grid grid-rows-7 gap-1 text-[10px] leading-3 text-slate-600">
+        <div className="grid grid-rows-7 gap-1 text-[10px] leading-3 text-crt-dim">
           {["", "一", "", "三", "", "五", ""].map((d, i) => (
             <span key={i} className="h-3">
               {d}
@@ -71,16 +72,16 @@ function Heatmap({ events }: { events: SlackEvent[] }) {
                 key={d}
                 // 原生 title 就是 tooltip,不需要任何套件
                 title={`${dayKey(d)} ${ms ? `${t.slackedFor} ${dur(ms)}` : "沒摸魚"}`}
-                className={`size-3 rounded-sm ${LEVEL_BG[level(ms)]}`}
+                className={`size-3 ${LEVEL_BG[level(ms)]}`}
               />
             );
           })}
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-slate-600">
+      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-crt-dim">
         <span>{t.less}</span>
         {LEVEL_BG.map((bg) => (
-          <span key={bg} className={`size-3 rounded-sm ${bg}`} />
+          <span key={bg} className={`size-3 ${bg}`} />
         ))}
         <span>{t.more}</span>
       </div>
@@ -107,17 +108,17 @@ export default function Stats({ onBack }: { onBack: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-8 px-6 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-100">{t.stats}</h1>
+        <h1 className="text-2xl text-crt-white">{t.stats}</h1>
         <button
           onClick={onBack}
-          className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          className="px-btn"
         >
           {t.back}
         </button>
       </header>
 
       {events.length === 0 ? (
-        <p className="text-sm text-slate-500">{t.noSlackData}</p>
+        <p className="text-crt-dim">{t.noSlackData}</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

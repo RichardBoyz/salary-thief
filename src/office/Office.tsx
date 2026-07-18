@@ -58,25 +58,25 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
       y={py}
       width={TILE}
       height={TILE}
-      fill={(x + y) % 2 ? "#1c2942" : "#1e2c47"}
+      fill={(x + y) % 2 ? "#101d8c" : "#132297"}
     />
   );
   switch (ch) {
     case "#":
-      return <rect x={px} y={py} width={TILE} height={TILE} fill="#0b1425" />;
+      return <rect x={px} y={py} width={TILE} height={TILE} fill="#060d52" />;
     case "D":
       return (
         <>
           {floor}
           <rect x={px + 2} y={py + 6} width={28} height={22} rx={3} fill="#7c5a3a" />
-          <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#0f172a" />
+          <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#060d52" />
         </>
       );
     case "C":
       return (
         <>
           {floor}
-          <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#64748b" />
+          <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#8a93d8" />
           <rect x={px + 10} y={py + 6} width={12} height={12} rx={2} fill="#38bdf8" />
         </>
       );
@@ -100,7 +100,7 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
       return (
         <>
           {floor}
-          <circle cx={px + 16} cy={py + 16} r={10} fill="#334155" />
+          <circle cx={px + 16} cy={py + 16} r={10} fill="#2a36a8" />
         </>
       );
     case "b":
@@ -112,8 +112,8 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
             y={py + 1}
             width={TILE - 2}
             height={TILE - 2}
-            fill="rgba(245,158,11,.10)"
-            stroke="rgba(245,158,11,.25)"
+            fill="rgba(255,210,62,.12)"
+            stroke="rgba(255,210,62,.3)"
             strokeDasharray="3 3"
           />
         </>
@@ -219,10 +219,10 @@ export default function Office({ onBack }: { onBack: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-4 px-6 py-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-100">{t.office}</h1>
+        <h1 className="text-2xl text-crt-white">{t.office}</h1>
         <button
           onClick={onBack}
-          className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          className="px-btn"
         >
           {t.back}
         </button>
@@ -230,15 +230,15 @@ export default function Office({ onBack }: { onBack: () => void }) {
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {activeSince === null ? (
-          <span className="rounded-full bg-emerald-950/60 px-3 py-1 text-emerald-400">
+          <span className="px-bevel-in bg-crt-deep px-3 py-1 text-crt-green">
             {t.stateWorking}
           </span>
         ) : (
-          <span className="rounded-full bg-amber-950/60 px-3 py-1 text-amber-300">
+          <span className="px-bevel-in bg-crt-deep px-3 py-1 text-crt-gold">
             {t.officeSlacking} · <span className="tabular-nums">{dur(now - activeSince)}</span>
           </span>
         )}
-        <span className="tabular-nums text-slate-500">
+        <span className="tabular-nums text-crt-dim">
           {t.todayEarned} {twd.format(earnedToday(cfg, now))}
         </span>
       </div>
@@ -246,27 +246,27 @@ export default function Office({ onBack }: { onBack: () => void }) {
       {/* 一隊一房,點分頁串門子。只有一間(或沒登入)就不顯示 */}
       {roomNames.length > 1 && (
         <div className="flex flex-wrap items-center gap-1 text-xs">
-          <span className="mr-1 text-slate-600">{t.visitTabs}</span>
+          <span className="mr-1 text-crt-dim">{t.visitTabs}</span>
           {roomNames.map((name) => (
             <button
               key={name ?? "__lobby"}
               onClick={() => setVisiting(name === myTeam ? "OWN" : name)}
-              className={`rounded-lg px-2.5 py-1 transition ${
+              className={`px-2.5 py-1 ${
                 room === name
-                  ? "bg-slate-800 text-slate-100"
-                  : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"
+                  ? "px-bevel-in bg-crt-deep text-crt-white"
+                  : "text-crt-dim hover:text-crt-white"
               }`}
             >
               {name ?? t.lobby}
               {name === myTeam && (
-                <span className="ml-0.5 text-slate-500">{t.yourRoomSuffix}</span>
+                <span className="ml-0.5 text-crt-dim">{t.yourRoomSuffix}</span>
               )}
             </button>
           ))}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-800">
+      <div className="px-bevel overflow-x-auto">
         <div
           className="relative"
           style={{ width: COLS * TILE, height: ROWS * TILE }}
@@ -282,7 +282,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
               title={`${m.handle} · ${m.state === "slacking" ? t.officeSlacking : t.stateWorking}`}
             >
               <span className="text-xl opacity-90">🧑‍💼</span>
-              <span className="max-w-16 truncate rounded bg-slate-950/70 px-1 text-[9px] leading-tight text-slate-300">
+              <span className="max-w-16 truncate bg-crt-deep/80 px-1 text-[9px] leading-tight text-crt-white">
                 {m.handle}
               </span>
             </div>
@@ -303,7 +303,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className="text-xs text-slate-600">{isOwnRoom ? t.officeHint : t.visitHint}</p>
+      <p className="text-crt-dim">{isOwnRoom ? t.officeHint : t.visitHint}</p>
     </div>
   );
 }

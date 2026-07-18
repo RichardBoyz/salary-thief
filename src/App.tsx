@@ -53,10 +53,11 @@ export default function App() {
 
   // 偽裝時 Counter 整個 unmount,計時器跟著停。回來重新掛載時金額直接
   // 從時鐘算出正確值 —— 這是 earnedToday 是純函式換來的。
+  // 偽裝殼在 px-crt 掃描線這層之外(early return)—— 假 Excel 必須是現代臉。
   if (disguised) return <Disguise />;
 
   return (
-    <main className="min-h-dvh bg-slate-950 text-slate-100 antialiased">
+    <main className="px-crt min-h-dvh bg-crt-blue font-pixel text-[12px] text-crt-white">
       {view === "counter" && (
         <Counter
           onSettings={() => setView("settings")}

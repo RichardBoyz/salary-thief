@@ -3,13 +3,12 @@ import { todayShift } from "../money";
 import { useStore } from "../store";
 import { t } from "../strings";
 
-const input =
-  "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100 tabular-nums outline-none transition focus:border-emerald-500";
+const input = "px-input tabular-nums";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-400">{label}</span>
+      <span className="text-crt-dim">{label}</span>
       <div className="mt-1.5">{children}</div>
     </label>
   );
@@ -32,10 +31,10 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-6 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-100">{t.settings}</h1>
+        <h1 className="text-2xl text-crt-white">{t.settings}</h1>
         <button
           onClick={onBack}
-          className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          className="px-btn"
         >
           {t.back}
         </button>
@@ -111,26 +110,24 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-3">
+      <label className="px-panel flex cursor-pointer items-start gap-3 px-3 py-3">
         <input
           type="checkbox"
           checked={autoDisguise}
           onChange={(e) => setAutoDisguise(e.target.checked)}
-          className="mt-0.5 size-4 accent-emerald-500"
+          className="mt-0.5 size-4 accent-crt-gold"
         />
         <span>
-          <span className="text-sm text-slate-200">{t.autoDisguise}</span>
-          <span className="mt-0.5 block text-xs text-slate-500">{t.autoDisguiseHint}</span>
+          <span className="text-crt-white">{t.autoDisguise}</span>
+          <span className="mt-0.5 block text-crt-dim">{t.autoDisguiseHint}</span>
         </span>
       </label>
 
       {error && (
-        <p className="rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-400">
-          {error}
-        </p>
+        <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{error}</p>
       )}
 
-      <p className="text-xs text-slate-600">{t.settingsHint}</p>
+      <p className="text-crt-dim">{t.settingsHint}</p>
     </div>
   );
 }
