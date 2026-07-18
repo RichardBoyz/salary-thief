@@ -1,129 +1,24 @@
-// 所有 UI 文字集中在這裡。現在成本是零,之後要加英文時這個檔案改名成
-// locales/zh-TW.ts、複製一份 en.ts、加一個十行的 useT() 就結束。
-// 不裝 i18next,因為在只有一種語言的期間,t('some.nested.key') 是純虧損。
-export const t = {
-  appName: "薪水小偷",
+// i18n。刻意不裝 i18next:語言在載入時選定一次,切換靠寫 localStorage +
+// reload。這樣所有 `import { t }` 照舊,連 module-scope 的 t.xxx 都不用改
+// (reload 會讓 t 重新選)。中英切換用 reload 完全可接受,這不是 SPA 關鍵路徑。
+import { en } from "./locales/en";
+import { zhTW, type Strings } from "./locales/zh-TW";
 
-  todayEarned: "今天已經賺到",
-  perSecond: "每秒身價",
-  untilOffWork: "距離下班",
-  dailyPay: "今日日薪",
-  progressOfDay: "今日進度",
+export type Lang = "zh-TW" | "en";
 
-  stateBefore: "還沒上班",
-  stateWorking: "上班中",
-  stateLunch: "午休中",
-  stateAfter: "已下班",
+const LOCALES: Record<Lang, Strings> = { "zh-TW": zhTW, en };
 
-  quipBefore: "上班時間還沒到,你現在是免費的。",
-  quipWorking: "每一秒都在把時間換成錢。",
-  quipLunch: "午休不算工時,這段時間老闆沒在付你錢。",
-  quipAfter: "今天的份全部到手了。可以走了。",
+const detect = (): Lang => {
+  const saved = typeof localStorage !== "undefined" ? localStorage.getItem("lang") : null;
+  if (saved === "en" || saved === "zh-TW") return saved;
+  return typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "zh-TW";
+};
 
-  disguiseTitle: "Q3_forecast_v7_FINAL_修正版.xlsx - Excel",
-  bossKeyHint: "Esc 裝忙",
+export const lang: Lang = detect();
+export const t: Strings = LOCALES[lang];
 
-  startSlacking: "開始摸魚",
-  stopSlacking: "結束摸魚",
-
-  office: "辦公室",
-  officeSlacking: "摸魚中",
-  officeHint: "方向鍵 / WASD 移動 —— 走到茶水間或沙發就開始摸魚,回到自己座位結束。",
-
-  team: "團隊",
-  loginTitle: "跟同事一起偷",
-  loginDesc: "登入後可以組隊:誰在摸魚、本週摸魚排行、互相起鬨。",
-  loginGoogle: "用 Google 登入",
-  loginGoogleHint: "會跳出帳號選擇 —— 記得選個人帳號,不要選公司的。",
-  loginOr: "沒有 Google?用信箱寄登入連結:",
-  loginEmailPlaceholder: "個人信箱(不要用公司信箱)",
-  loginSend: "寄登入連結",
-  loginSent: "寄出去了,去收信點連結就會回到這裡。沒收到先翻垃圾郵件。",
-  loginPrivacy: "只用信箱登入,不設密碼。你的月薪和金額永遠不上傳 —— 排行榜只比時數。",
-  setupTitle: "取個代號",
-  setupHandlePlaceholder: "暱稱(同事認得出、老闆認不出的那種)",
-
-  // 真實公司目錄:選公司名加入,不用貼 UUID。DB 只存代碼不存公司名。
-  companyPick: "選你的公司",
-  companySearch: "搜尋公司(台積電、TSMC…)",
-  companyCustomHint: "找不到?打完整公司名自己開一間:",
-  companyCustomPlaceholder: "公司全名(同事打一樣的就會同房)",
-  companyJoin: "加入",
-  companyMine: "你的公司",
-  companyDirectoryOnly: "只有目錄裡的公司會出現在跨公司統計;自訂公司永遠不具名。",
-  companyPrivacy: "選公司只是用來配對同事,DB 不存公司名、你的紀錄只綁暱稱。",
-  copyCode: "複製代碼",
-  copied: "已複製",
-
-  // 在職/離職自報
-  employment: "任職狀態",
-  employmentCurrent: "在職",
-  employmentFormer: "離職",
-  employmentHint: "離職後不列入公司統計,但你自己的摸魚紀錄還在。",
-  formerBadge: "離職",
-
-  // 跨公司統計(k-anon:≥5 人才顯示聚合、不點名個人)
-  crossCompany: "各公司本週摸魚",
-  crossCompanyHint: "只顯示 5 人以上的公司聚合,永遠不點名個人。人均排序。",
-  crossCompanyEmpty: "還沒有公司達到 5 人門檻 —— 揪滿 5 個同事,你們公司就會上榜。",
-  crossOtherCompany: "其他公司",
-  weekBoard: "本週摸魚排行",
-  boardAll: "全公司",
-  boardMine: "我的隊伍",
-  teamTotal: "全公司本週共偷",
-  teamTotalPrivate: "以你的時薪換算 ≈ ",
-  onlyYouSee: "(只有你看得到)",
-  received: "你被起鬨",
-  stateOffline: "離線",
-  refresh: "重新整理",
-  signOut: "登出",
-  changeCompany: "換公司",
-  noTeammates: "公司裡目前只有你。把公司碼丟給同事。",
-
-  // 隊伍是公司底下的標籤,不是實體。沒選隊 = 在大廳
-  lobby: "大廳",
-  myTeam: "我的隊伍",
-  teamNone: "還沒選隊 —— 你目前在大廳。",
-  teamPickPlaceholder: "隊名,例如 後端組(打新名字就是開新隊)",
-  teamSave: "加入",
-  teamVs: "隊伍對抗(本週,比人均)",
-  perCap: "人均",
-  membersUnit: "人",
-
-  // 辦公室串門子
-  visitTabs: "串門子",
-  visitHint: "你在別隊的房間串門子 —— 這裡的人看不到你,走位也不會觸發摸魚。",
-  yourRoomSuffix: "(你的)",
-
-  // 魚點:伺服器排程的隨機摸魚區塊,站進去抓魚
-  fishHere: "魚出現了!站到 🐟 那格抓住牠",
-  fishNext: "下一個魚點",
-  fishNone: "今天的魚都游走了,明天請早。",
-  fishToday: "今日漁獲",
-  fishNeedLogin: "登入後,辦公室每天會隨機出現 8 個魚點。",
-
-  stats: "摸魚報告",
-  monthSlack: "本月摸魚",
-  stolen: "偷到的錢",
-  longest: "最長一次",
-  sessions: "摸魚次數",
-  heatmap: "過去 12 週",
-  less: "少",
-  more: "多",
-  noSlackData: "還沒有任何摸魚紀錄。回去按「開始摸魚」就會開始累積。",
-  slackedFor: "摸魚",
-
-  settings: "設定",
-  back: "返回",
-  autoDisguise: "離開分頁時自動偽裝",
-  autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 解除。",
-  monthlySalary: "月薪",
-  workdaysPerMonth: "每月上班天數",
-  shiftStart: "上班時間",
-  shiftEnd: "下班時間",
-  lunchStart: "午休開始",
-  lunchMinutes: "午休長度(分鐘)",
-  settingsHint: "資料只存在這台裝置的瀏覽器裡,不會上傳。",
-  errShiftOrder: "下班時間必須晚於上班時間。",
-  errLunchTooLong: "午休比整個班表還長。",
-} as const;
+/** 切語言 = 存偏好 + 重載。document.lang 也順手更新 */
+export const setLang = (l: Lang) => {
+  localStorage.setItem("lang", l);
+  location.reload();
+};

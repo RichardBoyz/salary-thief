@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { todayShift } from "../money";
 import { useStore } from "../store";
-import { t } from "../strings";
+import { lang, setLang, t, type Lang } from "../strings";
 
 const input = "px-input tabular-nums";
 
@@ -39,6 +39,23 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           {t.back}
         </button>
       </header>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-crt-dim">{t.lang}</span>
+        <div className="flex gap-1">
+          {(["zh-TW", "en"] as Lang[]).map((l) => (
+            <button
+              key={l}
+              onClick={() => l !== lang && setLang(l)}
+              className={`px-2.5 py-1 text-xs ${
+                lang === l ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
+              }`}
+            >
+              {l === "zh-TW" ? "中文" : "EN"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid gap-4">
         <Field label={t.monthlySalary}>
