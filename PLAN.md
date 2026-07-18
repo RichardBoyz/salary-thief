@@ -13,7 +13,7 @@
 | **Phase 0** | 即時薪水計數器 + 設定頁 + localStorage | 否 | ✅ 已完成 |
 | **Phase 1** | 老闆鍵 + 一套偽裝殼(Excel) | 否 | ✅ 已完成 |
 | **Phase 2** | 摸魚紀錄 + 統計熱力圖 | 否 | ✅ 已完成 |
-| **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | 🔨 程式碼完成,等兩步 dashboard 設定(見下) |
+| **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | ✅ 上線。RLS 經外部驗證;Google OAuth 為主、magic link 備用 |
 | **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ 完成;同事 avatar 已接上 Phase 3 資料 |
 | **Phase 5**(保留) | i18n、貢獻指南、發布流程 | — | 之後再說 |
 
@@ -51,15 +51,17 @@ handle 上 check (char_length <= 20) —— 唯一的使用者輸入字串,長�
 
 **隱私是這階段的設計前提,不是加分項**(見 3.2):暱稱不綁真名、不存公司欄位、個人信箱登入。多人版把「別用公司信箱」從小提醒升級成硬規則 —— 這是一整個團隊、綁身分、有時間戳的摸魚紀錄,外流傷的是真人。
 
-### Phase 3 剩兩步 dashboard 設定(只有專案擁有者能做)
+### Phase 3 驗證紀錄(2026-07-18)
 
-程式碼(`sync.ts`、`Team.tsx`、`supabase/schema.sql`)已完成。啟用前要在
-[Supabase dashboard](https://supabase.com/dashboard/project/xpjrbnnlxoebkcyuzovx) 做兩件事:
+Schema 已套用、RLS 經外部探測驗證:匿名 select 三張表回 `200 []`、匿名
+insert 被 `42501` 打回。登入以 **Google OAuth 為主**(強制 `select_account`
+防止順手登成公司 Workspace 帳號)、magic link 收合為備用 —— email 身分
+相同時 Supabase 自動連成同一使用者,不會分裂帳號。OAuth 跳轉已實測到
+Google 登入牆(consent 畫面顯示正確的 supabase callback)。
 
-1. **SQL Editor → 貼上 `supabase/schema.sql` 全部 → Run**(跑一次就好)。這會建三張表、開 RLS、鎖 emoji 白名單和 handle 長度
-2. **Authentication → URL Configuration → Site URL 填 `http://localhost:5173`**(之後部署了再加正式網址)。不設的話 magic link 會把人導去錯的地方
-
-注意:免費專案用內建 SMTP 寄 magic link,**每小時只有個位數封**的額度 —— 測登入省著點寄,之後真的要多人用再接自己的 SMTP。
+尚未被任何人測過的:第一次真人登入後的完整流程(取代號 → 組隊 → 第二
+人加入 → 互相起鬨)。部署後記得把正式網址加進 Auth → URL Configuration。
+免費內建 SMTP 每小時只有個位數封,magic link 省著用。
 
 ---
 

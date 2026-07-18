@@ -44,6 +44,17 @@ export const sendMagicLink = (email: string) =>
     options: { emailRedirectTo: window.location.origin },
   });
 
+// select_account 強制跳 Google 的帳號選擇畫面 —— 不然公司電腦上一鍵就
+// 順手登成 Workspace 帳號,違反「不用公司信箱」的隱私原則
+export const signInWithGoogle = () =>
+  sb.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: { prompt: "select_account" },
+    },
+  });
+
 export const signOut = () => sb.auth.signOut();
 
 // ---------- profile ----------
