@@ -16,7 +16,7 @@
 | **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | ✅ 上線。RLS 經外部驗證;Google OAuth 為主、magic link 備用 |
 | **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ 完成;同事 avatar 已接上 Phase 3 資料 |
 | **v2** | 公司 → 隊伍階層:隊伍對抗、排行榜切換、一隊一房串門子 | 是 | 🔨 程式碼完成,**等使用者跑 `migrate-v2.sql`** |
-| **Phase 5**(保留) | i18n、貢獻指南、發布流程 | — | 之後再說 |
+| **Phase 5** | i18n(中英)、PWA(可安裝+SW+tap-to-move)、部署 | — | ✅ i18n/PWA 完成;部署待接 Cloudflare Pages |
 
 ### Phase 3 — 從「跨裝置同步」改成「多人社交」
 
