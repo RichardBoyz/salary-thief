@@ -57,7 +57,7 @@ export default function App() {
   if (disguised) return <Disguise />;
 
   return (
-    <main className="px-crt min-h-dvh bg-crt-blue font-pixel text-[12px] text-crt-white">
+    <main className="px-crt min-h-dvh bg-crt-bg font-pixel text-[12px] text-crt-white">
       {view === "counter" && (
         <Counter
           onSettings={() => setView("settings")}

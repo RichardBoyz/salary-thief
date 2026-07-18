@@ -8,6 +8,7 @@ import { sb } from "./supabase";
 import {
   standings,
   teamTotalMs,
+  type CatchRow,
   type EventRow,
   type ProfileRow,
   type ReactionRow,
@@ -200,13 +201,20 @@ export type TeamData = {
 
 export async function fetchTeam(now: number): Promise<TeamData> {
   const profile = await fetchMyProfile();
-  const [members, events, reactions] = await Promise.all([
+  const [members, events, reactions, catches] = await Promise.all([
     sb.from("profiles").select("*"),
-    // 本週的、加上還開著的(上週開始摸到現在也算摸魚中)。RLS 已鎖同隊
+    // 本週的、加上還開著的(上週開始摸到現在也算摸魚中)。RLS 已鎖同公司
     sb.from("slack_events").select("*").or(`ended_at.is.null,started_at.gte.${weekStart(now)}`),
     sb.from("reactions").select("*").order("created_at", { ascending: false }).limit(30),
+    // v3 表。還沒跑 migrate-v3 時這查詢會錯,data 是 null → 漁獲全 0,app 照常
+    sb.from("catches").select("user_id,caught_at").gte("caught_at", weekStart(now)),
   ]);
-  const rows = standings(members.data ?? [], events.data ?? [], now);
+  const rows = standings(
+    members.data ?? [],
+    events.data ?? [],
+    now,
+    (catches.data ?? []) as CatchRow[],
+  );
   return {
     profile,
     rows,
@@ -215,6 +223,69 @@ export async function fetchTeam(now: number): Promise<TeamData> {
     reactions: reactions.data ?? [],
     members: members.data ?? [],
   };
+}
+
+// ---------- 魚點(隨機摸魚區塊,伺服器驗證) ----------
+
+export type Spot = {
+  spot_index: number;
+  start_ms: number;
+  end_ms: number;
+  r1: number;
+  r2: number;
+  caught: boolean;
+};
+
+/** 伺服器的「今天」是台北時區,client 送 day 時要用同一個曆 */
+export const taipeiDay = (): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
+
+/**
+ * 今天的魚點時刻表。只能查自己的(RPC 內部用 auth.uid()),種子在 DB 的
+ * private schema,API 拿不到。還沒跑 migrate-v3 → RPC 404 → 空陣列,辦公室
+ * 就是沒有魚,一切照常。
+ */
+export function useSpots(): { spots: Spot[]; refresh: () => void } {
+  const session = useSession();
+  const [spots, setSpots] = useState<Spot[]>([]);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!session) {
+      setSpots([]);
+      return;
+    }
+    let alive = true;
+    sb.rpc("my_spots").then(({ data, error }) => {
+      if (error) return warn("spots")(error);
+      if (alive) setSpots((data ?? []) as Spot[]);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, tick]);
+  return { spots, refresh: () => setTick((n) => n + 1) };
+}
+
+/**
+ * 抓魚。合法性完全由 DB trigger 決定:視窗必須「此刻」開著(伺服器時鐘),
+ * caught_at 由伺服器蓋。這裡送什麼時間戳都無所謂。
+ */
+export async function catchFish(spotIndex: number): Promise<boolean> {
+  const session = (await sb.auth.getSession()).data.session;
+  if (!session) return false;
+  const profile = await fetchMyProfile();
+  const { error } = await sb.from("catches").insert({
+    user_id: session.user.id,
+    company_code: profile?.company_code ?? null,
+    day: taipeiDay(),
+    spot_index: spotIndex,
+    caught_at: Date.now(), // 伺服器會蓋掉,填了只是好看
+  });
+  if (error) {
+    warn("catch")(error);
+    return false;
+  }
+  return true;
 }
 
 export async function react(eventId: string, emoji: string) {

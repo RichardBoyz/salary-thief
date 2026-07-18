@@ -97,6 +97,29 @@ describe("standings", () => {
   });
 });
 
+describe("standings 漁獲", () => {
+  it("本週的 catch 逐人計數,上週的不算", () => {
+    const lastWeek = new Date("2026-07-10T12:00:00").getTime(); // 上週五
+    const rows = standings(
+      [member("a", "阿明"), member("b", "小華")],
+      [],
+      now,
+      [
+        { user_id: "a", caught_at: now - 60_000 },
+        { user_id: "a", caught_at: now - 120_000 },
+        { user_id: "b", caught_at: lastWeek },
+      ],
+    );
+    expect(rows.find((r) => r.userId === "a")!.fishes).toBe(2);
+    expect(rows.find((r) => r.userId === "b")!.fishes).toBe(0);
+  });
+
+  it("不給 catches 參數時全部是 0,舊呼叫端不用改", () => {
+    const rows = standings([member("a", "阿明")], [], now);
+    expect(rows[0].fishes).toBe(0);
+  });
+});
+
 describe("teamTotalMs", () => {
   it("全公司加總", () => {
     const rows = standings(

@@ -25,6 +25,7 @@ export type ReactionRow = {
   emoji: string;
   created_at: number;
 };
+export type CatchRow = { user_id: string; caught_at: number };
 
 /** 心跳超過這個歲數就當離線。斷線不用通知任何人,老化自然下線 */
 export const ONLINE_MS = 2 * 60_000;
@@ -38,6 +39,8 @@ export type Standing = {
   state: MemberState;
   /** 本週摸魚毫秒(摸魚中的那段算到 now) */
   weekMs: number;
+  /** 本週漁獲。唯一伺服器驗證過的數字 —— 時數是自報的,魚是抓的 */
+  fishes: number;
   /** 他最近一筆事件,起鬨的目標。沒摸過魚就沒得起鬨 */
   latestEventId: string | null;
 };
@@ -50,6 +53,7 @@ export function standings(
   members: ProfileRow[],
   events: EventRow[],
   now: number,
+  catches: CatchRow[] = [],
 ): Standing[] {
   const from = weekStart(now);
   const byUser = new Map<string, EventRow[]>();
@@ -57,6 +61,10 @@ export function standings(
     const list = byUser.get(e.user_id) ?? [];
     list.push(e);
     byUser.set(e.user_id, list);
+  }
+  const fishByUser = new Map<string, number>();
+  for (const c of catches) {
+    if (c.caught_at >= from) fishByUser.set(c.user_id, (fishByUser.get(c.user_id) ?? 0) + 1);
   }
   return members
     .map((m) => {
@@ -78,6 +86,7 @@ export function standings(
         team: m.team,
         state: (!online ? "offline" : open ? "slacking" : "working") as MemberState,
         weekMs: totalMs(clipped, from, now),
+        fishes: fishByUser.get(m.user_id) ?? 0,
         latestEventId: latest?.id ?? null,
       };
     })

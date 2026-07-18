@@ -321,6 +321,11 @@ export default function Team({ onBack }: { onBack: () => void }) {
                       {teamTag(r.team)}
                     </span>
                   </span>
+                  {r.fishes > 0 && (
+                    <span className="text-xs tabular-nums text-crt-dim" title={t.fishToday}>
+                      🐟×{r.fishes}
+                    </span>
+                  )}
                   <span className="text-sm tabular-nums text-crt-gold">{dur(r.weekMs)}</span>
                   {r.userId !== me && r.latestEventId && (
                     <span className="flex gap-0.5">

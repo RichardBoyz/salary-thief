@@ -76,6 +76,13 @@ export const t = {
   visitHint: "你在別隊的房間串門子 —— 這裡的人看不到你,走位也不會觸發摸魚。",
   yourRoomSuffix: "(你的)",
 
+  // 魚點:伺服器排程的隨機摸魚區塊,站進去抓魚
+  fishHere: "魚出現了!站到 🐟 那格抓住牠",
+  fishNext: "下一個魚點",
+  fishNone: "今天的魚都游走了,明天請早。",
+  fishToday: "今日漁獲",
+  fishNeedLogin: "登入後,辦公室每天會隨機出現 8 個魚點。",
+
   stats: "摸魚報告",
   monthSlack: "本月摸魚",
   stolen: "偷到的錢",

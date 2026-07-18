@@ -3,11 +3,12 @@ import { dur, twd } from "../fmt";
 import { earnedToday } from "../money";
 import { useStore } from "../store";
 import { t } from "../strings";
-import { useSession, useTeam } from "../sync";
+import { catchFish, useSession, useSpots, useTeam, type Spot } from "../sync";
 import type { Standing } from "../team";
 import { useNow } from "../useNow";
 import {
   COLS,
+  FLOOR_TILES,
   RAW,
   ROWS,
   SPAWN_BREAK,
@@ -19,6 +20,20 @@ import {
   zoneAt,
   type Pos,
 } from "./map";
+
+/** server 給的亂數 → 地圖格子。位置純裝飾,可驗證的核心是時間視窗 */
+const fishTile = (s: Spot): Pos => FLOOR_TILES[(s.r1 * 31 + s.r2) % FLOOR_TILES.length];
+
+const hhmm = (ms: number): string => {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+const mmss = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
 /**
  * 同事站哪:上班中 → 座位,摸魚中 → 茶水間,離線 → 不出現。位置由狀態
@@ -58,25 +73,25 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
       y={py}
       width={TILE}
       height={TILE}
-      fill={(x + y) % 2 ? "#101d8c" : "#132297"}
+      fill={(x + y) % 2 ? "#1a1d24" : "#1e222a"}
     />
   );
   switch (ch) {
     case "#":
-      return <rect x={px} y={py} width={TILE} height={TILE} fill="#060d52" />;
+      return <rect x={px} y={py} width={TILE} height={TILE} fill="#0b0d11" />;
     case "D":
       return (
         <>
           {floor}
           <rect x={px + 2} y={py + 6} width={28} height={22} rx={3} fill="#7c5a3a" />
-          <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#060d52" />
+          <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#0b0d11" />
         </>
       );
     case "C":
       return (
         <>
           {floor}
-          <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#8a93d8" />
+          <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#6f7684" />
           <rect x={px + 10} y={py + 6} width={12} height={12} rx={2} fill="#38bdf8" />
         </>
       );
@@ -100,7 +115,7 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
       return (
         <>
           {floor}
-          <circle cx={px + 16} cy={py + 16} r={10} fill="#2a36a8" />
+          <circle cx={px + 16} cy={py + 16} r={10} fill="#343a46" />
         </>
       );
     case "b":
@@ -112,8 +127,8 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
             y={py + 1}
             width={TILE - 2}
             height={TILE - 2}
-            fill="rgba(255,210,62,.12)"
-            stroke="rgba(255,210,62,.3)"
+            fill="rgba(232,194,100,.12)"
+            stroke="rgba(232,194,100,.3)"
             strokeDasharray="3 3"
           />
         </>
@@ -187,15 +202,38 @@ export default function Office({ onBack }: { onBack: () => void }) {
     };
   }, []);
 
-  // 走位的語意:茶水間 = 開始摸魚,自己座位 = 結束,走廊中性(路過不誤觸)。
+  // 魚點:今天的時刻表由伺服器種子決定,只在自己房間出現
+  const { spots, refresh: refreshSpots } = useSpots();
+  const activeSpot =
+    spots.find((s) => !s.caught && now >= s.start_ms && now < s.end_ms) ?? null;
+  const nextSpot = spots.find((s) => now < s.start_ms) ?? null;
+  const todayFishes = spots.filter((s) => s.caught).length;
+  const fishPos = activeSpot ? fishTile(activeSpot) : null;
+  const onFish =
+    isOwnRoom && fishPos !== null && pos.x === fishPos.x && pos.y === fishPos.y;
+
+  // 走位的語意:茶水間或魚點 = 開始摸魚,自己座位 = 結束,走廊中性。
   // 辦公室是 Phase 2 那顆按鈕的皮,動的是同一個 store。
   // 只在自己房間生效 —— 串門子是旁觀,別隊的茶水間不是你的茶水間。
   const zone = zoneAt(pos);
   useEffect(() => {
     if (!isOwnRoom) return;
-    if (zone === "break" && activeSince === null) startSlacking();
+    if ((zone === "break" || onFish) && activeSince === null) startSlacking();
     if (zone === "desk" && activeSince !== null) stopSlacking();
-  }, [zone, activeSince, isOwnRoom, startSlacking, stopSlacking]);
+  }, [zone, onFish, activeSince, isOwnRoom, startSlacking, stopSlacking]);
+
+  // 站上魚點就抓。合法性由 DB trigger 用伺服器時鐘判,這裡只是提出申請。
+  // inflight guard 擋連發;成功後 refresh 讓 caught 從伺服器回來,魚消失。
+  const catching = useRef(false);
+  useEffect(() => {
+    if (!onFish || !activeSpot || catching.current) return;
+    catching.current = true;
+    catchFish(activeSpot.spot_index).then((ok) => {
+      catching.current = false;
+      if (ok) refreshSpots();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFish, activeSpot?.spot_index]);
 
   // 換房間重生:回自己房照狀態站位,去別隊房站門口走道。
   // deps 只有 room —— 摸魚開始/結束不該把人瞬移回出生點
@@ -241,6 +279,22 @@ export default function Office({ onBack }: { onBack: () => void }) {
         <span className="tabular-nums text-crt-dim">
           {t.todayEarned} {twd.format(earnedToday(cfg, now))}
         </span>
+        {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
+        {session && spots.length > 0 && (
+          <span className="tabular-nums text-crt-dim">
+            {activeSpot ? (
+              <span className="text-crt-gold">
+                {t.fishHere} {mmss(activeSpot.end_ms - now)}
+              </span>
+            ) : nextSpot ? (
+              `${t.fishNext} ${hhmm(nextSpot.start_ms)}`
+            ) : (
+              t.fishNone
+            )}
+            {"　"}
+            {t.fishToday} 🐟×{todayFishes}
+          </span>
+        )}
       </div>
 
       {/* 一隊一房,點分頁串門子。只有一間(或沒登入)就不顯示 */}
@@ -272,6 +326,19 @@ export default function Office({ onBack }: { onBack: () => void }) {
           style={{ width: COLS * TILE, height: ROWS * TILE }}
         >
           {map}
+          {/* 魚點只長在自己房間。站上去 = 摸魚 + 抓魚 */}
+          {isOwnRoom && activeSpot && fishPos && (
+            <div
+              data-fish
+              className="absolute top-0 left-0 flex size-8 flex-col items-center justify-center"
+              style={{ transform: `translate(${fishPos.x * TILE}px, ${fishPos.y * TILE}px)` }}
+            >
+              <span className="px-bob text-xl">🐟</span>
+              <span className="bg-crt-deep/90 px-1 text-[9px] leading-tight text-crt-gold tabular-nums">
+                {mmss(activeSpot.end_ms - now)}
+              </span>
+            </div>
+          )}
           {teammates.map((m) => (
             <div
               key={m.userId}

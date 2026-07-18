@@ -3,19 +3,20 @@
 @import "@fontsource/fusion-pixel-12px-proportional-tc";
 
 /*
- * DOS 打卡機調色盤 —— 全 app 只有這 7 色(pixel-ui skill 的紀律)。
- * 復古的是「90 年代辦公軟體」不是遊戲機:藍底白字終端機。
+ * p10k 深色終端機調色盤 —— 全 app 只有這 7 色(pixel-ui skill 的紀律)。
+ * 近黑底、霧色字、柔金/苔綠/磚紅 accent:powerlevel10k 開著一整天
+ * 也不傷眼的那種終端機。像素骨架不變,只換墨水。
  */
 @theme {
   --font-pixel: "Fusion Pixel 12px Proportional TC", "MingLiU", monospace;
 
-  --color-crt-blue: #0e1c96; /* 螢幕底 */
-  --color-crt-deep: #060d52; /* 陰影、凹陷、面板深處 */
-  --color-crt-white: #e8ecf8; /* 主文字 */
-  --color-crt-dim: #8a93d8; /* 次要文字 */
-  --color-crt-gold: #ffd23e; /* 錢。摸魚=偷錢,所以摸魚也是金色 */
-  --color-crt-green: #3aff6e; /* 上班中/OK */
-  --color-crt-red: #ff5252; /* 錯誤 */
+  --color-crt-bg: #16181d; /* 終端機底 */
+  --color-crt-deep: #0b0d11; /* 陰影、凹陷、面板深處 */
+  --color-crt-white: #d4dae3; /* 主文字(霧白,不是純白) */
+  --color-crt-dim: #6f7684; /* 次要文字 */
+  --color-crt-gold: #e8c264; /* 錢。摸魚=偷錢,所以摸魚也是金色 */
+  --color-crt-green: #7fc860; /* 上班中/OK */
+  --color-crt-red: #e06c75; /* 錯誤 */
 }
 
 @layer components {
@@ -39,12 +40,12 @@
   }
 
   .px-panel {
-    background: var(--color-crt-blue);
+    background: var(--color-crt-bg);
     box-shadow: 4px 4px 0 var(--color-crt-deep);
   }
 
   .px-btn {
-    background: var(--color-crt-blue);
+    background: var(--color-crt-bg);
     color: var(--color-crt-white);
     cursor: pointer;
     padding: 6px 12px;
@@ -73,7 +74,7 @@
     outline: none;
   }
   .px-input:focus {
-    background: var(--color-crt-blue);
+    background: var(--color-crt-bg);
   }
 
   /* 清單列:別人凹陷、自己凸起 —— 你的那一列摸起來就是不一樣 */
@@ -81,7 +82,7 @@
     background: var(--color-crt-deep);
   }
   .px-row-me {
-    background: var(--color-crt-blue);
+    background: var(--color-crt-bg);
   }
 
   /* 分段金條。平滑漸層是現代網頁的東西,量表要一格一格 */
@@ -113,6 +114,20 @@
   .px-cursor {
     animation: px-blink 1.1s steps(1) infinite;
   }
+
+  /* 魚在水面一格一格晃 —— steps() 是像素動作的原生解,不是 tween */
+  .px-bob {
+    animation: px-bob 0.7s steps(2) infinite alternate;
+  }
+}
+
+@keyframes px-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-3px);
+  }
 }
 
 @keyframes px-blink {
@@ -122,7 +137,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .px-cursor {
+  .px-cursor,
+  .px-bob {
     animation: none;
   }
 }

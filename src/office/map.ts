@@ -46,6 +46,15 @@ export const SPAWN_BREAK = find("b");
 /** 串門子(進別隊房間)的出生點:門口附近的走道,不是任何人的座位 */
 export const SPAWN_VISIT: Pos = { x: 10, y: 5 };
 
+/** 所有空地板格。魚點用 server 給的亂數對這個清單取模挑格子 —— 位置是
+ *  純裝飾(可驗證的核心是時間視窗),所以 client 挑格子沒有作弊空間 */
+export const FLOOR_TILES: Pos[] = [];
+for (let fy = 0; fy < ROWS; fy++) {
+  for (let fx = 0; fx < COLS; fx++) {
+    if (RAW[fy][fx] === ".") FLOOR_TILES.push({ x: fx, y: fy });
+  }
+}
+
 /** 撞牆就站在原地。回傳同一個物件參考 = 沒動,呼叫端可以直接比較 */
 export const tryMove = (p: Pos, dx: number, dy: number): Pos => {
   const next = { x: p.x + dx, y: p.y + dy };
