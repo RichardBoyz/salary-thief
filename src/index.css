@@ -119,6 +119,28 @@
   .px-bob {
     animation: px-bob 0.7s steps(2) infinite alternate;
   }
+
+  /* 外快區:綠框「白」底(盤內的霧白,不是純白)。功能標記,本體不動 */
+  .px-zone {
+    border: 2px solid var(--color-crt-green);
+    background: color-mix(in srgb, var(--color-crt-white) 14%, transparent);
+  }
+
+  /* 補血包:綠框白底綠十字,一格一格往上飄然後消失。裝飾動畫,steps 不 tween */
+  .px-heal {
+    position: absolute;
+    top: 42px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--color-crt-green);
+    background:
+      linear-gradient(var(--color-crt-green), var(--color-crt-green)) center / 8px 2px
+        no-repeat,
+      linear-gradient(var(--color-crt-green), var(--color-crt-green)) center / 2px 8px
+        no-repeat,
+      var(--color-crt-white);
+    animation: px-heal 1.5s steps(8) infinite;
+  }
 }
 
 @keyframes px-bob {
@@ -136,9 +158,23 @@
   }
 }
 
+@keyframes px-heal {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .px-cursor,
   .px-bob {
     animation: none;
+  }
+  .px-heal {
+    display: none; /* 純裝飾;外快照領,只是不飄 */
   }
 }

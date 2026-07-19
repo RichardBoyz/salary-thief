@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dur, twd } from "../fmt";
-import { dayStart, stolenMoney, withActive } from "../slack";
+import { ratePerSecond } from "../money";
+import { dayKey, dayStart, stolenMoney, withActive } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
 import { catchFish, useSession, useSpots, useTeam, type Spot } from "../sync";
 import type { Standing } from "../team";
 import { useNow } from "../useNow";
 import {
+  bonusZoneAt,
   COLS,
   FLOOR_TILES,
+  inBonusZone,
   pathTo,
   RAW,
   ROWS,
@@ -145,6 +148,8 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const slackEvents = useStore((s) => s.slackEvents);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
+  const zoneMs = useStore((s) => s.zoneMs);
+  const addZoneMs = useStore((s) => s.addZoneMs);
   const now = useNow();
   const session = useSession();
   const team = useTeam(45_000); // 沒登入回傳 null,辦公室就是單人版
@@ -246,6 +251,30 @@ export default function Office({ onBack }: { onBack: () => void }) {
     if (zone === "desk" && activeSince !== null) stopSlacking();
   }, [zone, onFish, activeSince, isOwnRoom, startSlacking, stopSlacking]);
 
+  // 外快區:2×2 綠框,站著加倍領錢。位置純本機決定(錢不上傳,沒有作弊
+  // 對象,不像魚需要伺服器種子),免登入。串門子不生效 —— 你是幽靈。
+  const bonusAnchor = bonusZoneAt(now);
+  const onBonus = isOwnRoom && inBonusZone(pos, bonusAnchor);
+
+  // 站進去記時間戳,離開(含換位、離開辦公室)才把這段折進 store。
+  // 顯示值照舊即時推導 —— 存的是毫秒不是錢,不用 interval 累加。
+  const bonusEnteredAt = useRef<number | null>(null);
+  useEffect(() => {
+    if (!onBonus) return;
+    bonusEnteredAt.current = Date.now();
+    return () => {
+      if (bonusEnteredAt.current !== null) {
+        addZoneMs(Date.now() - bonusEnteredAt.current, dayKey(Date.now()));
+        bonusEnteredAt.current = null;
+      }
+    };
+  }, [onBonus, addZoneMs]);
+
+  const zoneLiveMs =
+    (zoneMs.day === dayKey(now) ? zoneMs.ms : 0) +
+    (onBonus && bonusEnteredAt.current !== null ? Math.max(0, now - bonusEnteredAt.current) : 0);
+  const bonusMoney = (zoneLiveMs / 1000) * ratePerSecond(cfg, now);
+
   // 站上魚點就抓。合法性由 DB trigger 用伺服器時鐘判,這裡只是提出申請。
   // inflight guard 擋連發;成功後 refresh 讓 caught 從伺服器回來,魚消失。
   const catching = useRef(false);
@@ -304,6 +333,11 @@ export default function Office({ onBack }: { onBack: () => void }) {
           {/* 跟主畫面同一套:只顯示偷到的錢,不顯示能反推薪水的已賺金額 */}
           {t.todayStolen} {twd.format(stolenMoney(withActive(slackEvents, activeSince, now), cfg, dayStart(now), now))}
         </span>
+        {zoneLiveMs > 0 && (
+          <span className="tabular-nums text-crt-dim" title={t.zoneHint}>
+            {t.zoneBonus} <span className="text-crt-green">+{twd.format(bonusMoney)}</span>
+          </span>
+        )}
         {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
         {session && spots.length > 0 && (
           <span className="tabular-nums text-crt-dim">
@@ -352,6 +386,26 @@ export default function Office({ onBack }: { onBack: () => void }) {
           onClick={tapMove}
         >
           {map}
+          {/* 外快區:綠框白底,站進去補血十字往上飄 + 加倍領錢。
+              pointer-events-none 讓 tap-to-move 的點擊穿過去 */}
+          {isOwnRoom && (
+            <div
+              data-bonus
+              className="pointer-events-none absolute top-0 left-0"
+              style={{
+                transform: `translate(${bonusAnchor.x * TILE}px, ${bonusAnchor.y * TILE}px)`,
+              }}
+            >
+              <div className="px-zone" style={{ width: TILE * 2, height: TILE * 2 }} />
+              {onBonus && (
+                <>
+                  <span className="px-heal" style={{ left: 8 }} />
+                  <span className="px-heal" style={{ left: 38, animationDelay: ".5s" }} />
+                  <span className="px-heal" style={{ left: 23, animationDelay: "1s" }} />
+                </>
+              )}
+            </div>
+          )}
           {/* 魚點只長在自己房間。站上去 = 摸魚 + 抓魚 */}
           {isOwnRoom && activeSpot && fishPos && (
             <div

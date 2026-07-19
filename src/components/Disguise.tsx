@@ -44,7 +44,8 @@ const num = `${cell} text-right tabular-nums`;
 
 export default function Disguise() {
   return (
-    <div className="flex h-dvh flex-col bg-[#f3f3f3] text-[11px] text-[#212121] select-none">
+    // touch-manipulation:關掉行動端雙擊縮放,不然逃生口的第二下會被吃成 zoom 手勢
+    <div className="flex h-dvh touch-manipulation flex-col bg-[#f3f3f3] text-[11px] text-[#212121] select-none">
       {/* 標題列 */}
       <div className="flex items-center gap-2 bg-[#217346] px-3 py-1.5 text-white">
         <span className="font-semibold">X</span>

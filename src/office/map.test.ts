@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  bonusZoneAt,
   COLS,
+  inBonusZone,
+  pathTo,
   RAW,
   ROWS,
-  pathTo,
   SPAWN_BREAK,
   SPAWN_DESK,
   SPAWN_VISIT,
   SPOTS,
+  tileAt,
   tryMove,
   walkable,
+  ZONE_ANCHORS,
+  ZONE_SLOT_MS,
   zoneAt,
 } from "./map";
 
@@ -84,6 +89,45 @@ describe("tryMove", () => {
   it("地圖外當牆:就算資料壞掉指到外面,也走不出去", () => {
     const p = { x: 0, y: 0 };
     expect(tryMove(p, -1, -1)).toBe(p);
+  });
+});
+
+describe("外快區", () => {
+  it("錨點存在,且 2×2 全是空地板(不會框到牆或家具)", () => {
+    expect(ZONE_ANCHORS.length).toBeGreaterThan(0);
+    for (const a of ZONE_ANCHORS)
+      for (const [dx, dy] of [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+      ] as const)
+        expect(tileAt({ x: a.x + dx, y: a.y + dy })).toBe(".");
+  });
+
+  it("同一時段同位置 —— 重整頁面外快區不跳位", () => {
+    const slotStart =
+      Math.floor(Date.parse("2026-07-20T10:00:00") / ZONE_SLOT_MS) * ZONE_SLOT_MS;
+    expect(bonusZoneAt(slotStart)).toEqual(bonusZoneAt(slotStart + ZONE_SLOT_MS - 1));
+  });
+
+  it("時段輪替會換位置(掃一天不會永遠同一格)", () => {
+    const t0 = Date.parse("2026-07-20T00:00:00");
+    const spots = new Set(
+      Array.from({ length: 144 }, (_, i) => {
+        const p = bonusZoneAt(t0 + i * ZONE_SLOT_MS);
+        return `${p.x},${p.y}`;
+      }),
+    );
+    expect(spots.size).toBeGreaterThan(1);
+  });
+
+  it("inBonusZone 判 2×2 範圍,邊界外不算", () => {
+    const a = { x: 3, y: 4 };
+    expect(inBonusZone({ x: 3, y: 4 }, a)).toBe(true);
+    expect(inBonusZone({ x: 4, y: 5 }, a)).toBe(true);
+    expect(inBonusZone({ x: 5, y: 4 }, a)).toBe(false);
+    expect(inBonusZone({ x: 2, y: 4 }, a)).toBe(false);
   });
 });
 

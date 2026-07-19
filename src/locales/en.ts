@@ -29,7 +29,9 @@ export const en: Strings = {
   office: "Office",
   officeSlacking: "Slacking",
   officeHint:
-    "Arrow keys / WASD to move — reach the pantry or couch to start slacking, back to your desk to stop.",
+    "Arrow keys / WASD to move — reach the pantry or couch to start slacking, back to your desk to stop. The green box is a bonus zone: stand inside for extra pay; it moves every 10 minutes.",
+  zoneBonus: "Side cash",
+  zoneHint: "Stand in the green box for double pay; it moves every 10 minutes.",
 
   team: "Team",
   loginTitle: "Steal together",
@@ -118,7 +120,7 @@ export const en: Strings = {
   back: "Back",
   lang: "Language",
   autoDisguise: "Auto-disguise when tab loses focus",
-  autoDisguiseHint: "Alt-tab away and it flips to a spreadsheet; press Esc when you're back.",
+  autoDisguiseHint: "Alt-tab away and it flips to a spreadsheet; press Esc or double-tap to come back.",
   monthlySalary: "Monthly salary",
   workdaysPerMonth: "Workdays per month",
   shiftStart: "Clock in",

@@ -33,11 +33,14 @@ type State = {
    * 「不存公司名」—— 外洩看不出是哪家公司。
    */
   companyLabel: string | null;
+  /** 外快區今天站了幾毫秒。跟其他數字一樣存時間不存錢,錢用時薪即時換算 */
+  zoneMs: { day: string; ms: number };
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
   startSlacking: () => void;
   stopSlacking: () => void;
+  addZoneMs: (ms: number, day: string) => void;
 };
 
 // persist middleware 直接處理 localStorage 讀寫和 JSON 序列化。
@@ -51,6 +54,13 @@ export const useStore = create<State>()(
       activeSince: null,
       activeId: null,
       companyLabel: null,
+      zoneMs: { day: "", ms: 0 },
+
+      // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
+      addZoneMs: (ms, day) =>
+        set((s) => ({
+          zoneMs: { day, ms: (s.zoneMs.day === day ? s.zoneMs.ms : 0) + ms },
+        })),
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setAutoDisguise: (autoDisguise) => set({ autoDisguise }),

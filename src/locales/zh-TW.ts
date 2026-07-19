@@ -27,7 +27,10 @@ export const zhTW = {
 
   office: "辦公室",
   officeSlacking: "摸魚中",
-  officeHint: "方向鍵 / WASD 移動 —— 走到茶水間或沙發就開始摸魚,回到自己座位結束。",
+  officeHint:
+    "方向鍵 / WASD 移動 —— 走到茶水間或沙發就開始摸魚,回到自己座位結束。綠框是外快區:站進去加倍領錢,每 10 分鐘換位。",
+  zoneBonus: "外快",
+  zoneHint: "站在綠框裡加倍領錢,位置每 10 分鐘換一次。",
 
   team: "團隊",
   loginTitle: "跟同事一起偷",
@@ -112,7 +115,7 @@ export const zhTW = {
   back: "返回",
   lang: "語言",
   autoDisguise: "離開分頁時自動偽裝",
-  autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 解除。",
+  autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 或快速點兩下畫面解除。",
   monthlySalary: "月薪",
   workdaysPerMonth: "每月上班天數",
   shiftStart: "上班時間",

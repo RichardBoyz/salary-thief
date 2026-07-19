@@ -55,6 +55,34 @@ for (let fy = 0; fy < ROWS; fy++) {
   }
 }
 
+// ---- 外快區:2×2 綠框,站在裡面加倍領錢 ----
+// 跟魚點不同,位置純本機決定:錢永遠不上傳、沒有作弊對象,所以不需要
+// 伺服器種子,沒登入也玩得到。
+
+/** 外快區換位週期(10 分鐘) */
+export const ZONE_SLOT_MS = 10 * 60_000;
+
+/** 所有「2×2 全是空地板」的錨點(左上角) */
+export const ZONE_ANCHORS: Pos[] = FLOOR_TILES.filter(
+  (p) =>
+    tileAt({ x: p.x + 1, y: p.y }) === "." &&
+    tileAt({ x: p.x, y: p.y + 1 }) === "." &&
+    tileAt({ x: p.x + 1, y: p.y + 1 }) === ".",
+);
+
+/** 這個時刻的外快區錨點。決定性:同一時段永遠同位置,重整不跳位 */
+export const bonusZoneAt = (now: number): Pos => {
+  const slot = Math.floor(now / ZONE_SLOT_MS);
+  // 打散 slot 再取模 —— 不打散的話位置會照清單順序規律輪播,太好背
+  let h = (slot ^ 0x9e3779b1) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+  return ZONE_ANCHORS[h % ZONE_ANCHORS.length];
+};
+
+/** p 是否落在 anchor 起算的 2×2 範圍內 */
+export const inBonusZone = (p: Pos, a: Pos): boolean =>
+  p.x >= a.x && p.x <= a.x + 1 && p.y >= a.y && p.y <= a.y + 1;
+
 /** 撞牆就站在原地。回傳同一個物件參考 = 沒動,呼叫端可以直接比較 */
 export const tryMove = (p: Pos, dx: number, dy: number): Pos => {
   const next = { x: p.x + dx, y: p.y + dy };

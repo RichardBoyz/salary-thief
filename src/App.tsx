@@ -31,8 +31,21 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDisguised((d) => !d);
     };
+    // 手機沒有 Esc,快速點兩下當逃生口。只解除、不進入 —— 進入若也綁雙擊,
+    // 連點按鈕就會誤觸偽裝。用 click 自己數而不是 dblclick:這是手機唯一的
+    // 出口,不能賭 iOS 對 dblclick 的支援。沒偽裝時多點只是 no-op。
+    let last = 0;
+    const onClick = () => {
+      const now = Date.now();
+      if (now - last < 400) setDisguised(false);
+      last = now;
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("click", onClick);
+    };
   }, []);
 
   // 你 alt-tab 走開的當下畫面就已經偽裝好了,回來才需要按鍵解除。
