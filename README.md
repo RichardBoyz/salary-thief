@@ -51,14 +51,14 @@ npm test
 
 預設只存在你自己瀏覽器的 localStorage 裡,不登入就完全沒有後端。登入組隊後,同步上去的只有:暱稱、公司碼(匿名 uuid,不是公司名)、隊名標籤、摸魚時間戳。月薪和所有金額只在本機計算,schema(`supabase/schema.sql`)裡沒有任何薪資欄位。
 
-## 部署(Cloudflare Pages)
+## 部署(Cloudflare Workers + static assets)
 
-純靜態站,anon key 是設計成公開的(擋資料的是 RLS),所以**不需要環境變數**、不需要後端。
+純靜態站,anon key 是設計成公開的(擋資料的是 RLS),所以**不需要環境變數**、不需要 API token、不需要後端。Workers static assets 是 Cloudflare 現行主推路線(Pages 已被整併吸收)。
 
-1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → 選 `salary-thief` repo
-2. 建置設定:**Build command** `npm run build`、**Output directory** `dist`(框架選 None/Vite 皆可)
-3. Deploy。之後每次 push main 自動部署。`public/_headers` 會自動生效(CSP、X-Frame-Options 等安全標頭)
+1. Cloudflare Dashboard → Workers & Pages → Create → 連 Git → 選 `salary-thief` repo
+2. 建置設定:**Build command** `npm run build`、**Deploy command** `npx wrangler deploy`、**Path 留空**(repo 根就是專案根)
+3. 靜態資產位置由 repo 裡的 [`wrangler.jsonc`](wrangler.jsonc) 指定(`assets.directory = ./dist`)。之後每次 push main 自動部署;`public/_headers`(CSP 等安全標頭)在 Workers static assets 下照常生效
 
-**部署後必做一步(不然登入會壞):** 到 Supabase Dashboard → Authentication → URL Configuration,把正式網址填進 **Site URL**、並加進 **Redirect URLs**。不設的話 Google 登入 / magic link 會把人導回 localhost。
+**部署後必做一步(不然登入會壞):** 到 Supabase Dashboard → Authentication → URL Configuration,把正式網址(`https://salary-thief.<帳號>.workers.dev`)填進 **Site URL**、並加進 **Redirect URLs**。不設的話 Google 登入 / magic link 會把人導回 localhost。
 
-單一 URL、無路由,所以不需要 SPA rewrite 規則。SW 與 manifest 用絕對路徑,Pages 服務在網域根目錄即可。
+單一 URL、無路由,所以不需要 SPA fallback 設定。
