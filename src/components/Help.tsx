@@ -3,17 +3,17 @@
 // 是過度工程,而且現代風 tooltip 會打壞像素臉。
 import { t } from "../strings";
 
-const SECTIONS: [string, string][] = [
-  [t.helpWhat, t.helpWhatBody],
-  [t.helpSetup, t.helpSetupBody],
-  [t.helpSlack, t.helpSlackBody],
-  [t.helpBoss, t.helpBossBody],
-  [t.helpOffice, t.helpOfficeBody],
-  [t.helpTeam, t.helpTeamBody],
-  [t.helpPrivacy, t.helpPrivacyBody],
-];
-
 export default function Help({ onClose }: { onClose: () => void }) {
+  // 放 render 內不放 module scope:t 會原地換語言,抄出去就凍住舊語言
+  const SECTIONS: [string, string][] = [
+    [t.helpWhat, t.helpWhatBody],
+    [t.helpSetup, t.helpSetupBody],
+    [t.helpSlack, t.helpSlackBody],
+    [t.helpBoss, t.helpBossBody],
+    [t.helpOffice, t.helpOfficeBody],
+    [t.helpTeam, t.helpTeamBody],
+    [t.helpPrivacy, t.helpPrivacyBody],
+  ];
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-6 py-12">
       <header className="flex items-center justify-between">

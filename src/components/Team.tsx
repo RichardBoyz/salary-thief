@@ -35,11 +35,12 @@ const stateDot: Record<MemberState, string> = {
   working: "bg-crt-green",
   offline: "bg-crt-dim",
 };
-const stateLabel: Record<MemberState, string> = {
+// 函式不做成常數:t 會原地換語言,module scope 抄字串會凍住舊語言
+const stateLabelOf = (): Record<MemberState, string> => ({
   slacking: t.officeSlacking,
   working: t.stateWorking,
   offline: t.stateOffline,
-};
+});
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -543,7 +544,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
                   } ${r.employment === "former" ? "opacity-55" : ""}`}
                 >
                   <span className="w-5 text-right text-sm tabular-nums text-crt-dim">{i + 1}</span>
-                  <span className={`size-2 ${stateDot[r.state]}`} title={stateLabel[r.state]} />
+                  <span className={`size-2 ${stateDot[r.state]}`} title={stateLabelOf()[r.state]} />
                   <span className="flex-1 truncate text-sm text-crt-white">
                     {r.handle}
                     <span className="ml-2 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-dim">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Counter from "./components/Counter";
 import Disguise from "./components/Disguise";
 import Help from "./components/Help";
@@ -7,7 +7,7 @@ import Stats from "./components/Stats";
 import Team from "./components/Team";
 import Office from "./office/Office";
 import { useStore } from "./store";
-import { t } from "./strings";
+import { lang, onLangChange, t } from "./strings";
 
 const setFavicon = (emoji: string) => {
   const link = document.querySelector<HTMLLinkElement>("link[rel=icon]");
@@ -26,6 +26,9 @@ export default function App() {
   const [view, setView] = useState<View>(useStore.getState().helpSeen ? "counter" : "help");
   const [disguised, setDisguised] = useState(false);
   const autoDisguise = useStore((s) => s.autoDisguise);
+  // 語言切換不 reload:setLang 原地換 t 的內容後通知這裡,整棵樹重畫。
+  // 全 app 沒有 memo,App 一重畫所有元件都會在 render 重讀 t.xxx
+  const langNow = useSyncExternalStore(onLangChange, () => lang);
   const setHelpSeen = useStore((s) => s.setHelpSeen);
   const closeHelp = () => {
     setHelpSeen(true);
@@ -77,7 +80,7 @@ export default function App() {
   useEffect(() => {
     document.title = disguised ? t.disguiseTitle : t.appName;
     setFavicon(disguised ? "📊" : "💰");
-  }, [disguised]);
+  }, [disguised, langNow]);
 
   // 偽裝時 Counter 整個 unmount,計時器跟著停。回來重新掛載時金額直接
   // 從時鐘算出正確值 —— 這是 earnedToday 是純函式換來的。

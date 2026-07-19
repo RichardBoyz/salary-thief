@@ -12,8 +12,9 @@ const countdown = (ms: number): string => {
   return `${pad(Math.floor(total / 3600))}:${pad(Math.floor(total / 60) % 60)}:${pad(total % 60)}`;
 };
 
-// 進度條永遠是金色 —— 它量的是錢,不是心情。狀態只染 label
-const style: Record<WorkState, { label: string; quip: string; dot: string; text: string }> = {
+// 進度條永遠是金色 —— 它量的是錢,不是心情。狀態只染 label。
+// 函式不做成模組常數:t 會原地換語言,抄在 module scope 字串就凍住了
+const styleOf = (): Record<WorkState, { label: string; quip: string; dot: string; text: string }> => ({
   before: { label: t.stateBefore, quip: t.quipBefore, dot: "bg-crt-dim", text: "text-crt-dim" },
   working: {
     label: t.stateWorking,
@@ -23,7 +24,7 @@ const style: Record<WorkState, { label: string; quip: string; dot: string; text:
   },
   lunch: { label: t.stateLunch, quip: t.quipLunch, dot: "bg-crt-gold", text: "text-crt-gold" },
   after: { label: t.stateAfter, quip: t.quipAfter, dot: "bg-crt-white", text: "text-crt-white" },
-};
+});
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -55,7 +56,7 @@ export default function Counter({
   const now = useNow();
 
   const state = workState(cfg, now);
-  const s = style[state];
+  const s = styleOf()[state];
   // 主畫面不顯示任何薪水絕對值(日薪/每秒/已賺都能被路過的人反推月薪)。
   // 大數字是遊戲化的「偷到」:錢只來自辦公室外快區站立 + 漁獲獎勵,
   // 按鈕計時只記時數(下面兩格與報告/排行榜),不直接生錢。
