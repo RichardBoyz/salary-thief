@@ -55,8 +55,11 @@ export const zhTW = {
   companyMine: "你的公司",
   companyDirectoryOnly: "只有目錄裡的公司會出現在跨公司統計;自訂公司永遠不具名。",
   companyPrivacy: "選公司只是用來配對同事,DB 不存公司名、你的紀錄只綁暱稱。",
-  copyCode: "複製代碼",
+  invite: "邀請同事",
   copied: "已複製",
+  invitePending: "同事邀請你加入",
+  inviteIgnore: "忽略",
+  inviteAfterLogin: "登入後就會加入同事邀請的房間。",
 
   employment: "任職狀態",
   employmentCurrent: "在職",
@@ -79,7 +82,7 @@ export const zhTW = {
   refresh: "重新整理",
   signOut: "登出",
   changeCompany: "換公司",
-  noTeammates: "公司裡目前只有你。把公司碼丟給同事。",
+  noTeammates: "公司裡目前只有你。按「邀請同事」把連結丟出去,點開就同房。",
 
   lobby: "大廳",
   myTeam: "我的隊伍",

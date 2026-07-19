@@ -59,8 +59,11 @@ export const en: Strings = {
     "Only listed companies appear named in cross-company stats; custom ones are never named.",
   companyPrivacy:
     "Picking a company only matches you with coworkers. The DB stores no company name; your records only tie to a nickname.",
-  copyCode: "Copy code",
+  invite: "Invite coworkers",
   copied: "Copied",
+  invitePending: "A coworker invited you to",
+  inviteIgnore: "Ignore",
+  inviteAfterLogin: "Sign in and you'll join the room your coworker invited you to.",
 
   employment: "Status",
   employmentCurrent: "Current",
@@ -84,7 +87,7 @@ export const en: Strings = {
   refresh: "Refresh",
   signOut: "Sign out",
   changeCompany: "Change company",
-  noTeammates: "You're the only one here. Share the company with a coworker.",
+  noTeammates: "You're the only one here. Hit \"Invite coworkers\" and share the link.",
 
   lobby: "Lobby",
   myTeam: "My team",

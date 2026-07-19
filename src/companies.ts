@@ -95,6 +95,27 @@ export const searchCompanies = (q: string): Company[] => {
   );
 };
 
+// ---- 邀請連結 ----
+// 自訂公司靠「打同名」同房太碰運氣,邀請連結把房間碼直接帶過去。
+// 用 hash(#join=…)不用 path/query:app 活在單一 URL 上(偽裝考量),
+// hash 不會出現在任何 server log,連自家 worker 都看不到。名字放連結裡
+// 只是幫收件人設本機顯示標籤 —— DB 仍然不存公司名。
+
+export type Invite = { code: string; name: string | null };
+
+const INVITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export const buildInviteLink = (origin: string, code: string, name: string): string =>
+  `${origin}/#join=${code}&n=${encodeURIComponent(name.slice(0, 30))}`;
+
+/** hash 是不可信輸入:code 必須是合法 uuid,名字截 30 字。不合格回 null */
+export const parseInvite = (hash: string): Invite | null => {
+  const p = new URLSearchParams(hash.replace(/^#/, ""));
+  const code = p.get("join")?.toLowerCase() ?? "";
+  if (!INVITE_UUID_RE.test(code)) return null;
+  return { code, name: p.get("n")?.slice(0, 30) || null };
+};
+
 // ---- 政府登記公司(經濟部商工登記 open data)----
 // 目錄之外的長尾:搜「登記全名」找全台所有核准設立的公司。房間鍵用統編
 // (更名也不換房),隱私規則不變 —— DB 仍只存 uuid,跨公司統計不具名

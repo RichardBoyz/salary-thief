@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInviteLink,
   COMPANIES,
   companyName,
   isDirectoryCompany,
   normalizeCustom,
+  parseInvite,
   parseRegistry,
   searchCompanies,
   slugToUuid,
@@ -101,5 +103,26 @@ describe("parseRegistry", () => {
     const code = slugToUuid("22099131");
     expect(code).toMatch(UUID_RE);
     expect(isDirectoryCompany(code)).toBe(false);
+  });
+});
+
+describe("邀請連結", () => {
+  it("build → parse round-trip,中文名字經得起 URL 編碼", () => {
+    const code = slugToUuid("tsmc");
+    const link = buildInviteLink("https://example.com", code, "台積電");
+    expect(parseInvite(new URL(link).hash)).toEqual({ code, name: "台積電" });
+  });
+
+  it("hash 是不可信輸入:非 uuid 的 code 一律拒收", () => {
+    expect(parseInvite("#join=not-a-uuid&n=x")).toBeNull();
+    expect(parseInvite("#join=")).toBeNull();
+    expect(parseInvite("#access_token=supabase-oauth-stuff")).toBeNull();
+    expect(parseInvite("")).toBeNull();
+  });
+
+  it("名字截 30 字、缺名字回 null name", () => {
+    const code = slugToUuid("tsmc");
+    expect(parseInvite(`#join=${code}`)!.name).toBeNull();
+    expect(parseInvite(`#join=${code}&n=${"甲".repeat(99)}`)!.name).toHaveLength(30);
   });
 });

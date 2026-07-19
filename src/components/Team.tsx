@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  buildInviteLink,
   companyName,
   isDirectoryCompany,
   normalizeCustom,
@@ -97,6 +98,8 @@ function Setup({ onDone }: { onDone: () => void }) {
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
+  const invite = useStore((s) => s.pendingInvite);
+  const setPendingInvite = useStore((s) => s.setPendingInvite);
   const [registry, setRegistry] = useState<RegistryCompany[]>([]);
   const [searching, setSearching] = useState(false);
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
@@ -142,6 +145,29 @@ function Setup({ onDone }: { onDone: () => void }) {
         placeholder={t.setupHandlePlaceholder}
         className={input}
       />
+
+      {/* 點了邀請連結進來的:取完代號一鍵進同事的房,不用再搜公司 */}
+      {invite && (
+        <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
+          <span className="text-crt-dim">{t.invitePending}</span>
+          <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
+            {invite.name ?? companyName(invite.code)}
+          </span>
+          <button
+            className={btn}
+            disabled={!ok}
+            onClick={() => {
+              setPendingInvite(null);
+              join(invite.code, invite.name ?? companyName(invite.code));
+            }}
+          >
+            {t.companyJoin}
+          </button>
+          <button className={btnGhost} onClick={() => setPendingInvite(null)}>
+            {t.inviteIgnore}
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <span className="text-crt-dim">{t.companyPick}</span>
@@ -290,13 +316,48 @@ export default function Team({ onBack }: { onBack: () => void }) {
   const session = useSession();
   const cfg = useStore((s) => s.config);
   const companyLabel = useStore((s) => s.companyLabel);
+  const setCompanyLabel = useStore((s) => s.setCompanyLabel);
+  const pendingInvite = useStore((s) => s.pendingInvite);
+  const setPendingInvite = useStore((s) => s.setPendingInvite);
   const team = useTeam(30_000);
   const [changing, setChanging] = useState(false);
   const [teamInput, setTeamInput] = useState("");
   const [boardMine, setBoardMine] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const me = session?.user.id;
   const profile = team?.profile ?? null;
+
+  // 已經在邀請的那間了(自己點自己的連結、或重複點)→ 邀請默默收掉
+  useEffect(() => {
+    if (pendingInvite && profile?.company_code === pendingInvite.code) setPendingInvite(null);
+  }, [pendingInvite, profile?.company_code, setPendingInvite]);
+
+  // 有代號的人一鍵換到邀請的房;換公司 = 隊伍歸零,跟 Setup 換公司同規則
+  const joinInvite = () => {
+    if (!pendingInvite || !profile) return;
+    setCompanyLabel(pendingInvite.name ?? companyName(pendingInvite.code));
+    saveProfile(profile.handle, pendingInvite.code, null, profile.employment).then(() => {
+      setPendingInvite(null);
+      team!.refresh();
+    });
+  };
+
+  const copyInvite = () => {
+    if (!profile?.company_code) return;
+    navigator.clipboard
+      .writeText(
+        buildInviteLink(
+          location.origin,
+          profile.company_code,
+          companyName(profile.company_code, companyLabel),
+        ),
+      )
+      .then(() => {
+        setInviteCopied(true);
+        setTimeout(() => setInviteCopied(false), 2000);
+      });
+  };
   const myTeam = profile?.team ?? null;
   const handleOf = new Map((team?.members ?? []).map((m) => [m.user_id, m.handle]));
   const eventOwner = new Map((team?.events ?? []).map((e) => [e.id, e.user_id]));
@@ -326,6 +387,9 @@ export default function Team({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
+      {!session && pendingInvite && (
+        <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-gold">{t.inviteAfterLogin}</p>
+      )}
       {!session && <Login />}
 
       {session && team && (!profile?.company_code || changing) && (
@@ -339,11 +403,30 @@ export default function Team({ onBack }: { onBack: () => void }) {
 
       {session && profile?.company_code && !changing && (
         <>
+          {/* 有代號的人點了別人的邀請連結:一鍵換房 */}
+          {pendingInvite && (
+            <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
+              <span className="text-crt-dim">{t.invitePending}</span>
+              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
+                {pendingInvite.name ?? companyName(pendingInvite.code)}
+              </span>
+              <button className={btn} onClick={joinInvite}>
+                {t.companyJoin}
+              </button>
+              <button className={btnGhost} onClick={() => setPendingInvite(null)}>
+                {t.inviteIgnore}
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-crt-dim">{t.companyMine}</span>
             <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
               {companyName(profile.company_code, companyLabel)}
             </span>
+            <button className={btn} onClick={copyInvite}>
+              {inviteCopied ? t.copied : t.invite}
+            </button>
             <button className={btnGhost} onClick={() => setChanging(true)}>
               {t.changeCompany}
             </button>

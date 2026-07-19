@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Invite } from "./companies";
 import type { Config } from "./money";
 import type { SlackEvent } from "./slack";
 
@@ -35,6 +36,12 @@ type State = {
   companyLabel: string | null;
   /** 外快區今天站了幾毫秒。跟其他數字一樣存時間不存錢,錢用時薪即時換算 */
   zoneMs: { day: string; ms: number };
+  /**
+   * 點了邀請連結還沒處理的邀請。要落地:點連結 → 去登入(OAuth 轉跳離站)
+   * → 回來,這中間 hash 早就被清掉了,靠 persist 把邀請帶過整趟來回。
+   */
+  pendingInvite: Invite | null;
+  setPendingInvite: (inv: Invite | null) => void;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
@@ -55,6 +62,8 @@ export const useStore = create<State>()(
       activeId: null,
       companyLabel: null,
       zoneMs: { day: "", ms: 0 },
+      pendingInvite: null,
+      setPendingInvite: (pendingInvite) => set({ pendingInvite }),
 
       // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
       addZoneMs: (ms, day) =>
