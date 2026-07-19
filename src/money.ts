@@ -94,3 +94,18 @@ export function progress(cfg: Config, now: number): number {
   const s = todayShift(cfg, now);
   return s.dailyPay <= 0 ? 0 : earnedToday(cfg, now) / s.dailyPay;
 }
+
+/** 一條魚值幾分鐘時薪(15 分)。魚是伺服器驗證的,獎勵給大方一點 */
+export const FISH_BONUS_MS = 15 * 60_000;
+
+/**
+ * 遊戲化的「今天偷到」:錢只來自外快區站立 + 漁獲獎勵,按鈕計時不生錢
+ * (使用者拍板:時數歸報告與排行榜,錢要親自到辦公室賺)。
+ * 跟其他數字同一套:輸入是毫秒與條數,錢用時薪即時換算、不落地。
+ */
+export const gameMoney = (
+  zoneMs: number,
+  fishes: number,
+  cfg: Config,
+  now: number,
+): number => ((zoneMs + fishes * FISH_BONUS_MS) / 1000) * ratePerSecond(cfg, now);

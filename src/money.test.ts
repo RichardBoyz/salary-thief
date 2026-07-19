@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   type Config,
   earnedToday,
+  FISH_BONUS_MS,
+  gameMoney,
   msUntilOffWork,
   ratePerSecond,
   todayShift,
@@ -128,5 +130,32 @@ describe("爛輸入不能算出 NaN 或負數", () => {
     expect(earnedToday(junk, t("14:00"))).not.toBeNaN();
     expect(ratePerSecond(junk, t("14:00"))).not.toBeNaN();
     expect(msUntilOffWork(junk, t("14:00"))).not.toBeNaN();
+  });
+});
+
+describe("gameMoney(遊戲化的今天偷到)", () => {
+  const cfg: Config = {
+    monthlySalary: 66_000,
+    workdaysPerMonth: 22,
+    shiftStart: "09:00",
+    shiftEnd: "18:00",
+    lunchStart: "12:00",
+    lunchMinutes: 60,
+  };
+  const noon = new Date("2026-07-20T14:00:00").getTime();
+  // 日薪 3000、實付 8 小時 → 每秒 3000/28800
+  const rate = 3000 / 28_800;
+
+  it("沒站沒魚就是 0 —— 按鈕計時不生錢", () => {
+    expect(gameMoney(0, 0, cfg, noon)).toBe(0);
+  });
+
+  it("站一小時 = 3600 秒 × 時薪", () => {
+    expect(gameMoney(3_600_000, 0, cfg, noon)).toBeCloseTo(3600 * rate, 6);
+  });
+
+  it("一條魚 = 15 分鐘時薪,跟站 15 分鐘等值", () => {
+    expect(gameMoney(0, 1, cfg, noon)).toBeCloseTo(gameMoney(FISH_BONUS_MS, 0, cfg, noon), 9);
+    expect(gameMoney(0, 2, cfg, noon)).toBeCloseTo(2 * 900 * rate, 6);
   });
 });

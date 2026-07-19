@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dur, twd } from "../fmt";
-import { ratePerSecond } from "../money";
-import { dayKey, dayStart, stolenMoney, withActive } from "../slack";
+import { gameMoney } from "../money";
+import { dayKey } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
 import { catchFish, useSession, useSpots, useTeam, type Spot } from "../sync";
@@ -145,7 +145,6 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
 export default function Office({ onBack }: { onBack: () => void }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
-  const slackEvents = useStore((s) => s.slackEvents);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
   const zoneMs = useStore((s) => s.zoneMs);
@@ -273,7 +272,6 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const zoneLiveMs =
     (zoneMs.day === dayKey(now) ? zoneMs.ms : 0) +
     (onBonus && bonusEnteredAt.current !== null ? Math.max(0, now - bonusEnteredAt.current) : 0);
-  const bonusMoney = (zoneLiveMs / 1000) * ratePerSecond(cfg, now);
 
   // 站上魚點就抓。合法性由 DB trigger 用伺服器時鐘判,這裡只是提出申請。
   // inflight guard 擋連發;成功後 refresh 讓 caught 從伺服器回來,魚消失。
@@ -329,15 +327,10 @@ export default function Office({ onBack }: { onBack: () => void }) {
             {t.officeSlacking} · <span className="tabular-nums">{dur(now - activeSince)}</span>
           </span>
         )}
-        <span className="tabular-nums text-crt-dim">
-          {/* 跟主畫面同一套:只顯示偷到的錢,不顯示能反推薪水的已賺金額 */}
-          {t.todayStolen} {twd.format(stolenMoney(withActive(slackEvents, activeSince, now), cfg, dayStart(now), now))}
+        <span className="tabular-nums text-crt-dim" title={t.zoneHint}>
+          {/* 跟主畫面同一個數:遊戲化的偷到 = 外快區站立(含進行中)+ 漁獲獎勵 */}
+          {t.todayStolen} {twd.format(gameMoney(zoneLiveMs, todayFishes, cfg, now))}
         </span>
-        {zoneLiveMs > 0 && (
-          <span className="tabular-nums text-crt-dim" title={t.zoneHint}>
-            {t.zoneBonus} <span className="text-crt-green">+{twd.format(bonusMoney)}</span>
-          </span>
-        )}
         {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
         {session && spots.length > 0 && (
           <span className="tabular-nums text-crt-dim">

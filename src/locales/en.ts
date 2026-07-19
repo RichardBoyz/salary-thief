@@ -29,9 +29,8 @@ export const en: Strings = {
   office: "Office",
   officeSlacking: "Slacking",
   officeHint:
-    "Arrow keys / WASD to move — reach the pantry or couch to start slacking, back to your desk to stop. The green box is a bonus zone: stand inside for extra pay; it moves every 10 minutes.",
-  zoneBonus: "Side cash",
-  zoneHint: "Stand in the green box for double pay; it moves every 10 minutes.",
+    "Arrow keys / WASD to move — the pantry or couch logs slack hours, your desk stops it. Money is earned in the green box: it only ticks while you stand inside, and it moves every 10 minutes; catching fish adds a bonus.",
+  zoneHint: "Money stolen = time standing in the green box + fish bonuses (one fish = 15 minutes of pay).",
 
   team: "Team",
   loginTitle: "Steal together",
@@ -106,26 +105,26 @@ export const en: Strings = {
   fishNext: "Next fish",
   fishNone: "Today's fish all swam off. Come back tomorrow.",
   fishToday: "Caught today",
-  fishNeedLogin: "Log in and 8 fish spots appear randomly in the office each day.",
+  fishNeedLogin: "Log in and 8 fish spots appear randomly each day — one fish pays 15 minutes of wage.",
 
   help: "Help",
   helpTitle: "How to use",
   helpStart: "Got it — start slacking",
   helpWhat: "What is this?",
   helpWhatBody:
-    "It counts, in real time, how much of the boss's money you steal while slacking. Every amount is computed for your eyes only — your salary and the money never leave this device.",
+    "Slacking, gamified: hours go into your report and the leaderboard, but money is earned in person in the 2D office — stand in the bonus box, catch fish. Every amount is computed for your eyes only; your salary never leaves this device.",
   helpSetup: "Step one: set your pay",
   helpSetupBody:
     "Open Settings and fill in monthly salary, workdays per month, shift and lunch times — your per-second rate comes from these. Everything stays in this browser's localStorage.",
-  helpSlack: "Start stealing",
+  helpSlack: "Log your slack hours",
   helpSlackBody:
-    "Hit \"Start slacking\" on the main screen and the big number starts ticking — that's this slack session turned into money. Hit stop when you're done; the report shows the month's haul and a 12-week heatmap.",
+    "Hit \"Start slacking\" to log hours, stop when you're done — hours feed the report's heatmap and the team leaderboard. Note: the timer doesn't mint money; the big number is earned in the office (next section).",
   helpBoss: "Boss incoming",
   helpBossBody:
     "Press Esc (mobile: double-tap the screen) to flip into a fake Excel sheet — tab title and favicon change too. By default it auto-disguises the moment you tab away; press Esc or double-tap to come back. Toggle in Settings.",
-  helpOffice: "The office",
+  helpOffice: "The office — where money is made",
   helpOfficeBody:
-    "Move with arrows / WASD or tap a tile. Reaching the pantry or couch starts slacking, your desk stops it. The green box is a bonus zone: stand inside for double pay, it moves every 10 minutes; sign in and 8 fish spots appear daily — stand on one to catch 🐟.",
+    "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box accrues at your wage rate (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, one fish = 15 minutes of pay. The pantry or couch also logs slack hours; your desk stops the clock.",
   helpTeam: "Bring coworkers",
   helpTeamBody:
     "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours, never money.",
@@ -135,7 +134,7 @@ export const en: Strings = {
 
   stats: "Slacking report",
   monthSlack: "This month",
-  stolen: "Money stolen",
+  stolen: "Hours × wage",
   longest: "Longest run",
   sessions: "Sessions",
   heatmap: "Last 12 weeks",

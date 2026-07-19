@@ -1,8 +1,9 @@
 import { dur, twd } from "../fmt";
-import { msUntilOffWork, progress, workState, type WorkState } from "../money";
-import { dayStart, stolenMoney, totalMs, weekStart, withActive } from "../slack";
+import { gameMoney, msUntilOffWork, progress, workState, type WorkState } from "../money";
+import { dayKey, dayStart, totalMs, weekStart, withActive } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
+import { useSpots } from "../sync";
 import { useNow } from "../useNow";
 
 const countdown = (ms: number): string => {
@@ -56,9 +57,18 @@ export default function Counter({
   const state = workState(cfg, now);
   const s = style[state];
   // 主畫面不顯示任何薪水絕對值(日薪/每秒/已賺都能被路過的人反推月薪)。
-  // 大數字改成「偷到的錢」:不知道你摸了多久,就算不出你的薪水。
+  // 大數字是遊戲化的「偷到」:錢只來自辦公室外快區站立 + 漁獲獎勵,
+  // 按鈕計時只記時數(下面兩格與報告/排行榜),不直接生錢。
   const events = withActive(slackEvents, activeSince, now);
-  const stolen = stolenMoney(events, cfg, dayStart(now), now);
+  const zoneMs = useStore((st) => st.zoneMs);
+  const { spots } = useSpots();
+  const todayFishes = spots.filter((sp) => sp.caught).length;
+  const stolen = gameMoney(
+    zoneMs.day === dayKey(now) ? zoneMs.ms : 0,
+    todayFishes,
+    cfg,
+    now,
+  );
   const pct = progress(cfg, now) * 100;
 
   return (
