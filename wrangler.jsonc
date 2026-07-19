@@ -1,0 +1,12 @@
+// Cloudflare Workers(git 整合)部署設定。純靜態資產,沒有 Worker 程式碼:
+// Build command  = npm run build(產出 dist/)
+// Deploy command = npx wrangler deploy(把 dist 當 static assets 上傳)
+// dist/_headers(來自 public/_headers)會被 Workers Static Assets 吃進去,
+// CSP 等安全標頭照常生效。單一 URL、無路由,不需要 SPA fallback 設定。
+{
+  "name": "salary-thief",
+  "compatibility_date": "2026-07-18",
+  "assets": {
+    "directory": "./dist"
+  }
+}
