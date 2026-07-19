@@ -108,6 +108,31 @@ export const en: Strings = {
   fishToday: "Caught today",
   fishNeedLogin: "Log in and 8 fish spots appear randomly in the office each day.",
 
+  help: "Help",
+  helpTitle: "How to use",
+  helpStart: "Got it — start slacking",
+  helpWhat: "What is this?",
+  helpWhatBody:
+    "It counts, in real time, how much of the boss's money you steal while slacking. Every amount is computed for your eyes only — your salary and the money never leave this device.",
+  helpSetup: "Step one: set your pay",
+  helpSetupBody:
+    "Open Settings and fill in monthly salary, workdays per month, shift and lunch times — your per-second rate comes from these. Everything stays in this browser's localStorage.",
+  helpSlack: "Start stealing",
+  helpSlackBody:
+    "Hit \"Start slacking\" on the main screen and the big number starts ticking — that's this slack session turned into money. Hit stop when you're done; the report shows the month's haul and a 12-week heatmap.",
+  helpBoss: "Boss incoming",
+  helpBossBody:
+    "Press Esc (mobile: double-tap the screen) to flip into a fake Excel sheet — tab title and favicon change too. By default it auto-disguises the moment you tab away; press Esc or double-tap to come back. Toggle in Settings.",
+  helpOffice: "The office",
+  helpOfficeBody:
+    "Move with arrows / WASD or tap a tile. Reaching the pantry or couch starts slacking, your desk stops it. The green box is a bonus zone: stand inside for double pay, it moves every 10 minutes; sign in and 8 fish spots appear daily — stand on one to catch 🐟.",
+  helpTeam: "Bring coworkers",
+  helpTeamBody:
+    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours, never money.",
+  helpPrivacy: "Privacy floor",
+  helpPrivacyBody:
+    "Salary and amounts are never uploaded; the database stores no company names, only opaque codes; handles aren't tied to real names. The screen also never shows daily pay or per-second rate — passers-by can't work out what you earn.",
+
   stats: "Slacking report",
   monthSlack: "This month",
   stolen: "Money stolen",

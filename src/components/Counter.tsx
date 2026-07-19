@@ -38,11 +38,13 @@ export default function Counter({
   onStats,
   onOffice,
   onTeam,
+  onHelp,
 }: {
   onSettings: () => void;
   onStats: () => void;
   onOffice: () => void;
   onTeam: () => void;
+  onHelp: () => void;
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
@@ -93,6 +95,9 @@ export default function Counter({
             className="px-btn"
           >
             {t.settings}
+          </button>
+          <button onClick={onHelp} className="px-btn" title={t.helpTitle}>
+            {t.help}
           </button>
         </div>
       </header>

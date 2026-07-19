@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Counter from "./components/Counter";
 import Disguise from "./components/Disguise";
+import Help from "./components/Help";
 import Settings from "./components/Settings";
 import Stats from "./components/Stats";
 import Team from "./components/Team";
@@ -17,12 +18,19 @@ const setFavicon = (emoji: string) => {
 
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
-type View = "counter" | "settings" | "stats" | "office" | "team";
+type View = "counter" | "settings" | "stats" | "office" | "team" | "help";
 
 export default function App() {
-  const [view, setView] = useState<View>("counter");
+  // 第一次開直接落在說明頁(useState 初始值只算一次,helpSeen 由 persist
+  // 同步還原,不會閃畫面)
+  const [view, setView] = useState<View>(useStore.getState().helpSeen ? "counter" : "help");
   const [disguised, setDisguised] = useState(false);
   const autoDisguise = useStore((s) => s.autoDisguise);
+  const setHelpSeen = useStore((s) => s.setHelpSeen);
+  const closeHelp = () => {
+    setHelpSeen(true);
+    setView("counter");
+  };
 
   // 老闆鍵。純網頁在分頁沒有 focus 時收不到鍵盤事件,所以這顆鍵只在你正
   // 盯著這個分頁時有效 —— 而那正是你最不需要它的時候。要系統層級的全域
@@ -77,12 +85,14 @@ export default function App() {
           onStats={() => setView("stats")}
           onOffice={() => setView("office")}
           onTeam={() => setView("team")}
+          onHelp={() => setView("help")}
         />
       )}
       {view === "settings" && <Settings onBack={() => setView("counter")} />}
       {view === "stats" && <Stats onBack={() => setView("counter")} />}
       {view === "office" && <Office onBack={() => setView("counter")} />}
       {view === "team" && <Team onBack={() => setView("counter")} />}
+      {view === "help" && <Help onClose={closeHelp} />}
     </main>
   );
 }

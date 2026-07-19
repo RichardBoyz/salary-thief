@@ -42,6 +42,9 @@ type State = {
    */
   pendingInvite: Invite | null;
   setPendingInvite: (inv: Invite | null) => void;
+  /** 看過新手教學了沒。false = 第一次開,App 直接開在說明頁 */
+  helpSeen: boolean;
+  setHelpSeen: (v: boolean) => void;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
@@ -64,6 +67,8 @@ export const useStore = create<State>()(
       zoneMs: { day: "", ms: 0 },
       pendingInvite: null,
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
+      helpSeen: false,
+      setHelpSeen: (helpSeen) => set({ helpSeen }),
 
       // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
       addZoneMs: (ms, day) =>
