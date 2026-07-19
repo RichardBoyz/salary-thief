@@ -1,23 +1,9 @@
 import { dur, twd } from "../fmt";
-import {
-  earnedToday,
-  msUntilOffWork,
-  progress,
-  ratePerSecond,
-  todayShift,
-  workState,
-  type WorkState,
-} from "../money";
+import { msUntilOffWork, progress, workState, type WorkState } from "../money";
+import { dayStart, stolenMoney, totalMs, weekStart, withActive } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
 import { useNow } from "../useNow";
-
-const twdFine = new Intl.NumberFormat("zh-TW", {
-  style: "currency",
-  currency: "TWD",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
-});
 
 const countdown = (ms: number): string => {
   const total = Math.floor(ms / 1000);
@@ -60,13 +46,17 @@ export default function Counter({
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
+  const slackEvents = useStore((s) => s.slackEvents);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
   const now = useNow();
 
   const state = workState(cfg, now);
   const s = style[state];
-  const earned = earnedToday(cfg, now);
+  // 主畫面不顯示任何薪水絕對值(日薪/每秒/已賺都能被路過的人反推月薪)。
+  // 大數字改成「偷到的錢」:不知道你摸了多久,就算不出你的薪水。
+  const events = withActive(slackEvents, activeSince, now);
+  const stolen = stolenMoney(events, cfg, dayStart(now), now);
   const pct = progress(cfg, now) * 100;
 
   return (
@@ -108,10 +98,10 @@ export default function Counter({
       </header>
 
       <div>
-        <div className="text-crt-dim">{t.todayEarned}</div>
+        <div className="text-crt-dim">{t.todayStolen}</div>
         {/* 48/72px 都是 12 的整數倍 —— 像素字型只在整數倍下乾淨 */}
         <div className="mt-2 text-5xl tabular-nums text-crt-gold sm:text-7xl">
-          {twd.format(earned)}
+          {twd.format(stolen)}
           <span className="px-cursor">▍</span>
         </div>
         <p className="mt-3 text-crt-dim">{s.quip}</p>
@@ -129,9 +119,9 @@ export default function Counter({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Stat label={t.perSecond} value={twdFine.format(ratePerSecond(cfg, now))} />
+        <Stat label={t.todaySlack} value={dur(totalMs(events, dayStart(now), now))} />
         <Stat label={t.untilOffWork} value={countdown(msUntilOffWork(cfg, now))} />
-        <Stat label={t.dailyPay} value={twd.format(todayShift(cfg, now).dailyPay)} />
+        <Stat label={t.weekSlack} value={dur(totalMs(events, weekStart(now), now))} />
       </div>
 
       {activeSince === null ? (

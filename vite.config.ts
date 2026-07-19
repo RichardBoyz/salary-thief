@@ -27,4 +27,14 @@ const injectCsp = (): Plugin => ({
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), injectCsp()],
+  server: {
+    // dev 版的 worker.js:/gcis/* 轉發到經濟部商工登記 API(gcis 不給 CORS)
+    proxy: {
+      "/gcis": {
+        target: "https://data.gcis.nat.gov.tw",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/gcis/, ""),
+      },
+    },
+  },
 });

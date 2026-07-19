@@ -94,3 +94,39 @@ export const searchCompanies = (q: string): Company[] => {
     (c) => c.name.toLowerCase().includes(s) || (c.aka ?? "").toLowerCase().includes(s),
   );
 };
+
+// ---- 政府登記公司(經濟部商工登記 open data)----
+// 目錄之外的長尾:搜「登記全名」找全台所有核准設立的公司。房間鍵用統編
+// (更名也不換房),隱私規則不變 —— DB 仍只存 uuid,跨公司統計不具名
+// (isDirectoryCompany 為 false),顯示名只記在本機 companyLabel。
+
+export type RegistryCompany = { name: string; taxId: string; city: string };
+
+/** gcis 回應 → RegistryCompany[]。查無資料時 gcis 回非陣列,一律當空 */
+export const parseRegistry = (data: unknown): RegistryCompany[] => {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((r) => r && typeof r.Company_Name === "string" && r.Business_Accounting_NO)
+    .map((r) => ({
+      name: r.Company_Name as string,
+      taxId: String(r.Business_Accounting_NO),
+      city: String(r.Company_Location ?? "").slice(0, 3),
+    }));
+};
+
+/**
+ * 打經濟部商工登記 API 搜公司。/gcis 由 worker.js(prod)/ vite proxy(dev)
+ * 轉發 —— gcis 不給 CORS。注意它比對的是「登記全名」子字串:搜「台積電」
+ * 找不到台積電(登記名是台灣積體電路製造),知名公司靠上面的目錄接住。
+ */
+export async function searchRegistry(q: string, signal?: AbortSignal): Promise<RegistryCompany[]> {
+  // gcis 的 odata 方言:like 的值不加引號,空白會弄壞 filter,先拿掉
+  const name = q.replace(/\s+/g, "");
+  const filter = `Company_Name like ${name} and Company_Status eq 01`;
+  const url =
+    "/gcis/od/data/api/6BBA2268-1367-4B42-9CCA-BC17499EBE8C" +
+    `?$format=json&$filter=${encodeURIComponent(filter)}&$skip=0&$top=10`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) return [];
+  return parseRegistry(await res.json().catch(() => null));
+}

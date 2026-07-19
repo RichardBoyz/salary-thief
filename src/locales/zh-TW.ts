@@ -3,10 +3,10 @@
 export const zhTW = {
   appName: "薪水小偷",
 
-  todayEarned: "今天已經賺到",
-  perSecond: "每秒身價",
+  todayStolen: "今天已經偷到",
+  todaySlack: "今日摸魚",
   untilOffWork: "距離下班",
-  dailyPay: "今日日薪",
+  weekSlack: "本週摸魚",
   progressOfDay: "今日進度",
 
   stateBefore: "還沒上班",
@@ -44,6 +44,8 @@ export const zhTW = {
 
   companyPick: "選你的公司",
   companySearch: "搜尋公司(台積電、TSMC…)",
+  companyRegistry: "政府登記公司(經濟部商工資料,搜的是登記全名):",
+  companySearching: "查詢登記資料中…",
   companyCustomHint: "找不到?打完整公司名自己開一間:",
   companyCustomPlaceholder: "公司全名(同事打一樣的就會同房)",
   companyJoin: "加入",

@@ -12,6 +12,16 @@ export type SlackEvent = {
   endedAt: number;
 };
 
+/** 進行中的那段(如果有)補成一筆到 now 的事件。Counter/Office/Stats 都要「含當下」的視圖 */
+export const withActive = (
+  events: SlackEvent[],
+  activeSince: number | null,
+  now: number,
+): SlackEvent[] =>
+  activeSince === null
+    ? events
+    : [...events, { id: "active", startedAt: activeSince, endedAt: now }];
+
 /** 那一天的 00:00(本地時區) */
 export const dayStart = (t: number): number => {
   const d = new Date(t);

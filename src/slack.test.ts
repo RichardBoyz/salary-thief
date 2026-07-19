@@ -11,6 +11,7 @@ import {
   totalMs,
   unionMs,
   weekStart,
+  withActive,
 } from "./slack";
 
 const MIN = 60_000;
@@ -20,6 +21,18 @@ const ev = (startedAt: string, endedAt: string): SlackEvent => ({
   id: crypto.randomUUID(),
   startedAt: at(startedAt),
   endedAt: at(endedAt),
+});
+
+describe("withActive", () => {
+  it("沒在摸魚就原樣返回", () => {
+    const events = [ev("2026-07-17T10:00:00", "2026-07-17T10:30:00")];
+    expect(withActive(events, null, at("2026-07-17T11:00:00"))).toBe(events);
+  });
+
+  it("摸魚中補一筆到 now 的事件", () => {
+    const out = withActive([], at("2026-07-17T10:00:00"), at("2026-07-17T10:30:00"));
+    expect(totalMs(out, at("2026-07-17T00:00:00"), at("2026-07-18T00:00:00"))).toBe(30 * MIN);
+  });
 });
 
 describe("totalMs", () => {

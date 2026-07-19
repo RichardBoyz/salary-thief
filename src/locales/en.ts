@@ -4,10 +4,10 @@ import type { Strings } from "./zh-TW";
 export const en: Strings = {
   appName: "Salary Thief",
 
-  todayEarned: "Earned today",
-  perSecond: "Per second",
+  todayStolen: "Stolen today",
+  todaySlack: "Slacked today",
   untilOffWork: "Until clock-out",
-  dailyPay: "Today's pay",
+  weekSlack: "Slacked this week",
   progressOfDay: "Day's progress",
 
   stateBefore: "Not on the clock",
@@ -47,6 +47,8 @@ export const en: Strings = {
 
   companyPick: "Pick your company",
   companySearch: "Search company (TSMC, Foxconn…)",
+  companyRegistry: "Registered companies (MOEA registry, matches the registered full name):",
+  companySearching: "Searching the registry…",
   companyCustomHint: "Not listed? Type the full name to open your own room:",
   companyCustomPlaceholder: "Full company name (coworkers who type the same land together)",
   companyJoin: "Join",

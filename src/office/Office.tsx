@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dur, twd } from "../fmt";
-import { earnedToday } from "../money";
+import { dayStart, stolenMoney, withActive } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
 import { catchFish, useSession, useSpots, useTeam, type Spot } from "../sync";
@@ -142,6 +142,7 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
 export default function Office({ onBack }: { onBack: () => void }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
+  const slackEvents = useStore((s) => s.slackEvents);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
   const now = useNow();
@@ -300,7 +301,8 @@ export default function Office({ onBack }: { onBack: () => void }) {
           </span>
         )}
         <span className="tabular-nums text-crt-dim">
-          {t.todayEarned} {twd.format(earnedToday(cfg, now))}
+          {/* 跟主畫面同一套:只顯示偷到的錢,不顯示能反推薪水的已賺金額 */}
+          {t.todayStolen} {twd.format(stolenMoney(withActive(slackEvents, activeSince, now), cfg, dayStart(now), now))}
         </span>
         {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
         {session && spots.length > 0 && (

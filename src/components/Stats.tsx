@@ -9,6 +9,7 @@ import {
   stolenMoney,
   totalMs,
   weekStart,
+  withActive,
 } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
@@ -98,10 +99,7 @@ export default function Stats({ onBack }: { onBack: () => void }) {
   const now = Date.now();
 
   // 正在進行中的那一段也算進去,不然「摸魚中」的當下報告是空的
-  const events: SlackEvent[] =
-    activeSince === null
-      ? slackEvents
-      : [...slackEvents, { id: "active", startedAt: activeSince, endedAt: now }];
+  const events: SlackEvent[] = withActive(slackEvents, activeSince, now);
 
   const monthFrom = dayStart(new Date(now).setDate(1));
 

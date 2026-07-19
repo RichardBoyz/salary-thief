@@ -4,6 +4,7 @@ import {
   companyName,
   isDirectoryCompany,
   normalizeCustom,
+  parseRegistry,
   searchCompanies,
   slugToUuid,
 } from "./companies";
@@ -73,5 +74,32 @@ describe("searchCompanies", () => {
   });
   it("英文 aka 比對", () => {
     expect(searchCompanies("TSMC").map((c) => c.slug)).toContain("tsmc");
+  });
+});
+
+describe("parseRegistry", () => {
+  it("gcis 列轉成 name/taxId/city,城市取地址前三字", () => {
+    const rows = parseRegistry([
+      {
+        Business_Accounting_NO: "22099131",
+        Company_Name: "台灣積體電路製造股份有限公司",
+        Company_Location: "新竹市力行六路8號",
+      },
+    ]);
+    expect(rows).toEqual([
+      { name: "台灣積體電路製造股份有限公司", taxId: "22099131", city: "新竹市" },
+    ]);
+  });
+
+  it("查無資料時 gcis 回非陣列 → 空陣列;爛列被濾掉", () => {
+    expect(parseRegistry({ message: "no data" })).toEqual([]);
+    expect(parseRegistry(null)).toEqual([]);
+    expect(parseRegistry([{ Company_Name: 123 }, null])).toEqual([]);
+  });
+
+  it("登記公司的房間鍵(統編)是合法 uuid 且不具名", () => {
+    const code = slugToUuid("22099131");
+    expect(code).toMatch(UUID_RE);
+    expect(isDirectoryCompany(code)).toBe(false);
   });
 });

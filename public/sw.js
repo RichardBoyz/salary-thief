@@ -20,6 +20,7 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 放行 supabase 等外部請求
+  if (url.pathname.startsWith("/gcis/")) return; // 公司搜尋是即時資料,快取歸 worker.js 管
 
   if (req.mode === "navigate") {
     e.respondWith(

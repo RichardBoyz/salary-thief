@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   companyName,
   isDirectoryCompany,
   normalizeCustom,
   searchCompanies,
+  searchRegistry,
   slugToUuid,
+  type RegistryCompany,
 } from "../companies";
 import { dur } from "../fmt";
 import { ratePerSecond } from "../money";
@@ -95,8 +97,35 @@ function Setup({ onDone }: { onDone: () => void }) {
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
+  const [registry, setRegistry] = useState<RegistryCompany[]>([]);
+  const [searching, setSearching] = useState(false);
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
   const results = searchCompanies(query).slice(0, 8);
+
+  // 目錄之外再搜政府登記(debounce + abort)。目錄是同步的、這裡是非同步的,
+  // 兩段各自渲染,gcis 掛了目錄照常能用。
+  useEffect(() => {
+    const q = query.trim().replace(/\s+/g, "");
+    if (q.length < 2) {
+      setRegistry([]);
+      setSearching(false);
+      return;
+    }
+    const ctl = new AbortController();
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchRegistry(q, ctl.signal)
+        .then((rows) => {
+          setRegistry(rows);
+          setSearching(false);
+        })
+        .catch(() => {}); // abort 或 gcis 掛掉:留著上一批結果,不炸畫面
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      ctl.abort();
+    };
+  }, [query]);
 
   const join = (code: string, label: string) => {
     setCompanyLabel(label);
@@ -136,6 +165,29 @@ function Setup({ onDone }: { onDone: () => void }) {
             </li>
           ))}
         </ul>
+
+        {searching && <p className="text-[10px] text-crt-dim">{t.companySearching}</p>}
+        {registry.length > 0 && (
+          <>
+            <span className="mt-1 text-[10px] text-crt-dim">{t.companyRegistry}</span>
+            <ul className="flex flex-col gap-1">
+              {registry.map((r) => (
+                <li key={r.taxId}>
+                  <button
+                    disabled={!ok}
+                    onClick={() => join(slugToUuid(r.taxId), r.name)}
+                    className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-crt-white hover:bg-crt-bg disabled:opacity-40"
+                  >
+                    <span className="flex-1">{r.name}</span>
+                    <span className="text-[10px] text-crt-dim">
+                      {r.city} {r.taxId}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <form
