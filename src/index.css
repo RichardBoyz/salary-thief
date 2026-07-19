@@ -17,6 +17,25 @@
   --color-crt-gold: #e8c264; /* 錢。摸魚=偷錢,所以摸魚也是金色 */
   --color-crt-green: #7fc860; /* 上班中/OK */
   --color-crt-red: #e06c75; /* 錯誤 */
+  /* 斜角亮邊。深色主題=主文字同色,亮色主題文字變深、亮邊必須維持真亮,
+     所以獨立一格 —— 這是第 8 格,只准 bevel/補血包用,文字不准拿它 */
+  --color-crt-hi: #d4dae3;
+}
+
+/* 亮色主題:Win3.1 復古灰 —— 像素斜角本來就是它的原生長相。
+   同一套變數換值,元件零改動。掃描線是深色終端機的氛圍,亮色不掛 */
+[data-theme="light"] {
+  --color-crt-bg: #c8c8c8;
+  --color-crt-deep: #8e8e8e;
+  --color-crt-white: #1c1c1c;
+  --color-crt-dim: #4c4c4c;
+  --color-crt-gold: #8a6400;
+  --color-crt-green: #1d7a1d;
+  --color-crt-red: #b00020;
+  --color-crt-hi: #f2f2f2;
+}
+[data-theme="light"] .px-crt::after {
+  display: none;
 }
 
 @layer components {
@@ -28,15 +47,15 @@
   .px-btn,
   .px-row-me {
     border: 2px solid;
-    border-color: var(--color-crt-white) var(--color-crt-deep)
-      var(--color-crt-deep) var(--color-crt-white);
+    border-color: var(--color-crt-hi) var(--color-crt-deep)
+      var(--color-crt-deep) var(--color-crt-hi);
   }
   .px-bevel-in,
   .px-input,
   .px-row {
     border: 2px solid;
-    border-color: var(--color-crt-deep) var(--color-crt-white)
-      var(--color-crt-white) var(--color-crt-deep);
+    border-color: var(--color-crt-deep) var(--color-crt-hi)
+      var(--color-crt-hi) var(--color-crt-deep);
   }
 
   .px-panel {
@@ -55,8 +74,8 @@
     background: var(--color-crt-deep);
   }
   .px-btn:active {
-    border-color: var(--color-crt-deep) var(--color-crt-white)
-      var(--color-crt-white) var(--color-crt-deep);
+    border-color: var(--color-crt-deep) var(--color-crt-hi)
+      var(--color-crt-hi) var(--color-crt-deep);
     transform: translate(1px, 1px);
   }
   .px-btn:disabled {
@@ -138,7 +157,7 @@
         no-repeat,
       linear-gradient(var(--color-crt-green), var(--color-crt-green)) center / 2px 8px
         no-repeat,
-      var(--color-crt-white);
+      var(--color-crt-hi);
     animation: px-heal 1.5s steps(8) infinite;
   }
 }

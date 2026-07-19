@@ -32,6 +32,13 @@ export default function App() {
     setView("counter");
   };
 
+  // 主題印在 <html>:CSS 變數換值,元件不用知道現在是深是亮。
+  // 偽裝殼不受影響 —— 它不用調色盤變數(鐵律:永遠現代亮色 Excel)。
+  const theme = useStore((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
   // 老闆鍵。純網頁在分頁沒有 focus 時收不到鍵盤事件,所以這顆鍵只在你正
   // 盯著這個分頁時有效 —— 而那正是你最不需要它的時候。要系統層級的全域
   // 熱鍵得做成 Chrome 擴充或桌面 app。這裡真正實用的是下面的 blur。

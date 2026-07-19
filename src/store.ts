@@ -45,6 +45,9 @@ type State = {
   /** 看過新手教學了沒。false = 第一次開,App 直接開在說明頁 */
   helpSeen: boolean;
   setHelpSeen: (v: boolean) => void;
+  /** 深色終端機(預設)或 Win3.1 復古灰。App 把它印到 <html data-theme> */
+  theme: "dark" | "light";
+  setTheme: (t: "dark" | "light") => void;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
@@ -69,6 +72,8 @@ export const useStore = create<State>()(
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       helpSeen: false,
       setHelpSeen: (helpSeen) => set({ helpSeen }),
+      theme: "dark",
+      setTheme: (theme) => set({ theme }),
 
       // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
       addZoneMs: (ms, day) =>

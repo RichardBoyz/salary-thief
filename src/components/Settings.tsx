@@ -19,6 +19,8 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const setConfig = useStore((s) => s.setConfig);
   const autoDisguise = useStore((s) => s.autoDisguise);
   const setAutoDisguise = useStore((s) => s.setAutoDisguise);
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
 
   const shift = todayShift(cfg, Date.now());
   const error =
@@ -52,6 +54,20 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               }`}
             >
               {l === "zh-TW" ? "中文" : "EN"}
+            </button>
+          ))}
+        </div>
+        <span className="ml-3 text-crt-dim">{t.theme}</span>
+        <div className="flex gap-1">
+          {(["dark", "light"] as const).map((th) => (
+            <button
+              key={th}
+              onClick={() => setTheme(th)}
+              className={`px-2.5 py-1 text-xs ${
+                theme === th ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
+              }`}
+            >
+              {th === "dark" ? t.themeDark : t.themeLight}
             </button>
           ))}
         </div>
