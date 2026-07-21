@@ -21,6 +21,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const setAutoDisguise = useStore((s) => s.setAutoDisguise);
   const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
+  const resetData = useStore((s) => s.resetData);
 
   const shift = todayShift(cfg, Date.now());
   const error =
@@ -159,6 +160,14 @@ export default function Settings({ onBack }: { onBack: () => void }) {
       {error && (
         <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{error}</p>
       )}
+
+      {/* confirm() 是原生的破壞性操作攔截,不為一顆按鈕做自訂對話框 */}
+      <button
+        onClick={() => window.confirm(t.resetConfirm) && resetData()}
+        className="px-btn self-start text-crt-red"
+      >
+        {t.resetData}
+      </button>
 
       <p className="text-crt-dim">{t.settingsHint}</p>
     </div>

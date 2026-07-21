@@ -54,6 +54,8 @@ type State = {
   startSlacking: () => void;
   stopSlacking: () => void;
   addZoneMs: (ms: number, day: string) => void;
+  /** 清掉本機紀錄(摸魚歷史、外快、公司/隊伍標籤),留著偏好(薪水/主題/教學) */
+  resetData: () => void;
 };
 
 // persist middleware 直接處理 localStorage 讀寫和 JSON 序列化。
@@ -84,6 +86,17 @@ export const useStore = create<State>()(
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
       setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
       setCompanyLabel: (companyLabel) => set({ companyLabel }),
+
+      // 只清紀錄不清偏好。server 上的資料(有登入的話)另外靠登出處理
+      resetData: () =>
+        set({
+          slackEvents: [],
+          activeSince: null,
+          activeId: null,
+          zoneMs: { day: "", ms: 0 },
+          companyLabel: null,
+          pendingInvite: null,
+        }),
 
       // crypto.randomUUID() 是瀏覽器原生的,不需要 uuid 套件。
       // id 在 client 端產生 → 兩台裝置合併時不會撞,聯集就是答案。

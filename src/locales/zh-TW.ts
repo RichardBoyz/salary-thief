@@ -152,6 +152,8 @@ export const zhTW = {
   shiftEnd: "下班時間",
   lunchStart: "午休開始",
   lunchMinutes: "午休長度(分鐘)",
+  resetData: "清除本機資料",
+  resetConfirm: "清掉這台裝置的摸魚紀錄、外快與公司/隊伍標籤?薪水設定會留著。此動作無法復原。",
   settingsHint: "資料只存在這台裝置的瀏覽器裡,不會上傳。",
   errShiftOrder: "下班時間必須晚於上班時間。",
   errLunchTooLong: "午休比整個班表還長。",

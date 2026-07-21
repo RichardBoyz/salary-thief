@@ -157,6 +157,8 @@ export const en: Strings = {
   shiftEnd: "Clock out",
   lunchStart: "Lunch start",
   lunchMinutes: "Lunch length (min)",
+  resetData: "Clear local data",
+  resetConfirm: "Wipe this device's slack history, side cash, and company/team labels? Salary settings stay. This can't be undone.",
   settingsHint: "Data lives only in this browser, on this device. Nothing uploads.",
   errShiftOrder: "Clock-out must be later than clock-in.",
   errLunchTooLong: "Lunch is longer than the whole shift.",
