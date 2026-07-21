@@ -60,6 +60,19 @@ npm test
 2. 建置設定:**Build command** `npm run build`、**Deploy command** `npx wrangler deploy`、**Path 留空**(repo 根就是專案根)
 3. 靜態資產位置由 repo 裡的 [`wrangler.jsonc`](wrangler.jsonc) 指定(`assets.directory = ./dist`)。之後每次 push main 自動部署;`public/_headers`(CSP 等安全標頭)在 Workers static assets 下照常生效
 
-**部署後必做一步(不然登入會壞):** 到 Supabase Dashboard → Authentication → URL Configuration,把正式網址(`https://salary-thief.<帳號>.workers.dev`)填進 **Site URL**、並加進 **Redirect URLs**。不設的話 Google 登入 / magic link 會把人導回 localhost。
-
 單一 URL、無路由,所以不需要 SPA fallback 設定。
+
+## Supabase 設定(只有組隊功能需要;不登入完全不用碰)
+
+社交功能(排行榜、魚點、跨公司統計、串門子)是「沒跑遷移就默默變空」的設計 —— 不會報錯,只會該區塊空白。所以第一次啟用組隊前,依序把 `supabase/` 的 SQL 貼進 **SQL Editor → Run**,每份跑一次:
+
+| 情況 | 依序執行 |
+|---|---|
+| 全新 Supabase 專案 | `schema.sql` → `migrate-v3.sql` → `migrate-v4-security.sql` → `migrate-v5-company.sql` |
+| 既有 v1 專案 | `migrate-v2.sql` → `migrate-v3.sql` → `migrate-v4-security.sql` → `migrate-v5-company.sql` |
+
+沒跑各份的後果:v3 缺 → **辦公室完全沒有魚**(外快模型的漁獲獎勵消失);v5 缺 → 跨公司統計空白;v2 缺(既有專案)→ 隊伍對抗/一隊一房失效。
+
+**還有一步(不然登入會壞):** Authentication → URL Configuration,把正式網址(`https://salary-thief.<帳號>.workers.dev`)填進 **Site URL**、加進 **Redirect URLs**。不設的話 Google 登入 / magic link 會把人導回 localhost。
+
+驗收:用**個人**信箱登入 → 取代號選公司 → 進辦公室看得到魚點 → 複製邀請連結、換個瀏覽器點開能落進同一間房。
