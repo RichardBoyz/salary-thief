@@ -41,12 +41,14 @@ export default function Counter({
   onOffice,
   onTeam,
   onHelp,
+  onDisguise,
 }: {
   onSettings: () => void;
   onStats: () => void;
   onOffice: () => void;
   onTeam: () => void;
   onHelp: () => void;
+  onDisguise: () => void;
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
@@ -80,9 +82,13 @@ export default function Counter({
           <span className={s.text}>{s.label}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <kbd className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-dim">
+          {/* 手機的手動老闆鍵:桌機按 Esc,手機沒有 Esc 就點這顆 */}
+          <button
+            onClick={onDisguise}
+            className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-dim hover:text-crt-white"
+          >
             {t.bossKeyHint}
-          </kbd>
+          </button>
           <button
             onClick={onOffice}
             className="px-btn"

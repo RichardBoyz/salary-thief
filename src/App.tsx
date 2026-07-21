@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Counter from "./components/Counter";
 import Disguise from "./components/Disguise";
 import Help from "./components/Help";
@@ -25,6 +25,9 @@ export default function App() {
   // 同步還原,不會閃畫面)
   const [view, setView] = useState<View>(useStore.getState().helpSeen ? "counter" : "help");
   const [disguised, setDisguised] = useState(false);
+  // 雙擊逃生口要讀「點下當刻是否已偽裝」,同步更新(render 早於 effect)
+  const disguisedRef = useRef(disguised);
+  disguisedRef.current = disguised;
   const autoDisguise = useStore((s) => s.autoDisguise);
   // 語言切換不 reload:setLang 原地換 t 的內容後通知這裡,整棵樹重畫。
   // 全 app 沒有 memo,App 一重畫所有元件都會在 render 重讀 t.xxx
@@ -49,11 +52,16 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDisguised((d) => !d);
     };
-    // 手機沒有 Esc,快速點兩下當逃生口。只解除、不進入 —— 進入若也綁雙擊,
-    // 連點按鈕就會誤觸偽裝。用 click 自己數而不是 dblclick:這是手機唯一的
-    // 出口,不能賭 iOS 對 dblclick 的支援。沒偽裝時多點只是 no-op。
+    // 手機沒有 Esc,偽裝中快速點兩下當逃生口。用 click 自己數而不是 dblclick:
+    // 這是手機唯一的出口,不能賭 iOS 對 dblclick 的支援。
+    // 只在「已偽裝」時累計 —— 進入偽裝的那一下(老闆鍵按鈕)發生在未偽裝時,
+    // 會 reset 計數,所以連點按鈕不會進了又被馬上解除。
     let last = 0;
     const onClick = () => {
+      if (!disguisedRef.current) {
+        last = 0;
+        return;
+      }
       const now = Date.now();
       if (now - last < 400) setDisguised(false);
       last = now;
@@ -96,6 +104,7 @@ export default function App() {
           onOffice={() => setView("office")}
           onTeam={() => setView("team")}
           onHelp={() => setView("help")}
+          onDisguise={() => setDisguised(true)}
         />
       )}
       {view === "settings" && <Settings onBack={() => setView("counter")} />}
