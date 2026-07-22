@@ -60,9 +60,10 @@ export const en: Strings = {
     "Picking a company only matches you with coworkers. The DB stores no company name; your records only tie to a nickname.",
   invite: "Invite coworkers",
   copied: "Copied",
-  invitePending: "A coworker invited you to",
+  invitePending: " invited you to join ",
+  inviteSomeone: "A coworker",
   inviteIgnore: "Ignore",
-  inviteAfterLogin: "Sign in and you'll join the room your coworker invited you to.",
+  inviteAfterLogin: "Sign in below first; you can confirm joining once you're in.",
 
   employment: "Status",
   employmentCurrent: "Current",

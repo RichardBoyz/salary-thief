@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import {
   buildInviteLink,
   companyName,
+  type Invite,
   isDirectoryCompany,
   normalizeCustom,
+  type RegistryCompany,
   searchCompanies,
   searchRegistry,
   slugToUuid,
-  type RegistryCompany,
 } from "../companies";
 import { dur } from "../fmt";
 import { ratePerSecond } from "../money";
@@ -41,6 +42,19 @@ const stateLabelOf = (): Record<MemberState, string> => ({
   working: t.stateWorking,
   offline: t.stateOffline,
 });
+
+/** 「<暱稱> 邀請你加入 [房間]」—— 三個入口(未登入/取代號/已有代號)共用,寫清楚是誰邀的 */
+function InviteHeadline({ invite }: { invite: Invite }) {
+  return (
+    <span className="text-crt-dim">
+      <span className="text-crt-white">{invite.handle ?? t.inviteSomeone}</span>
+      {t.invitePending}
+      <span className="ml-1 inline-block px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
+        {invite.name ?? companyName(invite.code)}
+      </span>
+    </span>
+  );
+}
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -150,10 +164,7 @@ function Setup({ onDone }: { onDone: () => void }) {
       {/* 點了邀請連結進來的:取完代號一鍵進同事的房,不用再搜公司 */}
       {invite && (
         <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-          <span className="text-crt-dim">{t.invitePending}</span>
-          <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
-            {invite.name ?? companyName(invite.code)}
-          </span>
+          <InviteHeadline invite={invite} />
           <button
             className={btn}
             disabled={!ok}
@@ -352,6 +363,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
           location.origin,
           profile.company_code,
           companyName(profile.company_code, companyLabel),
+          profile.handle,
         ),
       )
       .then(() => {
@@ -389,7 +401,10 @@ export default function Team({ onBack }: { onBack: () => void }) {
       </header>
 
       {!session && pendingInvite && (
-        <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-gold">{t.inviteAfterLogin}</p>
+        <div className="px-panel flex flex-col gap-1 px-3 py-2 text-sm">
+          <InviteHeadline invite={pendingInvite} />
+          <span className="text-crt-dim">{t.inviteAfterLogin}</span>
+        </div>
       )}
       {!session && <Login />}
 
@@ -407,10 +422,7 @@ export default function Team({ onBack }: { onBack: () => void }) {
           {/* 有代號的人點了別人的邀請連結:一鍵換房 */}
           {pendingInvite && (
             <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-              <span className="text-crt-dim">{t.invitePending}</span>
-              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
-                {pendingInvite.name ?? companyName(pendingInvite.code)}
-              </span>
+              <InviteHeadline invite={pendingInvite} />
               <button className={btn} onClick={joinInvite}>
                 {t.companyJoin}
               </button>

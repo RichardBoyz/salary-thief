@@ -21,9 +21,16 @@ const setFavicon = (emoji: string) => {
 type View = "counter" | "settings" | "stats" | "office" | "team" | "help";
 
 export default function App() {
-  // 第一次開直接落在說明頁(useState 初始值只算一次,helpSeen 由 persist
-  // 同步還原,不會閃畫面)
-  const [view, setView] = useState<View>(useStore.getState().helpSeen ? "counter" : "help");
+  // 開站落點(useState 初始值只算一次,store 由 persist 同步還原,不閃畫面):
+  // 點邀請連結進來(main.tsx 已收好 pendingInvite)→ 直接開團隊頁看加入提示 /
+  // 登入;否則第一次開落說明頁,老使用者落計數器。
+  const [view, setView] = useState<View>(
+    useStore.getState().pendingInvite
+      ? "team"
+      : useStore.getState().helpSeen
+        ? "counter"
+        : "help",
+  );
   const [disguised, setDisguised] = useState(false);
   // 雙擊逃生口要讀「點下當刻是否已偽裝」,同步更新(render 早於 effect)
   const disguisedRef = useRef(disguised);
@@ -37,6 +44,13 @@ export default function App() {
     setHelpSeen(true);
     setView("counter");
   };
+
+  // 導向:點邀請連結進來 → 一律切到團隊頁看加入提示 / 登入。用 mount effect
+  // 而不是只靠 useState 初值 —— persist 補水與 setPendingInvite 在首次載入的
+  // 時序不穩,初值偶爾讀不到 pendingInvite;effect 在 mount 後讀一定讀得到。
+  useEffect(() => {
+    if (useStore.getState().pendingInvite) setView("team");
+  }, []);
 
   // 主題印在 <html>:CSS 變數換值,元件不用知道現在是深是亮。
   // 偽裝殼不受影響 —— 它不用調色盤變數(鐵律:永遠現代亮色 Excel)。

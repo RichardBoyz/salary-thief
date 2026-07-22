@@ -101,19 +101,31 @@ export const searchCompanies = (q: string): Company[] => {
 // hash 不會出現在任何 server log,連自家 worker 都看不到。名字放連結裡
 // 只是幫收件人設本機顯示標籤 —— DB 仍然不存公司名。
 
-export type Invite = { code: string; name: string | null };
+// name = 房間顯示名(幫收件人設本機標籤);handle = 邀請人暱稱(給收件人看清楚
+// 是誰邀的)。兩者都只是顯示用,DB 仍不存公司名;handle 本來就是公開的排行榜暱稱。
+export type Invite = { code: string; name: string | null; handle: string | null };
 
 const INVITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export const buildInviteLink = (origin: string, code: string, name: string): string =>
-  `${origin}/#join=${code}&n=${encodeURIComponent(name.slice(0, 30))}`;
+export const buildInviteLink = (
+  origin: string,
+  code: string,
+  name: string,
+  handle: string,
+): string =>
+  `${origin}/#join=${code}&n=${encodeURIComponent(name.slice(0, 30))}` +
+  `&h=${encodeURIComponent(handle.slice(0, 20))}`;
 
-/** hash 是不可信輸入:code 必須是合法 uuid,名字截 30 字。不合格回 null */
+/** hash 是不可信輸入:code 必須是合法 uuid,名字/暱稱截長度。不合格回 null */
 export const parseInvite = (hash: string): Invite | null => {
   const p = new URLSearchParams(hash.replace(/^#/, ""));
   const code = p.get("join")?.toLowerCase() ?? "";
   if (!INVITE_UUID_RE.test(code)) return null;
-  return { code, name: p.get("n")?.slice(0, 30) || null };
+  return {
+    code,
+    name: p.get("n")?.slice(0, 30) || null,
+    handle: p.get("h")?.slice(0, 20) || null,
+  };
 };
 
 // ---- 政府登記公司(經濟部商工登記 open data)----

@@ -56,9 +56,10 @@ export const zhTW = {
   companyPrivacy: "選公司只是用來配對同事,DB 不存公司名、你的紀錄只綁暱稱。",
   invite: "邀請同事",
   copied: "已複製",
-  invitePending: "同事邀請你加入",
+  invitePending: " 邀請你加入 ",
+  inviteSomeone: "同事",
   inviteIgnore: "忽略",
-  inviteAfterLogin: "登入後就會加入同事邀請的房間。",
+  inviteAfterLogin: "先在下方登入,登入後才能確認加入。",
 
   employment: "任職狀態",
   employmentCurrent: "在職",

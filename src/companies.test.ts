@@ -107,10 +107,10 @@ describe("parseRegistry", () => {
 });
 
 describe("邀請連結", () => {
-  it("build → parse round-trip,中文名字經得起 URL 編碼", () => {
+  it("build → parse round-trip,中文名字與暱稱經得起 URL 編碼", () => {
     const code = slugToUuid("tsmc");
-    const link = buildInviteLink("https://example.com", code, "台積電");
-    expect(parseInvite(new URL(link).hash)).toEqual({ code, name: "台積電" });
+    const link = buildInviteLink("https://example.com", code, "台積電", "小明");
+    expect(parseInvite(new URL(link).hash)).toEqual({ code, name: "台積電", handle: "小明" });
   });
 
   it("hash 是不可信輸入:非 uuid 的 code 一律拒收", () => {
@@ -120,9 +120,11 @@ describe("邀請連結", () => {
     expect(parseInvite("")).toBeNull();
   });
 
-  it("名字截 30 字、缺名字回 null name", () => {
+  it("名字截 30 / 暱稱截 20,缺就回 null", () => {
     const code = slugToUuid("tsmc");
     expect(parseInvite(`#join=${code}`)!.name).toBeNull();
+    expect(parseInvite(`#join=${code}`)!.handle).toBeNull();
     expect(parseInvite(`#join=${code}&n=${"甲".repeat(99)}`)!.name).toHaveLength(30);
+    expect(parseInvite(`#join=${code}&h=${"乙".repeat(99)}`)!.handle).toHaveLength(20);
   });
 });
