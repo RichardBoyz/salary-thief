@@ -147,7 +147,15 @@ export default function Counter({
       </div>
 
       {activeSince === null ? (
-        <button onClick={startSlacking} className="px-btn py-3">
+        // 開始摸魚 = 開始記時數 + 直接進辦公室,讓你走去綠框賺錢。
+        // 進去時 activeSince 已非 null → 出生在茶水間,辦公室不會重複觸發
+        <button
+          onClick={() => {
+            startSlacking();
+            onOffice();
+          }}
+          className="px-btn py-3"
+        >
           {t.startSlacking}
         </button>
       ) : (

@@ -118,7 +118,7 @@ export const en: Strings = {
     "Open Settings and fill in monthly salary, workdays per month, shift and lunch times — your per-second rate comes from these. Everything stays in this browser's localStorage.",
   helpSlack: "Log your slack hours",
   helpSlackBody:
-    "Hit \"Start slacking\" to log hours, stop when you're done — hours feed the report's heatmap and the team leaderboard. Note: the timer doesn't mint money; the big number is earned in the office (next section).",
+    "Hit \"Start slacking\" to begin logging hours and drop straight into the office — walk to the green box to earn; hit stop when you're done. Hours feed the report heatmap and the leaderboard; the timer itself doesn't mint money (that's in the office, next section).",
   helpBoss: "Boss incoming",
   helpBossBody:
     "Press Esc (mobile: double-tap the screen) to flip into a fake Excel sheet — tab title and favicon change too. By default it auto-disguises the moment you tab away; press Esc or double-tap to come back. Toggle in Settings.",
