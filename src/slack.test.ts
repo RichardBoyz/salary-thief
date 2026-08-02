@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { Config } from "./money";
 import {
   addDays,
   dayKey,
@@ -7,7 +6,6 @@ import {
   longestMs,
   msByDay,
   type SlackEvent,
-  stolenMoney,
   totalMs,
   unionMs,
   weekStart,
@@ -165,28 +163,6 @@ describe("日期工具", () => {
 
   it("weekStart 對星期日本身是它自己", () => {
     expect(dayKey(weekStart(at("2026-07-12T23:59:00")))).toBe("2026-07-12");
-  });
-});
-
-describe("stolenMoney", () => {
-  // 日薪 2000 / 給薪 8 小時 → 時薪 250
-  const cfg: Config = {
-    monthlySalary: 44000,
-    workdaysPerMonth: 22,
-    shiftStart: "09:00",
-    shiftEnd: "18:00",
-    lunchStart: "12:00",
-    lunchMinutes: 60,
-  };
-
-  it("摸魚兩小時 = 偷了兩小時的時薪", () => {
-    const events = [ev("2026-07-17T10:00:00", "2026-07-17T12:00:00")];
-    const v = stolenMoney(events, cfg, at("2026-07-17T00:00:00"), at("2026-07-18T00:00:00"));
-    expect(v).toBeCloseTo(500, 6);
-  });
-
-  it("沒摸魚就沒偷", () => {
-    expect(stolenMoney([], cfg, 0, Date.now())).toBe(0);
   });
 });
 

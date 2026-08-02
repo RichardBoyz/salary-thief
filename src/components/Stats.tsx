@@ -6,7 +6,6 @@ import {
   longestMs,
   msByDay,
   type SlackEvent,
-  stolenMoney,
   totalMs,
   weekStart,
   withActive,
@@ -16,12 +15,6 @@ import { t } from "../strings";
 
 const MIN = 60_000;
 const WEEKS = 12;
-
-const twd = new Intl.NumberFormat("zh-TW", {
-  style: "currency",
-  currency: "TWD",
-  maximumFractionDigits: 0,
-});
 
 // GitHub 那張圖就是一個 CSS grid 裡塞方塊。裝 Recharts 只為了畫 84 個
 // 有背景色的 div 是純虧損。等真的需要 tooltip 以外的互動再說。
@@ -91,7 +84,6 @@ function Heatmap({ events }: { events: SlackEvent[] }) {
 }
 
 export default function Stats({ onBack }: { onBack: () => void }) {
-  const cfg = useStore((s) => s.config);
   const slackEvents = useStore((s) => s.slackEvents);
   const activeSince = useStore((s) => s.activeSince);
 
@@ -121,10 +113,8 @@ export default function Stats({ onBack }: { onBack: () => void }) {
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label={t.monthSlack} value={dur(totalMs(events, monthFrom, now))} />
-            <Stat
-              label={t.stolen}
-              value={twd.format(stolenMoney(events, cfg, monthFrom, now))}
-            />
+            {/* v8 拿掉「摸魚換算」(時數 × 時薪)—— 沒有時薪了,換成同尺度的本週 */}
+            <Stat label={t.weekSlack} value={dur(totalMs(events, weekStart(now), now))} />
             <Stat label={t.longest} value={dur(longestMs(events))} />
             <Stat label={t.sessions} value={`${events.length}`} />
           </div>

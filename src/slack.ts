@@ -1,4 +1,4 @@
-import { overlap, ratePerSecond, type Config } from "./money";
+import { overlap } from "./money";
 
 /**
  * 摸魚事件。append-only,id 由 client 端產生。
@@ -100,14 +100,6 @@ export const msByDay = (events: SlackEvent[]): Map<string, number> => {
   }
   return out;
 };
-
-/** 摸魚偷到的錢 = 摸魚時數 × 時薪。這個 app 的中心思想 */
-export const stolenMoney = (
-  events: SlackEvent[],
-  cfg: Config,
-  from: number,
-  to: number,
-): number => (totalMs(events, from, to) / 1000) * ratePerSecond(cfg, to);
 
 /** 最長的一次摸魚 */
 export const longestMs = (events: SlackEvent[]): number =>

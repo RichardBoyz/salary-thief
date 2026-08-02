@@ -1,19 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   type Config,
-  earnedToday,
-  FISH_BONUS_MS,
-  gameMoney,
+  FISH_POINTS,
   msUntilOffWork,
-  ratePerSecond,
+  points,
+  POINTS_PER_MIN,
+  progress,
   todayShift,
   workState,
 } from "./money";
 
-// 月薪 44000 / 22 天 = 日薪 2000。班表 9 小時扣午休 1 小時 = 給薪 8 小時 → 時薪 250。
+// 班表 9 小時扣午休 1 小時 = 給薪 8 小時。v8 之後這裡沒有薪水了
 const cfg: Config = {
-  monthlySalary: 44000,
-  workdaysPerMonth: 22,
   shiftStart: "09:00",
   shiftEnd: "18:00",
   lunchStart: "12:00",
@@ -23,41 +21,35 @@ const cfg: Config = {
 /** 本地時區的當天某時刻 */
 const t = (hhmm: string) => new Date(`2026-07-17T${hhmm}:00`).getTime();
 
-describe("earnedToday", () => {
+describe("progress(今日進度)", () => {
   it.each([
     ["上班前一小時", "08:00", 0],
     ["剛好上班", "09:00", 0],
-    ["上班一小時", "10:00", 250],
-    ["午休開始", "12:00", 750],
-    ["午休中不跳錶", "12:30", 750],
-    ["午休結束那一刻", "13:00", 750],
-    ["午休後又開始跳", "14:00", 1000],
-    ["剛好下班", "18:00", 2000],
-    ["下班後不再累加", "23:00", 2000],
-  ])("%s (%s) → %d", (_label, time, expected) => {
-    expect(earnedToday(cfg, t(time))).toBeCloseTo(expected, 6);
-  });
-
-  it("整個班表結束後剛好等於日薪,一塊錢都不差", () => {
-    expect(earnedToday(cfg, t("18:00"))).toBe(2000);
+    ["上班一小時", "10:00", 1 / 8],
+    ["午休開始", "12:00", 3 / 8],
+    ["午休中不前進", "12:30", 3 / 8],
+    ["午休結束那一刻", "13:00", 3 / 8],
+    ["午休後又開始走", "14:00", 4 / 8],
+    ["剛好下班", "18:00", 1],
+    ["下班後不再累加", "23:00", 1],
+  ])("%s (%s) → %f", (_label, time, expected) => {
+    expect(progress(cfg, t(time))).toBeCloseTo(expected, 9);
   });
 
   it("是 now 的純函式 —— 同樣時刻算幾次都一樣(這就是不用 setInterval 累加的理由)", () => {
     const at1430 = t("14:30");
-    const results = Array.from({ length: 100 }, () => earnedToday(cfg, at1430));
+    const results = Array.from({ length: 100 }, () => progress(cfg, at1430));
     expect(new Set(results).size).toBe(1);
   });
 
-  it("單調遞增,不會因為取樣間隔不同而算出不同總額", () => {
-    // 模擬分頁被降頻:每 5 分鐘才取樣一次,結果必須跟每秒取樣的終點一致
-    const coarse = earnedToday(cfg, t("18:00"));
-    let fine = 0;
+  it("單調遞增,不會因為取樣間隔不同而算出不同結果", () => {
+    let prev = 0;
     for (let ms = t("09:00"); ms <= t("18:00"); ms += 60_000) {
-      const v = earnedToday(cfg, ms);
-      expect(v).toBeGreaterThanOrEqual(fine);
-      fine = v;
+      const v = progress(cfg, ms);
+      expect(v).toBeGreaterThanOrEqual(prev);
+      prev = v;
     }
-    expect(fine).toBeCloseTo(coarse, 6);
+    expect(prev).toBe(1);
   });
 });
 
@@ -77,12 +69,8 @@ describe("workState", () => {
   });
 });
 
-describe("衍生數值", () => {
-  it("每秒身價是用給薪時數算的,不含午休", () => {
-    expect(ratePerSecond(cfg, t("10:00"))).toBeCloseTo(2000 / (8 * 3600), 9);
-  });
-
-  it("距離下班", () => {
+describe("距離下班", () => {
+  it("下班前算得出來,下班後夾 0", () => {
     expect(msUntilOffWork(cfg, t("17:00"))).toBe(3600_000);
     expect(msUntilOffWork(cfg, t("19:00"))).toBe(0);
   });
@@ -91,29 +79,23 @@ describe("衍生數值", () => {
 describe("爛輸入不能算出 NaN 或負數", () => {
   const bad = (patch: Partial<Config>) => ({ ...cfg, ...patch });
 
-  it("上班天數 0 不會變成 Infinity", () => {
-    const v = earnedToday(bad({ workdaysPerMonth: 0 }), t("14:00"));
-    expect(Number.isFinite(v)).toBe(true);
-  });
-
   it("下班時間早於上班時間 → 0,不是負數", () => {
-    const v = earnedToday(bad({ shiftStart: "18:00", shiftEnd: "09:00" }), t("14:00"));
-    expect(v).toBe(0);
+    expect(progress(bad({ shiftStart: "18:00", shiftEnd: "09:00" }), t("14:00"))).toBe(0);
   });
 
   it("午休吃掉整個班表 → 0,不是 NaN", () => {
-    const v = earnedToday(bad({ lunchStart: "09:00", lunchMinutes: 24 * 60 }), t("14:00"));
+    const v = progress(bad({ lunchStart: "09:00", lunchMinutes: 24 * 60 }), t("14:00"));
     expect(v).toBe(0);
     expect(v).not.toBeNaN();
   });
 
-  it("午休只吃掉班表的後半段 → 只有前半段有給薪,而且賺滿就封頂", () => {
-    // 午休 12:00 開始、長達 24 小時 → 只有 09:00~12:00 這 3 小時有給薪。
-    // 所以 12:00 就已經賺滿日薪,之後不再增加。這是對的,不是 bug。
+  it("午休只吃掉班表的後半段 → 只有前半段給薪,而且走滿就封頂", () => {
+    // 午休 12:00 開始、長達 24 小時 → 只有 09:00~12:00 這 3 小時算給薪。
+    // 所以 12:00 進度就已經滿了,之後不再增加。這是對的,不是 bug。
     const swallowed = bad({ lunchMinutes: 24 * 60 });
     expect(todayShift(swallowed, t("14:00")).paidMs).toBe(3 * 3600_000);
-    expect(earnedToday(swallowed, t("12:00"))).toBe(2000);
-    expect(earnedToday(swallowed, t("14:00"))).toBe(2000);
+    expect(progress(swallowed, t("12:00"))).toBe(1);
+    expect(progress(swallowed, t("14:00"))).toBe(1);
   });
 
   it("午休完全落在班表外時不扣給薪時數", () => {
@@ -121,41 +103,43 @@ describe("爛輸入不能算出 NaN 或負數", () => {
     expect(todayShift(nightLunch, t("14:00")).paidMs).toBe(9 * 3600_000);
   });
 
-  it("月薪 0 就是 0", () => {
-    expect(earnedToday(bad({ monthlySalary: 0 }), t("14:00"))).toBe(0);
-  });
-
   it("localStorage 被亂改成空字串時不能吐 NaN", () => {
     const junk = bad({ shiftStart: "", shiftEnd: "", lunchStart: "" });
-    expect(earnedToday(junk, t("14:00"))).not.toBeNaN();
-    expect(ratePerSecond(junk, t("14:00"))).not.toBeNaN();
+    expect(progress(junk, t("14:00"))).not.toBeNaN();
     expect(msUntilOffWork(junk, t("14:00"))).not.toBeNaN();
   });
 });
 
-describe("gameMoney(遊戲化的今天偷到)", () => {
-  const cfg: Config = {
-    monthlySalary: 66_000,
-    workdaysPerMonth: 22,
-    shiftStart: "09:00",
-    shiftEnd: "18:00",
-    lunchStart: "12:00",
-    lunchMinutes: 60,
-  };
-  const noon = new Date("2026-07-20T14:00:00").getTime();
-  // 日薪 3000、實付 8 小時 → 每秒 3000/28800
-  const rate = 3000 / 28_800;
-
-  it("沒站沒魚就是 0 —— 按鈕計時不生錢", () => {
-    expect(gameMoney(0, 0, cfg, noon)).toBe(0);
+describe("points(摸魚幣)", () => {
+  it("沒站沒魚就是 0 —— 按鈕計時不生幣", () => {
+    expect(points(0, 0)).toBe(0);
   });
 
-  it("站一小時 = 3600 秒 × 時薪", () => {
-    expect(gameMoney(3_600_000, 0, cfg, noon)).toBeCloseTo(3600 * rate, 6);
+  it("站一分鐘 = 10 點,站一小時 = 600 點", () => {
+    expect(points(60_000, 0)).toBe(POINTS_PER_MIN);
+    expect(points(3_600_000, 0)).toBe(60 * POINTS_PER_MIN);
   });
 
-  it("一條魚 = 15 分鐘時薪,跟站 15 分鐘等值", () => {
-    expect(gameMoney(0, 1, cfg, noon)).toBeCloseTo(gameMoney(FISH_BONUS_MS, 0, cfg, noon), 9);
-    expect(gameMoney(0, 2, cfg, noon)).toBeCloseTo(2 * 900 * rate, 6);
+  it("六秒跳一點,不到六秒不給 —— 整數不會出現小數點", () => {
+    expect(points(5_999, 0)).toBe(0);
+    expect(points(6_000, 0)).toBe(1);
+    expect(Number.isInteger(points(123_456, 3))).toBe(true);
+  });
+
+  it("一條魚 150 點,等於站 15 分鐘", () => {
+    expect(points(0, 1)).toBe(FISH_POINTS);
+    expect(points(0, 1)).toBe(points(15 * 60_000, 0));
+    expect(points(0, 2)).toBe(2 * FISH_POINTS);
+  });
+
+  it("跟薪水無關 —— 輸入只有毫秒與條數,沒有 Config 可以傳", () => {
+    expect(points.length).toBe(2);
+  });
+
+  it("負數與 NaN 一律當 0,不讓爛值汙染整條鏈", () => {
+    expect(points(-1, 0)).toBe(0);
+    expect(points(NaN, 0)).toBe(0);
+    expect(points(0, NaN)).toBe(0);
+    expect(points(60_000, -5)).toBe(POINTS_PER_MIN);
   });
 });

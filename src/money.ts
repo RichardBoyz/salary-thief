@@ -1,6 +1,11 @@
+/**
+ * 班表與摸魚幣。
+ *
+ * v8 之後這個檔案裡沒有薪水了 —— 月薪、日薪、時薪、每秒身價全部刪掉,app
+ * 從此不知道你賺多少。剩下的兩件事:班表(狀態、進度、距離下班)與摸魚幣。
+ * 檔名維持 money.ts,只是為了不讓 6 個 import 跟著改名失去 git 連續性。
+ */
 export type Config = {
-  monthlySalary: number;
-  workdaysPerMonth: number;
   shiftStart: string; // "09:00" —— 直接是 <input type="time"> 的值
   shiftEnd: string; // "18:00"
   lunchStart: string; // "12:00"
@@ -35,10 +40,9 @@ export type Shift = {
   lunchEnd: number;
   /** 實際有給薪的毫秒數 = 班表長度 - 落在班表內的午休 */
   paidMs: number;
-  dailyPay: number;
 };
 
-// ponytail: 不支援跨夜班表(end <= start)。paidMs 會是 0,計數器顯示 0 而不是負數,
+// ponytail: 不支援跨夜班表(end <= start)。paidMs 會是 0,進度顯示 0 而不是負數,
 // 設定頁也擋掉這種輸入。真的有大夜班使用者再處理跨日,那要改的不只這裡。
 export function todayShift(cfg: Config, now: number): Shift {
   const start = at(now, cfg.shiftStart);
@@ -51,23 +55,23 @@ export function todayShift(cfg: Config, now: number): Shift {
     lunchStart,
     lunchEnd,
     paidMs: Math.max(0, end - start - overlap(start, end, lunchStart, lunchEnd)),
-    dailyPay: cfg.monthlySalary / Math.max(1, cfg.workdaysPerMonth),
   };
 }
 
 /**
- * 今天到 now 為止賺了多少。
+ * 今天上班上到哪了,0~1。
  *
- * 關鍵:數字永遠從 now 重新推導,絕不用 setInterval 累加。
- * 分頁切到背景被降頻、電腦睡眠醒來、使用者改系統時間,這個函式都還是對的。
+ * 關鍵沒變:數字永遠從 now 重新推導,絕不用 setInterval 累加。分頁切到背景
+ * 被降頻、電腦睡眠醒來、使用者改系統時間,這個函式都還是對的。
+ * (v8 前這裡是 earnedToday/dailyPay —— 分母消失之後,分子自己就是進度。)
  */
-export function earnedToday(cfg: Config, now: number): number {
+export function progress(cfg: Config, now: number): number {
   const s = todayShift(cfg, now);
   if (s.paidMs <= 0 || now <= s.start) return 0;
   const capped = Math.min(now, s.end);
   const worked =
     capped - s.start - overlap(s.start, capped, s.lunchStart, s.lunchEnd);
-  return (worked / s.paidMs) * s.dailyPay;
+  return worked / s.paidMs;
 }
 
 export function workState(cfg: Config, now: number): WorkState {
@@ -78,34 +82,24 @@ export function workState(cfg: Config, now: number): WorkState {
   return "working";
 }
 
-/** 你的每秒身價。午休不給薪,所以是用 paidMs 算的 */
-export function ratePerSecond(cfg: Config, now: number): number {
-  const s = todayShift(cfg, now);
-  return s.paidMs <= 0 ? 0 : s.dailyPay / (s.paidMs / 1000);
-}
-
 /** 距離下班還有幾毫秒,已下班為 0 */
 export function msUntilOffWork(cfg: Config, now: number): number {
   return Math.max(0, todayShift(cfg, now).end - now);
 }
 
-/** 今日進度 0~1,給進度條用 */
-export function progress(cfg: Config, now: number): number {
-  const s = todayShift(cfg, now);
-  return s.dailyPay <= 0 ? 0 : earnedToday(cfg, now) / s.dailyPay;
-}
+/** 站外快區一分鐘給幾點。10 點/分 = 1 點/6 秒,所以數字六秒跳一次,不會呆著不動 */
+export const POINTS_PER_MIN = 10;
+/** 一條魚 150 點 = 站 15 分鐘,沿用 v7 訂下的等價關係。魚是伺服器擔保的,給大方一點 */
+export const FISH_POINTS = 150;
 
-/** 一條魚值幾分鐘時薪(15 分)。魚是伺服器驗證的,獎勵給大方一點 */
-export const FISH_BONUS_MS = 15 * 60_000;
+/** 爛值(NaN / 負數 / localStorage 被亂改)一律當 0,不讓它汙染整條鏈 */
+const safe = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0);
 
 /**
- * 遊戲化的「今天偷到」:錢只來自外快區站立 + 漁獲獎勵,按鈕計時不生錢
- * (使用者拍板:時數歸報告與排行榜,錢要親自到辦公室賺)。
- * 跟其他數字同一套:輸入是毫秒與條數,錢用時薪即時換算、不落地。
+ * 摸魚幣:錢只來自外快區站立 + 漁獲,按鈕計時不生幣(v7 拍板,v8 換成點數)。
+ *
+ * 跟薪水完全脫鉤 —— 這正是它能上 DB 的原因:點數不含任何薪資資訊,存進
+ * 資料庫也反推不出任何人賺多少。輸入是毫秒與條數,永遠是整數。
  */
-export const gameMoney = (
-  zoneMs: number,
-  fishes: number,
-  cfg: Config,
-  now: number,
-): number => ((zoneMs + fishes * FISH_BONUS_MS) / 1000) * ratePerSecond(cfg, now);
+export const points = (zoneMs: number, fishes: number): number =>
+  Math.floor(safe(zoneMs) / (MIN / POINTS_PER_MIN)) + safe(fishes) * FISH_POINTS;

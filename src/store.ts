@@ -5,8 +5,6 @@ import type { Config } from "./money";
 import type { SlackEvent } from "./slack";
 
 export const defaultConfig: Config = {
-  monthlySalary: 50_000,
-  workdaysPerMonth: 22,
   shiftStart: "09:00",
   shiftEnd: "18:00",
   lunchStart: "12:00",
@@ -120,6 +118,20 @@ export const useStore = create<State>()(
           };
         }),
     }),
-    { name: "salary-thief" },
+    {
+      name: "salary-thief",
+      // v8 去薪水化。migrate 不是為了型別(多餘欄位對 TS 無害),是為了把使用者
+      // 舊的月薪真的從這台裝置上刪掉 —— 不然「app 從此不知道你的薪水」是假的。
+      // 注意:zustand 只在 storage 裡的 version 是 number 時才呼叫 migrate。
+      // 舊資料一定有(persist 從第一天就會寫 version: 0),但手寫測試資料時
+      // 漏掉 version 欄位就會靜默跳過遷移 —— 驗證時被這個騙過一次。
+      version: 1,
+      migrate: (persisted) => {
+        const s = persisted as { config?: Record<string, unknown> };
+        delete s?.config?.monthlySalary;
+        delete s?.config?.workdaysPerMonth;
+        return s;
+      },
+    },
   ),
 );

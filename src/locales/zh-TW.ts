@@ -4,6 +4,7 @@ export const zhTW = {
   appName: "薪水小偷",
 
   todayStolen: "今天已經偷到",
+  pointsUnit: "點",
   todaySlack: "今日摸魚",
   untilOffWork: "距離下班",
   weekSlack: "本週摸魚",
@@ -15,7 +16,7 @@ export const zhTW = {
   stateAfter: "已下班",
 
   quipBefore: "上班時間還沒到,你現在是免費的。",
-  quipWorking: "每一秒都在把時間換成錢。",
+  quipWorking: "每一秒都在把老闆的時間變成你的。",
   quipLunch: "午休不算工時,這段時間老闆沒在付你錢。",
   quipAfter: "今天的份全部到手了。可以走了。",
 
@@ -28,8 +29,8 @@ export const zhTW = {
   office: "辦公室",
   officeSlacking: "摸魚中",
   officeHint:
-    "方向鍵 / WASD 移動 —— 走到茶水間或沙發記摸魚時數,回自己座位結束。錢在綠框賺:站進去才會跳,每 10 分鐘換位;抓到魚再加碼。",
-  zoneHint: "偷到的錢 = 綠框站立累積 + 漁獲獎勵(一條魚 15 分鐘時薪)。",
+    "方向鍵 / WASD 移動 —— 走到茶水間或沙發記摸魚時數,回自己座位結束。摸魚幣在綠框賺:站進去才會跳,每 10 分鐘換位;抓到魚再加碼。",
+  zoneHint: "摸魚幣 = 綠框站立(每分鐘 10 點)+ 漁獲獎勵(一條魚 150 點)。",
 
   team: "團隊",
   loginTitle: "跟同事一起偷",
@@ -40,7 +41,7 @@ export const zhTW = {
   loginEmailPlaceholder: "個人信箱(不要用公司信箱)",
   loginSend: "寄登入連結",
   loginSent: "寄出去了,去收信點連結就會回到這裡。沒收到先翻垃圾郵件。",
-  loginPrivacy: "只用信箱登入,不設密碼。你的月薪和金額永遠不上傳 —— 排行榜只比時數。",
+  loginPrivacy: "只用信箱登入,不設密碼。這個 app 從頭到尾不問你的薪水 —— 排行榜比的是時數與摸魚幣。",
   setupTitle: "取個代號",
   setupHandlePlaceholder: "暱稱(同事認得出、老闆認不出的那種)",
 
@@ -75,8 +76,6 @@ export const zhTW = {
   boardAll: "全公司",
   boardMine: "我的隊伍",
   teamTotal: "全公司本週共偷",
-  teamTotalPrivate: "以你的時薪換算 ≈ ",
-  onlyYouSee: "(只有你看得到)",
   received: "你被起鬨",
   stateOffline: "離線",
   refresh: "重新整理",
@@ -101,36 +100,35 @@ export const zhTW = {
   fishNext: "下一個魚點",
   fishNone: "今天的魚都游走了,明天請早。",
   fishToday: "今日漁獲",
-  fishNeedLogin: "登入後,辦公室每天隨機出現 8 個魚點 —— 一條魚 = 15 分鐘時薪的獎勵。",
+  fishNeedLogin: "登入後,辦公室每天隨機出現 8 個魚點 —— 一條魚 = 150 點摸魚幣。",
 
   help: "說明",
   helpTitle: "使用說明",
   helpStart: "知道了,開始摸魚",
   helpWhat: "這是什麼?",
   helpWhatBody:
-    "把摸魚變成遊戲:時數記進報告和排行榜,錢要親自到 2D 辦公室賺 —— 站外快區、抓魚。所有金額只算給你自己看,月薪和錢永遠不離開這台裝置。",
-  helpSetup: "第一步:把薪水設對",
+    "把摸魚變成遊戲:時數記進報告和排行榜,摸魚幣要親自到 2D 辦公室賺 —— 站外快區、抓魚。這個 app 不問你的薪水,也算不出你賺多少。",
+  helpSetup: "第一步:把班表設對",
   helpSetupBody:
-    "到「設定」填月薪、每月上班天數、上下班與午休時間 —— 時薪就是從這裡算出來的。這些數字只存在瀏覽器的 localStorage,不會上傳。",
+    "到「設定」填上下班與午休時間 —— 上班狀態、今日進度、距離下班都是從這裡算的。這些只存在瀏覽器的 localStorage。",
   helpSlack: "記你的摸魚時數",
   helpSlackBody:
-    "主畫面按「開始摸魚」會開始記時數並直接帶你進辦公室,走去綠框賺錢;按「結束摸魚」收工。時數進「摸魚報告」熱力圖也上團隊排行榜,計時本身不生錢 —— 錢在辦公室賺(下一節)。",
+    "主畫面按「開始摸魚」會開始記時數並直接帶你進辦公室,走去綠框賺幣;按「結束摸魚」收工。時數進「摸魚報告」熱力圖也上團隊排行榜,計時本身不生幣 —— 幣在辦公室賺(下一節)。",
   helpBoss: "老闆來了",
   helpBossBody:
     "按 Esc(手機:快速點畫面兩下)瞬間切成一張假 Excel,分頁標題和 favicon 一起變裝。預設切走分頁就自動偽裝,回來按 Esc 或雙擊解除;可在設定關掉自動偽裝。",
-  helpOffice: "辦公室 —— 錢在這裡賺",
+  helpOffice: "辦公室 —— 摸魚幣在這裡賺",
   helpOfficeBody:
-    "方向鍵 / WASD 或點格子移動。「今天已經偷到」的錢只有兩個來源:站在綠框(外快區)裡以時薪累積,每 10 分鐘換位;登入後每天 8 個魚點,站上去抓 🐟,一條魚 = 15 分鐘時薪。走到茶水間或沙發會順便記摸魚時數,回座位結束。",
+    "方向鍵 / WASD 或點格子移動。「今天已經偷到」只有兩個來源:站在綠框(外快區)裡每分鐘 10 點,每 10 分鐘換位;登入後每天 8 個魚點,站上去抓 🐟,一條魚 150 點。走到茶水間或沙發會順便記摸魚時數,回座位結束。",
   helpTeam: "揪同事",
   helpTeamBody:
-    "「團隊」用個人信箱登入(千萬別用公司的),取個代號、選公司 —— 目錄挑、搜商工登記、自訂名字都行;按「邀請同事」把連結丟出去,同事點開登入就同房。排行榜比摸魚時數,不比錢。",
+    "「團隊」用個人信箱登入(千萬別用公司的),取個代號、選公司 —— 目錄挑、搜商工登記、自訂名字都行;按「邀請同事」把連結丟出去,同事點開登入就同房。排行榜比摸魚時數與摸魚幣。",
   helpPrivacy: "隱私底線",
   helpPrivacyBody:
-    "月薪與金額永不上傳;資料庫不存公司名,只存看不出意義的代碼;暱稱不綁真名。畫面上也刻意不顯示日薪、每秒身價 —— 路過的人推不出你的薪水。",
+    "這個 app 不知道你的薪水 —— 它從來不問,所以也洩漏不了。資料庫不存公司名,只存看不出意義的代碼;暱稱不綁真名。摸魚幣是點數,跟你賺多少沒有任何關係。",
 
   stats: "摸魚報告",
   monthSlack: "本月摸魚",
-  stolen: "摸魚換算",
   longest: "最長一次",
   sessions: "摸魚次數",
   heatmap: "過去 12 週",
@@ -147,14 +145,12 @@ export const zhTW = {
   themeLight: "亮色",
   autoDisguise: "離開分頁時自動偽裝",
   autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 或快速點兩下畫面解除。",
-  monthlySalary: "月薪",
-  workdaysPerMonth: "每月上班天數",
   shiftStart: "上班時間",
   shiftEnd: "下班時間",
   lunchStart: "午休開始",
   lunchMinutes: "午休長度(分鐘)",
   resetData: "清除本機資料",
-  resetConfirm: "清掉這台裝置的摸魚紀錄、外快與公司/隊伍標籤?薪水設定會留著。此動作無法復原。",
+  resetConfirm: "清掉這台裝置的摸魚紀錄、摸魚幣與公司/隊伍標籤?班表設定會留著。此動作無法復原。",
   settingsHint: "資料只存在這台裝置的瀏覽器裡,不會上傳。",
   errShiftOrder: "下班時間必須晚於上班時間。",
   errLunchTooLong: "午休比整個班表還長。",

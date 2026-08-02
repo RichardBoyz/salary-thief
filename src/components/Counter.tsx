@@ -1,5 +1,5 @@
-import { dur, twd } from "../fmt";
-import { gameMoney, msUntilOffWork, progress, workState, type WorkState } from "../money";
+import { dur, pts } from "../fmt";
+import { msUntilOffWork, points, progress, workState, type WorkState } from "../money";
 import { dayKey, dayStart, totalMs, weekStart, withActive } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
@@ -12,7 +12,7 @@ const countdown = (ms: number): string => {
   return `${pad(Math.floor(total / 3600))}:${pad(Math.floor(total / 60) % 60)}:${pad(total % 60)}`;
 };
 
-// 進度條永遠是金色 —— 它量的是錢,不是心情。狀態只染 label。
+// 進度條永遠是金色 —— 它量的是這一天,不是心情。狀態只染 label。
 // 函式不做成模組常數:t 會原地換語言,抄在 module scope 字串就凍住了
 const styleOf = (): Record<WorkState, { label: string; quip: string; dot: string; text: string }> => ({
   before: { label: t.stateBefore, quip: t.quipBefore, dot: "bg-crt-dim", text: "text-crt-dim" },
@@ -59,19 +59,13 @@ export default function Counter({
 
   const state = workState(cfg, now);
   const s = styleOf()[state];
-  // 主畫面不顯示任何薪水絕對值(日薪/每秒/已賺都能被路過的人反推月薪)。
-  // 大數字是遊戲化的「偷到」:錢只來自辦公室外快區站立 + 漁獲獎勵,
-  // 按鈕計時只記時數(下面兩格與報告/排行榜),不直接生錢。
+  // 大數字是摸魚幣:只來自辦公室外快區站立 + 漁獲獎勵,按鈕計時只記時數
+  // (下面兩格與報告/排行榜),不生幣。v8 起這裡跟薪水完全無關。
   const events = withActive(slackEvents, activeSince, now);
   const zoneMs = useStore((st) => st.zoneMs);
   const { spots } = useSpots();
   const todayFishes = spots.filter((sp) => sp.caught).length;
-  const stolen = gameMoney(
-    zoneMs.day === dayKey(now) ? zoneMs.ms : 0,
-    todayFishes,
-    cfg,
-    now,
-  );
+  const stolen = points(zoneMs.day === dayKey(now) ? zoneMs.ms : 0, todayFishes);
   const pct = progress(cfg, now) * 100;
 
   return (
@@ -123,7 +117,8 @@ export default function Counter({
         <div className="text-crt-dim">{t.todayStolen}</div>
         {/* 48/72px 都是 12 的整數倍 —— 像素字型只在整數倍下乾淨 */}
         <div className="mt-2 text-5xl tabular-nums text-crt-gold sm:text-7xl">
-          {twd.format(stolen)}
+          {pts.format(stolen)}
+          <span className="ml-2 text-2xl text-crt-dim sm:text-3xl">{t.pointsUnit}</span>
           <span className="px-cursor">▍</span>
         </div>
         <p className="mt-3 text-crt-dim">{s.quip}</p>

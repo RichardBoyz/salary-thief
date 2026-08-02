@@ -11,7 +11,6 @@ import {
   slugToUuid,
 } from "../companies";
 import { dur } from "../fmt";
-import { ratePerSecond } from "../money";
 import { useStore } from "../store";
 import { t } from "../strings";
 import {
@@ -326,7 +325,6 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
 
 export default function Team({ onBack }: { onBack: () => void }) {
   const session = useSession();
-  const cfg = useStore((s) => s.config);
   const companyLabel = useStore((s) => s.companyLabel);
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
   const pendingInvite = useStore((s) => s.pendingInvite);
@@ -495,11 +493,6 @@ export default function Team({ onBack }: { onBack: () => void }) {
           <div className="px-panel px-4 py-3 text-sm">
             <span className="text-crt-dim">{t.teamTotal} </span>
             <span className="tabular-nums text-crt-gold">{dur(team!.totalMs)}</span>
-            <span className="ml-2 text-crt-dim">
-              {t.teamTotalPrivate}$
-              {Math.round((team!.totalMs / 1000) * ratePerSecond(cfg, Date.now())).toLocaleString()}
-              {t.onlyYouSee}
-            </span>
           </div>
 
           <CrossCompany myCode={profile.company_code} />

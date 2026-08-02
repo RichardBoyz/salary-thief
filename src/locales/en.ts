@@ -5,6 +5,7 @@ export const en: Strings = {
   appName: "Salary Thief",
 
   todayStolen: "Stolen today",
+  pointsUnit: "pts",
   todaySlack: "Slacked today",
   untilOffWork: "Until clock-out",
   weekSlack: "Slacked this week",
@@ -16,7 +17,7 @@ export const en: Strings = {
   stateAfter: "Off the clock",
 
   quipBefore: "Shift hasn't started. Right now you're free labor's opposite — free.",
-  quipWorking: "Every second, turning time into money.",
+  quipWorking: "Every second, turning the boss's time into yours.",
   quipLunch: "Lunch isn't paid. Right now the boss owes you nothing.",
   quipAfter: "Today's cut is all yours. You can go.",
 
@@ -29,8 +30,8 @@ export const en: Strings = {
   office: "Office",
   officeSlacking: "Slacking",
   officeHint:
-    "Arrow keys / WASD to move — the pantry or couch logs slack hours, your desk stops it. Money is earned in the green box: it only ticks while you stand inside, and it moves every 10 minutes; catching fish adds a bonus.",
-  zoneHint: "Money stolen = time standing in the green box + fish bonuses (one fish = 15 minutes of pay).",
+    "Arrow keys / WASD to move — the pantry or couch logs slack hours, your desk stops it. Slack points are earned in the green box: they only tick while you stand inside, and it moves every 10 minutes; catching fish adds a bonus.",
+  zoneHint: "Slack points = standing in the green box (10/min) + fish bonuses (150 per fish).",
 
   team: "Team",
   loginTitle: "Steal together",
@@ -42,7 +43,7 @@ export const en: Strings = {
   loginSend: "Send link",
   loginSent: "Sent. Click the link in your inbox to come back. Check spam if it's missing.",
   loginPrivacy:
-    "Email login, no password. Your salary and earnings never upload — the board only compares hours.",
+    "Email login, no password. This app never asks what you earn — the board compares hours and slack points.",
   setupTitle: "Pick a codename",
   setupHandlePlaceholder: "Nickname (recognizable to coworkers, not to the boss)",
 
@@ -80,8 +81,6 @@ export const en: Strings = {
   boardAll: "All",
   boardMine: "My team",
   teamTotal: "Company stole this week",
-  teamTotalPrivate: "at your rate ≈ ",
-  onlyYouSee: "(only you see this)",
   received: "You got razzed",
   stateOffline: "Offline",
   refresh: "Refresh",
@@ -106,36 +105,35 @@ export const en: Strings = {
   fishNext: "Next fish",
   fishNone: "Today's fish all swam off. Come back tomorrow.",
   fishToday: "Caught today",
-  fishNeedLogin: "Log in and 8 fish spots appear randomly each day — one fish pays 15 minutes of wage.",
+  fishNeedLogin: "Log in and 8 fish spots appear randomly each day — one fish is worth 150 slack points.",
 
   help: "Help",
   helpTitle: "How to use",
   helpStart: "Got it — start slacking",
   helpWhat: "What is this?",
   helpWhatBody:
-    "Slacking, gamified: hours go into your report and the leaderboard, but money is earned in person in the 2D office — stand in the bonus box, catch fish. Every amount is computed for your eyes only; your salary never leaves this device.",
-  helpSetup: "Step one: set your pay",
+    "Slacking, gamified: hours go into your report and the leaderboard, but slack points are earned in person in the 2D office — stand in the bonus box, catch fish. This app never asks what you earn, so it can't work it out either.",
+  helpSetup: "Step one: set your shift",
   helpSetupBody:
-    "Open Settings and fill in monthly salary, workdays per month, shift and lunch times — your per-second rate comes from these. Everything stays in this browser's localStorage.",
+    "Open Settings and fill in shift and lunch times — your status, day progress and time-until-clock-out come from these. Everything stays in this browser's localStorage.",
   helpSlack: "Log your slack hours",
   helpSlackBody:
-    "Hit \"Start slacking\" to begin logging hours and drop straight into the office — walk to the green box to earn; hit stop when you're done. Hours feed the report heatmap and the leaderboard; the timer itself doesn't mint money (that's in the office, next section).",
+    "Hit \"Start slacking\" to begin logging hours and drop straight into the office — walk to the green box to earn; hit stop when you're done. Hours feed the report heatmap and the leaderboard; the timer itself mints no points (that's in the office, next section).",
   helpBoss: "Boss incoming",
   helpBossBody:
     "Press Esc (mobile: double-tap the screen) to flip into a fake Excel sheet — tab title and favicon change too. By default it auto-disguises the moment you tab away; press Esc or double-tap to come back. Toggle in Settings.",
-  helpOffice: "The office — where money is made",
+  helpOffice: "The office — where points are made",
   helpOfficeBody:
-    "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box accrues at your wage rate (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, one fish = 15 minutes of pay. The pantry or couch also logs slack hours; your desk stops the clock.",
+    "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box pays 10 points a minute (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, worth 150 points. The pantry or couch also logs slack hours; your desk stops the clock.",
   helpTeam: "Bring coworkers",
   helpTeamBody:
-    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours, never money.",
+    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours and slack points.",
   helpPrivacy: "Privacy floor",
   helpPrivacyBody:
-    "Salary and amounts are never uploaded; the database stores no company names, only opaque codes; handles aren't tied to real names. The screen also never shows daily pay or per-second rate — passers-by can't work out what you earn.",
+    "This app doesn't know your salary — it never asks, so it can't leak it. The database stores no company names, only opaque codes; handles aren't tied to real names. Slack points are points: they say nothing about what you earn.",
 
   stats: "Slacking report",
   monthSlack: "This month",
-  stolen: "Hours × wage",
   longest: "Longest run",
   sessions: "Sessions",
   heatmap: "Last 12 weeks",
@@ -152,14 +150,12 @@ export const en: Strings = {
   themeLight: "Light",
   autoDisguise: "Auto-disguise when tab loses focus",
   autoDisguiseHint: "Alt-tab away and it flips to a spreadsheet; press Esc or double-tap to come back.",
-  monthlySalary: "Monthly salary",
-  workdaysPerMonth: "Workdays per month",
   shiftStart: "Clock in",
   shiftEnd: "Clock out",
   lunchStart: "Lunch start",
   lunchMinutes: "Lunch length (min)",
   resetData: "Clear local data",
-  resetConfirm: "Wipe this device's slack history, side cash, and company/team labels? Salary settings stay. This can't be undone.",
+  resetConfirm: "Wipe this device's slack history, slack points, and company/team labels? Shift settings stay. This can't be undone.",
   settingsHint: "Data lives only in this browser, on this device. Nothing uploads.",
   errShiftOrder: "Clock-out must be later than clock-in.",
   errLunchTooLong: "Lunch is longer than the whole shift.",

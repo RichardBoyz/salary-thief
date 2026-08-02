@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { dur, twd } from "../fmt";
-import { gameMoney } from "../money";
+import { dur, pts } from "../fmt";
+import { points } from "../money";
 import { dayKey } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
@@ -143,7 +143,6 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
 }
 
 export default function Office({ onBack }: { onBack: () => void }) {
-  const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
@@ -328,8 +327,8 @@ export default function Office({ onBack }: { onBack: () => void }) {
           </span>
         )}
         <span className="tabular-nums text-crt-dim" title={t.zoneHint}>
-          {/* 跟主畫面同一個數:遊戲化的偷到 = 外快區站立(含進行中)+ 漁獲獎勵 */}
-          {t.todayStolen} {twd.format(gameMoney(zoneLiveMs, todayFishes, cfg, now))}
+          {/* 跟主畫面同一個數:摸魚幣 = 外快區站立(含進行中)+ 漁獲獎勵 */}
+          {t.todayStolen} {pts.format(points(zoneLiveMs, todayFishes))} {t.pointsUnit}
         </span>
         {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
         {session && spots.length > 0 && (

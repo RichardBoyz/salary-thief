@@ -6,9 +6,5 @@ export const dur = (ms: number): string => {
   return m < 60 ? `${m} 分` : `${Math.floor(m / 60)} 小時 ${m % 60} 分`;
 };
 
-export const twd = new Intl.NumberFormat("zh-TW", {
-  style: "currency",
-  currency: "TWD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+/** 摸魚幣永遠是整數,千分位分組。單位字在 locales(t.pointsUnit) */
+export const pts = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 });

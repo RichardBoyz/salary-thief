@@ -75,32 +75,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="grid gap-4">
-        <Field label={t.monthlySalary}>
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            value={cfg.monthlySalary}
-            onChange={(e) =>
-              setConfig({ monthlySalary: Math.max(0, e.target.valueAsNumber || 0) })
-            }
-            className={input}
-          />
-        </Field>
-
-        <Field label={t.workdaysPerMonth}>
-          <input
-            type="number"
-            min={1}
-            max={31}
-            value={cfg.workdaysPerMonth}
-            onChange={(e) =>
-              setConfig({ workdaysPerMonth: Math.max(1, e.target.valueAsNumber || 1) })
-            }
-            className={input}
-          />
-        </Field>
-
         <div className="grid grid-cols-2 gap-4">
           {/* <input type="time"> 是原生的:手機上會叫出系統時間選擇器,
               值直接就是 "09:00" 字串,不需要任何日期套件去解析 */}
