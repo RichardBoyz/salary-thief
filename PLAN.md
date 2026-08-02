@@ -15,7 +15,7 @@
 | **Phase 2** | 摸魚紀錄 + 統計熱力圖 | 否 | ✅ 已完成 |
 | **Phase 3** | Supabase 資料層:登入、三張表、排行榜/在線/團隊總計/emoji 起鬨 | 是 | ✅ 上線。RLS 經外部驗證;Google OAuth 為主、magic link 備用 |
 | **Phase 4** | 2D 辦公室(操作角色走位;v0 單人版不需後端) | 部分 | ✅ 完成;同事 avatar 已接上 Phase 3 資料 |
-| **v2** | 公司 → 隊伍階層:隊伍對抗、排行榜切換、一隊一房串門子 | 是 | 🔨 程式碼完成,**等使用者跑 `migrate-v2.sql`** |
+| **v2** | 公司 → 隊伍階層:隊伍對抗、排行榜切換、一隊一房串門子 | 是 | ✅ 遷移已跑(2026-07-31,schema→v3→v4→v5 全綠);真人流程待驗 |
 | **Phase 5** | i18n(中英)、PWA(可安裝+SW+tap-to-move)、部署 | — | ✅ 全部完成,線上:salary-thief.r1382333.workers.dev(Workers static assets) |
 
 ### Phase 3 — 從「跨裝置同步」改成「多人社交」
@@ -124,7 +124,9 @@ auth.uid(),不受影響。
 沒登入 = 沒有魚,辦公室其餘照舊;沒跑 v3 遷移 = RPC 404 → 靜默無魚。
 魚點只在自己房間出現,串門子看不到別人的魚。
 
-**剩一步(只有你能做):SQL Editor 依序跑 migrate-v2.sql、migrate-v3.sql。**
+**遷移已於 2026-07-31 跑完**(全新專案的順序是 schema.sql → v3 → v4 → v5;
+`migrate-v2.sql` 只給既有 v1 專案改欄名,schema.sql 本身已是 v2 形狀,在空 DB
+上跑它會報 42P01)。完整對照表見 README 部署段。
 
 ---
 
