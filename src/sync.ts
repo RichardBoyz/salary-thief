@@ -31,8 +31,15 @@ export function initSync() {
 
 // ---------- session ----------
 
-export function useSession(): Session | null {
-  const [session, setSession] = useState<Session | null>(null);
+/**
+ * `undefined` = 還在問 supabase,`null` = 確定沒登入。
+ *
+ * 兩者分開是 v8b 逼出來的:全 app 強制登入之後,如果 loading 也回 null,
+ * 已登入的人每次開頁都會先閃一下登入畫面。其他呼叫端寫的是 `if (!session)`,
+ * undefined 一樣是 falsy,行為不變。
+ */
+export function useSession(): Session | null | undefined {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   useEffect(() => {
     sb.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: sub } = sb.auth.onAuthStateChange((_ev, s) => setSession(s));
@@ -334,6 +341,24 @@ export async function catchFish(spotIndex: number): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+/**
+ * 把今天在外快區站到的點數回報上去,回傳伺服器認可的值(不是我們送的值)。
+ *
+ * 伺服器會夾在「今天已流逝時間 × 10 點/分」以內,而且只准往上。所以這裡
+ * 送整包今日總量而不是增量 —— 重送、漏送、順序亂掉都不會算錯,失敗也不用
+ * 補償:下一次 tick 送的還是同一個總量。
+ */
+export async function syncZonePoints(todayPoints: number): Promise<number | null> {
+  const session = (await sb.auth.getSession()).data.session;
+  if (!session) return null;
+  const { data, error } = await sb.rpc("sync_zone_points", { p_points: todayPoints });
+  if (error) {
+    warn("points")(error);
+    return null;
+  }
+  return data as number;
 }
 
 export async function react(eventId: string, emoji: string) {

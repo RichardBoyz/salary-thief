@@ -463,7 +463,7 @@ app 用 spotlight tour 是過度工程,現代 tooltip 也打壞像素臉。
 | 段 | 內容 | 後端 | 狀態 |
 |---|---|---|---|
 | **v8a** | 去薪水化:刪月薪與所有時薪換算,金額全改摸魚幣(先存本機) | 無 | ✅ 完成 |
-| **v8b** | 全 app 強制登入 + 點數上 DB(自報收入伺服器夾制) | 一份 SQL | 🔨 |
+| **v8b** | 全 app 強制登入 + 點數上 DB(自報收入伺服器夾制) | 一份 SQL | ✅ 程式碼完成,**等使用者跑 `migrate-v8-points.sql`** |
 | **v8c** | 股市模擬:5 檔、買/賣、損益、伺服器定價 | SQL + 排程 | 🔨 |
 | **v8d** | 儲值贊助 | 金流平台 | 未排 |
 
@@ -474,6 +474,18 @@ app 用 spotlight tour 是過度工程,現代 tooltip 也打壞像素臉。
 `points(zoneMs, fishes)` 是純函式、無 Config、永遠整數,10 點/分 = 1 點/6 秒
 所以數字不會呆著不動。persist 升到 version 1,migrate 把舊使用者的月薪真的
 從 localStorage 刪掉 —— 不然「app 不知道你的薪水」是假的。
+
+**v8b 落地細節**:點數表沒有 insert/update/delete policy —— client 完全不能
+直接寫,唯一入口是 `sync_zone_points()`(security definer,內部 `auth.uid()`)。
+client 每分鐘送「今天的總量」而不是增量:重送、漏送、順序亂掉都不會算錯,
+失敗也不需要補償邏輯。歸零(使用者拍板):persist 升 version 2 時把本機
+`zoneMs` 清掉,不把 client 自報的餘額當起始值搬上去,省掉一次性作弊窗口。
+登入閘門直接復用團隊頁(登入 UI 本來就在那,邀請流程本來也得在登入前跑
+一段);`useSession` 因此要分辨 `undefined`(還在問)與 `null`(確定沒登入),
+不然已登入的人每次開頁都會先閃一下登入畫面。
+
+**摸魚幣還沒上排行榜** —— DB 有資料了,但 `standings()` 還只算時數。
+README/文案都寫「排行榜比時數」,等真的做了再改口。
 
 **v8c 待驗證(還沒做,不擋 v8a/b)**:伺服器定價需要有東西定時把台股報價寫
 進 DB,傾向 `pg_cron` + `pg_net`(不新增 secret、不改部署流程),但要先確認

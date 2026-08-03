@@ -323,7 +323,9 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
   );
 }
 
-export default function Team({ onBack }: { onBack: () => void }) {
+// onBack 省略 = 這頁現在是登入閘門(App 在沒 session 時只給這頁),
+// 沒有地方可以返回,所以那顆按鈕不該畫出來
+export default function Team({ onBack }: { onBack?: () => void }) {
   const session = useSession();
   const companyLabel = useStore((s) => s.companyLabel);
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
@@ -392,9 +394,11 @@ export default function Team({ onBack }: { onBack: () => void }) {
               {t.signOut}
             </button>
           )}
-          <button onClick={onBack} className={btnGhost}>
-            {t.back}
-          </button>
+          {onBack && (
+            <button onClick={onBack} className={btnGhost}>
+              {t.back}
+            </button>
+          )}
         </div>
       </header>
 

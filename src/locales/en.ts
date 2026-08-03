@@ -34,8 +34,9 @@ export const en: Strings = {
   zoneHint: "Slack points = standing in the green box (10/min) + fish bonuses (150 per fish).",
 
   team: "Team",
-  loginTitle: "Steal together",
-  loginDesc: "Log in to team up: who's slacking, this week's board, razz each other.",
+  loginTitle: "Sign in to start stealing",
+  loginDesc:
+    "Slack points are kept on the server, so you need an account. Signing in also unlocks teams: who's slacking, this week's board, razzing each other.",
   loginGoogle: "Sign in with Google",
   loginGoogleHint: "It'll ask which account — pick your personal one, not your work one.",
   loginOr: "No Google? Get a magic link by email:",
@@ -43,7 +44,7 @@ export const en: Strings = {
   loginSend: "Send link",
   loginSent: "Sent. Click the link in your inbox to come back. Check spam if it's missing.",
   loginPrivacy:
-    "Email login, no password. This app never asks what you earn — the board compares hours and slack points.",
+    "Email login, no password. This app never asks what you earn — the board compares hours.",
   setupTitle: "Pick a codename",
   setupHandlePlaceholder: "Nickname (recognizable to coworkers, not to the boss)",
 
@@ -127,7 +128,7 @@ export const en: Strings = {
     "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box pays 10 points a minute (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, worth 150 points. The pantry or couch also logs slack hours; your desk stops the clock.",
   helpTeam: "Bring coworkers",
   helpTeamBody:
-    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours and slack points.",
+    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours.",
   helpPrivacy: "Privacy floor",
   helpPrivacyBody:
     "This app doesn't know your salary — it never asks, so it can't leak it. The database stores no company names, only opaque codes; handles aren't tied to real names. Slack points are points: they say nothing about what you earn.",

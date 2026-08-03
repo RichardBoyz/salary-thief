@@ -4,7 +4,7 @@ import { points } from "../money";
 import { dayKey } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
-import { catchFish, useSession, useSpots, useTeam, type Spot } from "../sync";
+import { catchFish, syncZonePoints, useSession, useSpots, useTeam, type Spot } from "../sync";
 import type { Standing } from "../team";
 import { useNow } from "../useNow";
 import {
@@ -271,6 +271,23 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const zoneLiveMs =
     (zoneMs.day === dayKey(now) ? zoneMs.ms : 0) +
     (onBonus && bonusEnteredAt.current !== null ? Math.max(0, now - bonusEnteredAt.current) : 0);
+
+  // 每分鐘把今日外快點數回報上去,離開辦公室時再補一次。
+  // 送的是「今天的總量」而不是增量 —— 重送、漏送、順序亂掉都不會算錯,
+  // 失敗也不用補償邏輯:下一次 tick 送的還是同一個總量。伺服器會夾在
+  // 「今天已流逝時間 × 10 點/分」以內,所以這裡送的是申請,不是結論。
+  const zonePointsRef = useRef(0);
+  zonePointsRef.current = points(zoneLiveMs, 0);
+  useEffect(() => {
+    if (!session) return;
+    const push = () => void syncZonePoints(zonePointsRef.current);
+    push();
+    const id = setInterval(push, 60_000);
+    return () => {
+      clearInterval(id);
+      push();
+    };
+  }, [session]);
 
   // 站上魚點就抓。合法性由 DB trigger 用伺服器時鐘判,這裡只是提出申請。
   // inflight guard 擋連發;成功後 refresh 讓 caught 從伺服器回來,魚消失。

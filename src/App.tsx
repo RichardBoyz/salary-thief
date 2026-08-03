@@ -8,6 +8,7 @@ import Team from "./components/Team";
 import Office from "./office/Office";
 import { useStore } from "./store";
 import { lang, onLangChange, t } from "./strings";
+import { useSession } from "./sync";
 
 const setFavicon = (emoji: string) => {
   const link = document.querySelector<HTMLLinkElement>("link[rel=icon]");
@@ -19,6 +20,8 @@ const setFavicon = (emoji: string) => {
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
 type View = "counter" | "settings" | "stats" | "office" | "team" | "help";
+
+const shell = "px-crt min-h-dvh bg-crt-bg font-pixel text-[12px] text-crt-white";
 
 export default function App() {
   // 開站落點(useState 初始值只算一次,store 由 persist 同步還原,不閃畫面):
@@ -39,6 +42,8 @@ export default function App() {
   // 語言切換不 reload:setLang 原地換 t 的內容後通知這裡,整棵樹重畫。
   // 全 app 沒有 memo,App 一重畫所有元件都會在 render 重讀 t.xxx
   const langNow = useSyncExternalStore(onLangChange, () => lang);
+  // v8b:全 app 需要登入 —— 摸魚幣記在伺服器上,沒有帳號就沒有東西可以記
+  const session = useSession();
   const setHelpSeen = useStore((s) => s.setHelpSeen);
   const closeHelp = () => {
     setHelpSeen(true);
@@ -109,8 +114,22 @@ export default function App() {
   // 偽裝殼在 px-crt 掃描線這層之外(early return)—— 假 Excel 必須是現代臉。
   if (disguised) return <Disguise />;
 
+  // 還在問 supabase 有沒有 session:先不畫。undefined 跟 null 分開就是為了
+  // 這一格 —— 不然已登入的人每次開頁都會先閃一下登入畫面。
+  if (session === undefined) return <main className={shell} />;
+
+  // 沒登入 → 只給團隊頁。它本來就是登入 UI 的所在地,而且邀請連結的流程
+  // 本來就得在登入前先跑一段(先看到誰邀請你、哪間房,再要求登入)。
+  // 沒有 onBack 可以逃 —— 這是閘門,不是分頁。
+  if (session === null)
+    return (
+      <main className={shell}>
+        <Team />
+      </main>
+    );
+
   return (
-    <main className="px-crt min-h-dvh bg-crt-bg font-pixel text-[12px] text-crt-white">
+    <main className={shell}>
       {view === "counter" && (
         <Counter
           onSettings={() => setView("settings")}

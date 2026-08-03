@@ -125,11 +125,17 @@ export const useStore = create<State>()(
       // 注意:zustand 只在 storage 裡的 version 是 number 時才呼叫 migrate。
       // 舊資料一定有(persist 從第一天就會寫 version: 0),但手寫測試資料時
       // 漏掉 version 欄位就會靜默跳過遷移 —— 驗證時被這個騙過一次。
-      version: 1,
+      // v2(v8b):摸魚幣改由伺服器記帳,本機累積的點數歸零重來 —— 不把
+      // client 自報的餘額當成起始值搬上去,省掉一個一次性的作弊窗口。
+      version: 2,
       migrate: (persisted) => {
-        const s = persisted as { config?: Record<string, unknown> };
+        const s = persisted as {
+          config?: Record<string, unknown>;
+          zoneMs?: { day: string; ms: number };
+        };
         delete s?.config?.monthlySalary;
         delete s?.config?.workdaysPerMonth;
+        if (s) s.zoneMs = { day: "", ms: 0 };
         return s;
       },
     },
