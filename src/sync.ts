@@ -2,7 +2,7 @@
 // 失敗只 console.warn,本地 localStorage 永遠是你自己資料的真相來源。
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
-import { weekStart } from "./slack";
+import { dayKey, weekStart } from "./slack";
 import { useStore } from "./store";
 import { sb } from "./supabase";
 import {
@@ -15,6 +15,7 @@ import {
   type ProfileRow,
   type ReactionRow,
   type Standing,
+  type ZonePointRow,
 } from "./team";
 
 const warn = (label: string) => (e: unknown) => console.warn(`[sync] ${label}`, e);
@@ -223,19 +224,22 @@ export type TeamData = {
 
 export async function fetchTeam(now: number): Promise<TeamData> {
   const profile = await fetchMyProfile();
-  const [members, events, reactions, catches] = await Promise.all([
+  const [members, events, reactions, catches, zonePoints] = await Promise.all([
     sb.from("profiles").select("*"),
     // 本週的、加上還開著的(上週開始摸到現在也算摸魚中)。RLS 已鎖同公司
     sb.from("slack_events").select("*").or(`ended_at.is.null,started_at.gte.${weekStart(now)}`),
     sb.from("reactions").select("*").order("created_at", { ascending: false }).limit(30),
     // v3 表。還沒跑 migrate-v3 時這查詢會錯,data 是 null → 漁獲全 0,app 照常
     sb.from("catches").select("user_id,caught_at").gte("caught_at", weekStart(now)),
+    // v8 表。同理:沒跑 migrate-v8 → 摸魚幣欄位全 0,排行榜其他欄照常
+    sb.from("zone_points").select("user_id,day,points").gte("day", dayKey(weekStart(now))),
   ]);
   const rows = standings(
     members.data ?? [],
     events.data ?? [],
     now,
     (catches.data ?? []) as CatchRow[],
+    (zonePoints.data ?? []) as ZonePointRow[],
   );
   return {
     profile,

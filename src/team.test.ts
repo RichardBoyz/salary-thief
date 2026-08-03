@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FISH_POINTS } from "./money";
 import {
   ONLINE_MS,
   standings,
@@ -118,6 +119,69 @@ describe("standings 漁獲", () => {
   it("不給 catches 參數時全部是 0,舊呼叫端不用改", () => {
     const rows = standings([member("a", "阿明")], [], now);
     expect(rows[0].fishes).toBe(0);
+  });
+});
+
+describe("standings 摸魚幣", () => {
+  const zp = (user: string, day: string, points: number) => ({
+    user_id: user,
+    day,
+    points,
+  });
+
+  it("本週的每日點數加總,上週的不算", () => {
+    const rows = standings(
+      [member("a", "阿明")],
+      [],
+      now,
+      [],
+      // 本週從 07-12(日)開始
+      [zp("a", "2026-07-11", 9999), zp("a", "2026-07-13", 100), zp("a", "2026-07-17", 250)],
+    );
+    expect(rows[0].points).toBe(350);
+  });
+
+  it("漁獲也算進摸魚幣:一條魚 150 點", () => {
+    const rows = standings(
+      [member("a", "阿明")],
+      [],
+      now,
+      [{ user_id: "a", caught_at: now - 60_000 }],
+      [zp("a", "2026-07-17", 40)],
+    );
+    expect(rows[0].points).toBe(40 + FISH_POINTS);
+  });
+
+  it("沒有 zone_points(沒跑 v8 遷移)時只剩漁獲,其他欄位照常", () => {
+    const rows = standings([member("a", "阿明")], [ev("a", 100, 30)], now, [
+      { user_id: "a", caught_at: now - 60_000 },
+    ]);
+    expect(rows[0].points).toBe(FISH_POINTS);
+    expect(rows[0].weekMs).toBe(30 * MIN);
+  });
+
+  it("名次仍然比時數,不比摸魚幣 —— 幣多但摸得少的不會被排到前面", () => {
+    const rows = standings(
+      [member("a", "阿明"), member("b", "小華")],
+      [ev("a", 200, 30), ev("b", 200, 90)],
+      now,
+      [],
+      [zp("a", "2026-07-17", 5000)],
+    );
+    expect(rows[0].userId).toBe("b");
+    expect(rows[0].points).toBe(0);
+  });
+
+  it("別人的點數不會算到你頭上", () => {
+    const rows = standings(
+      [member("a", "阿明"), member("b", "小華")],
+      [],
+      now,
+      [],
+      [zp("b", "2026-07-17", 300)],
+    );
+    expect(rows.find((r) => r.userId === "a")!.points).toBe(0);
+    expect(rows.find((r) => r.userId === "b")!.points).toBe(300);
   });
 });
 

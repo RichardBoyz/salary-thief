@@ -1,6 +1,7 @@
 // 隊伍資料的純函式層。不 import supabase —— 網路歸 sync.ts,這裡只算數,
 // 所以可以直接餵假資料測試。
-import { unionMs, weekStart, type SlackEvent } from "./slack";
+import { FISH_POINTS } from "./money";
+import { dayKey, unionMs, weekStart, type SlackEvent } from "./slack";
 
 // 跟 supabase 三張表一一對應(schema.sql),時間都是 epoch ms
 export type Employment = "current" | "former";
@@ -30,6 +31,8 @@ export type ReactionRow = {
   created_at: number;
 };
 export type CatchRow = { user_id: string; caught_at: number };
+/** zone_points 一列。day 是伺服器的台北曆日,points 是伺服器夾制過的值 */
+export type ZonePointRow = { user_id: string; day: string; points: number };
 
 /** 心跳超過這個歲數就當離線。斷線不用通知任何人,老化自然下線 */
 export const ONLINE_MS = 2 * 60_000;
@@ -46,12 +49,20 @@ export type Standing = {
   weekMs: number;
   /** 本週漁獲。唯一伺服器驗證過的數字 —— 時數是自報的,魚是抓的 */
   fishes: number;
+  /**
+   * 本週偷到的摸魚幣 = 外快區站立(伺服器夾制過)+ 漁獲 × 150。
+   *
+   * 這是「賺到的」帳,跟之後股市的「資產」帳分開記,永遠不合併 —— 分開才
+   * 有一條可稽核的不變式:資產 ≤ 累積偷到 + 交易損益。混帳之後差額從哪來
+   * 就永遠查不出來了。
+   */
+  points: number;
   /** 他最近一筆事件,起鬨的目標。沒摸過魚就沒得起鬨 */
   latestEventId: string | null;
 };
 
 /**
- * 排行榜。比時數,不比錢 —— 錢要月薪才算得出來,而月薪永遠不上傳。
+ * 排行榜。名次比時數(自報),摸魚幣另外顯示(伺服器夾制過)。
  * open event(ended_at null)裁到 now,所以摸魚中的人名次會即時爬升。
  */
 export function standings(
@@ -59,8 +70,18 @@ export function standings(
   events: EventRow[],
   now: number,
   catches: CatchRow[] = [],
+  zonePoints: ZonePointRow[] = [],
 ): Standing[] {
   const from = weekStart(now);
+  // day 是字串比較:'YYYY-MM-DD' 的字典序就是時間序,不用轉回時間戳。
+  // ponytail: DB 的 day 是台北曆、weekStart 是使用者本地曆,非台灣時區的
+  // 使用者跨日那一刻可能差一天。台灣以外真的有人用再處理。
+  const fromDay = dayKey(from);
+  const pointsByUser = new Map<string, number>();
+  for (const z of zonePoints) {
+    if (z.day >= fromDay)
+      pointsByUser.set(z.user_id, (pointsByUser.get(z.user_id) ?? 0) + z.points);
+  }
   const byUser = new Map<string, EventRow[]>();
   for (const e of events) {
     const list = byUser.get(e.user_id) ?? [];
@@ -73,6 +94,7 @@ export function standings(
   }
   return members
     .map((m) => {
+      const fishes = fishByUser.get(m.user_id) ?? 0;
       const mine = byUser.get(m.user_id) ?? [];
       const clipped: SlackEvent[] = mine.map((e) => ({
         id: e.id,
@@ -93,7 +115,8 @@ export function standings(
         state: (!online ? "offline" : open ? "slacking" : "working") as MemberState,
         // unionMs 不用 totalMs:排行榜跨公司可見,重疊事件求和會被灌水虛報
         weekMs: unionMs(clipped, from, now),
-        fishes: fishByUser.get(m.user_id) ?? 0,
+        fishes,
+        points: (pointsByUser.get(m.user_id) ?? 0) + fishes * FISH_POINTS,
         latestEventId: latest?.id ?? null,
       };
     })

@@ -10,7 +10,7 @@ import {
   searchRegistry,
   slugToUuid,
 } from "../companies";
-import { dur } from "../fmt";
+import { dur, pts } from "../fmt";
 import { useStore } from "../store";
 import { t } from "../strings";
 import {
@@ -571,6 +571,12 @@ export default function Team({ onBack }: { onBack?: () => void }) {
                     </span>
                   )}
                   <span className="text-sm tabular-nums text-crt-gold">{dur(r.weekMs)}</span>
+                  {/* 偷到的摸魚幣。跟時數並列而不是取代它:名次仍然比時數,
+                      這一格是「伺服器認可你真的賺到多少」。股市資產是另一本
+                      帳,永遠不加進來 —— 分開才查得出作弊 */}
+                  <span className="text-sm tabular-nums text-crt-white" title={t.zoneHint}>
+                    {pts.format(r.points)} {t.pointsUnit}
+                  </span>
                   {r.userId !== me && r.latestEventId && (
                     <span className="flex gap-0.5">
                       {EMOJIS.slice(0, 3).map((e) => (
