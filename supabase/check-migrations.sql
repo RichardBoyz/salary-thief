@@ -28,4 +28,8 @@ select 'v5 公司統計',
 union all
 select 'v8 摸魚幣',
        to_regclass('public.zone_points') is not null
-   and to_regprocedure('public.sync_zone_points(int)') is not null;
+   and to_regprocedure('public.sync_zone_points(int)') is not null
+union all
+select 'v9 股市',
+       to_regclass('public.stocks') is not null
+   and to_regprocedure('public.buy_stock(text,int)') is not null;
