@@ -21,7 +21,10 @@ const setFavicon = (emoji: string) => {
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
 type View = "counter" | "settings" | "stats" | "office" | "team" | "help";
 
-const shell = "px-crt min-h-dvh bg-crt-bg font-pixel text-[12px] text-crt-white";
+// 字級只走像素字型的整數倍檔位(12/24/36/48/72/96)—— 12 是最小格,
+// 所以「大一點」只有 24 這一個乾淨選擇,中間沒有 16/18 可以挑。
+// 密集區(團隊列、徽章)退回 12,維持層級差。見 .claude/skills/pixel-ui。
+const shell = "px-crt min-h-dvh bg-crt-bg font-pixel text-[24px] text-crt-white";
 
 export default function App() {
   // 開站落點(useState 初始值只算一次,store 由 persist 同步還原,不閃畫面):

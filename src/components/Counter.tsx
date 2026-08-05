@@ -115,10 +115,12 @@ export default function Counter({
 
       <div>
         <div className="text-crt-dim">{t.todayStolen}</div>
-        {/* 48/72px 都是 12 的整數倍 —— 像素字型只在整數倍下乾淨 */}
-        <div className="mt-2 text-5xl tabular-nums text-crt-gold sm:text-7xl">
+        {/* 48/72px 都是 12 的整數倍 —— 像素字型只在整數倍下乾淨。
+            內文從 12 加到 24 時這個數字刻意不跟著翻倍:它本來就夠大,
+            再翻一倍在窄螢幕上會直接爆版 */}
+        <div className="mt-2 text-[48px] tabular-nums text-crt-gold sm:text-[72px]">
           {pts.format(stolen)}
-          <span className="ml-2 text-2xl text-crt-dim sm:text-3xl">{t.pointsUnit}</span>
+          <span className="ml-2 text-[24px] text-crt-dim sm:text-[36px]">{t.pointsUnit}</span>
           <span className="px-cursor">▍</span>
         </div>
         <p className="mt-3 text-crt-dim">{s.quip}</p>

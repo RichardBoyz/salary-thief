@@ -17,7 +17,7 @@ export default function Help({ onClose }: { onClose: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-6 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl text-crt-white">{t.helpTitle}</h1>
+        <h1 className="text-[36px] text-crt-white">{t.helpTitle}</h1>
         <button onClick={onClose} className="px-btn">
           {t.back}
         </button>

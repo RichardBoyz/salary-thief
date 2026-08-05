@@ -73,7 +73,7 @@ function Login() {
       {sent ? (
         <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-green">{t.loginSent}</p>
       ) : (
-        <details className="text-sm">
+        <details className="text-[12px]">
           <summary className="cursor-pointer text-crt-dim">{t.loginOr}</summary>
           <form
             className="mt-2 flex gap-2"
@@ -162,7 +162,7 @@ function Setup({ onDone }: { onDone: () => void }) {
 
       {/* 點了邀請連結進來的:取完代號一鍵進同事的房,不用再搜公司 */}
       {invite && (
-        <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
+        <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-[12px]">
           <InviteHeadline invite={invite} />
           <button
             className={btn}
@@ -194,29 +194,29 @@ function Setup({ onDone }: { onDone: () => void }) {
               <button
                 disabled={!ok}
                 onClick={() => join(slugToUuid(c.slug), c.name)}
-                className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-crt-white hover:bg-crt-bg disabled:opacity-40"
+                className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-crt-white hover:bg-crt-bg disabled:opacity-40"
               >
                 <span className="flex-1">{c.name}</span>
-                {c.aka && <span className="text-[10px] text-crt-dim">{c.aka}</span>}
+                {c.aka && <span className="text-[12px] text-crt-dim">{c.aka}</span>}
               </button>
             </li>
           ))}
         </ul>
 
-        {searching && <p className="text-[10px] text-crt-dim">{t.companySearching}</p>}
+        {searching && <p className="text-[12px] text-crt-dim">{t.companySearching}</p>}
         {registry.length > 0 && (
           <>
-            <span className="mt-1 text-[10px] text-crt-dim">{t.companyRegistry}</span>
+            <span className="mt-1 text-[12px] text-crt-dim">{t.companyRegistry}</span>
             <ul className="flex flex-col gap-1">
               {registry.map((r) => (
                 <li key={r.taxId}>
                   <button
                     disabled={!ok}
                     onClick={() => join(slugToUuid(r.taxId), r.name)}
-                    className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-crt-white hover:bg-crt-bg disabled:opacity-40"
+                    className="px-row flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-crt-white hover:bg-crt-bg disabled:opacity-40"
                   >
                     <span className="flex-1">{r.name}</span>
-                    <span className="text-[10px] text-crt-dim">
+                    <span className="text-[12px] text-crt-dim">
                       {r.city} {r.taxId}
                     </span>
                   </button>
@@ -265,14 +265,14 @@ function EmploymentToggle({
   onChange: (e: Employment) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-[12px]">
       <span className="text-crt-dim">{t.employment}</span>
       <div className="flex gap-1">
         {(["current", "former"] as const).map((e) => (
           <button
             key={e}
             onClick={() => onChange(e)}
-            className={`px-2.5 py-1 text-xs ${
+            className={`px-2.5 py-1 text-[12px] ${
               value === e ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
             }`}
           >
@@ -280,7 +280,7 @@ function EmploymentToggle({
           </button>
         ))}
       </div>
-      <span className="text-[10px] text-crt-dim">{t.employmentHint}</span>
+      <span className="text-[12px] text-crt-dim">{t.employmentHint}</span>
     </div>
   );
 }
@@ -301,7 +301,7 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
           {rows.map((r, i) => (
             <li
               key={r.company_code}
-              className={`flex items-center gap-3 px-3 py-2 text-sm ${
+              className={`flex items-center gap-3 px-3 py-2 text-[12px] ${
                 r.company_code === myCode ? "px-row-me" : "px-row"
               }`}
             >
@@ -311,14 +311,14 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
                 {isDirectoryCompany(r.company_code) ? companyName(r.company_code) : t.crossOtherCompany}
               </span>
               <span className="text-crt-dim">{r.members} {t.membersUnit}</span>
-              <span className="text-xs tabular-nums text-amber-400/80">
+              <span className="text-[12px] tabular-nums text-amber-400/80">
                 {t.perCap} {dur(r.perCap)}
               </span>
             </li>
           ))}
         </ul>
       )}
-      <p className="mt-1.5 text-[10px] text-crt-dim">{t.crossCompanyHint}</p>
+      <p className="mt-1.5 text-[12px] text-crt-dim">{t.crossCompanyHint}</p>
     </div>
   );
 }
@@ -387,7 +387,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-6 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl text-crt-white">{t.team}</h1>
+        <h1 className="text-[36px] text-crt-white">{t.team}</h1>
         <div className="flex items-center gap-2">
           {session && (
             <button onClick={() => signOut()} className={btnGhost}>
@@ -403,7 +403,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
       </header>
 
       {!session && pendingInvite && (
-        <div className="px-panel flex flex-col gap-1 px-3 py-2 text-sm">
+        <div className="px-panel flex flex-col gap-1 px-3 py-2 text-[12px]">
           <InviteHeadline invite={pendingInvite} />
           <span className="text-crt-dim">{t.inviteAfterLogin}</span>
         </div>
@@ -423,7 +423,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
         <>
           {/* 有代號的人點了別人的邀請連結:一鍵換房 */}
           {pendingInvite && (
-            <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
+            <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 text-[12px]">
               <InviteHeadline invite={pendingInvite} />
               <button className={btn} onClick={joinInvite}>
                 {t.companyJoin}
@@ -434,7 +434,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-[12px]">
             <span className="text-crt-dim">{t.companyMine}</span>
             <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
               {companyName(profile.company_code, companyLabel)}
@@ -456,10 +456,10 @@ export default function Team({ onBack }: { onBack?: () => void }) {
           />
 
           {/* 我的隊伍:標籤即隊伍,datalist 給既有隊名,打新名字就是開新隊 */}
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-[12px]">
             <span className="text-crt-dim">{t.myTeam}</span>
             {myTeam ? (
-              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-xs text-crt-white">{myTeam}</span>
+              <span className="px-bevel-in bg-crt-deep px-2 py-1 text-[12px] text-crt-white">{myTeam}</span>
             ) : (
               <span className="text-crt-dim">{t.teamNone}</span>
             )}
@@ -494,7 +494,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
             </form>
           </div>
 
-          <div className="px-panel px-4 py-3 text-sm">
+          <div className="px-panel px-4 py-3 text-[12px]">
             <span className="text-crt-dim">{t.teamTotal} </span>
             <span className="tabular-nums text-crt-gold">{dur(team!.totalMs)}</span>
           </div>
@@ -508,7 +508,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
                 {aggregates.map((a, i) => (
                   <li
                     key={a.team ?? "__lobby"}
-                    className={`flex items-center gap-3 px-3 py-2 text-sm ${
+                    className={`flex items-center gap-3 px-3 py-2 text-[12px] ${
                       a.team === myTeam ? "px-row-me" : "px-row"
                     }`}
                   >
@@ -516,7 +516,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
                     <span className="flex-1 truncate text-crt-white">{teamTag(a.team)}</span>
                     <span className="text-crt-dim">{a.members} {t.membersUnit}</span>
                     <span className="tabular-nums text-crt-gold">{dur(a.totalMs)}</span>
-                    <span className="text-xs tabular-nums text-amber-400/80">
+                    <span className="text-[12px] tabular-nums text-amber-400/80">
                       {t.perCap} {dur(a.perCapMs)}
                     </span>
                   </li>
@@ -528,7 +528,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-crt-dim">{t.weekBoard}</span>
-              <div className="flex gap-1 text-xs">
+              <div className="flex gap-1 text-[12px]">
                 {([false, true] as const).map((mine) => (
                   <button
                     key={String(mine)}
@@ -552,29 +552,29 @@ export default function Team({ onBack }: { onBack?: () => void }) {
                     r.userId === me ? "px-row-me" : "px-row"
                   } ${r.employment === "former" ? "opacity-55" : ""}`}
                 >
-                  <span className="w-5 text-right text-sm tabular-nums text-crt-dim">{i + 1}</span>
+                  <span className="w-5 text-right text-[12px] tabular-nums text-crt-dim">{i + 1}</span>
                   <span className={`size-2 ${stateDot[r.state]}`} title={stateLabelOf()[r.state]} />
-                  <span className="flex-1 truncate text-sm text-crt-white">
+                  <span className="flex-1 truncate text-[12px] text-crt-white">
                     {r.handle}
-                    <span className="ml-2 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-dim">
+                    <span className="ml-2 bg-crt-deep px-1.5 py-0.5 text-[12px] text-crt-dim">
                       {teamTag(r.team)}
                     </span>
                     {r.employment === "former" && (
-                      <span className="ml-1 bg-crt-deep px-1.5 py-0.5 text-[10px] text-crt-red">
+                      <span className="ml-1 bg-crt-deep px-1.5 py-0.5 text-[12px] text-crt-red">
                         {t.formerBadge}
                       </span>
                     )}
                   </span>
                   {r.fishes > 0 && (
-                    <span className="text-xs tabular-nums text-crt-dim" title={t.fishToday}>
+                    <span className="text-[12px] tabular-nums text-crt-dim" title={t.fishToday}>
                       🐟×{r.fishes}
                     </span>
                   )}
-                  <span className="text-sm tabular-nums text-crt-gold">{dur(r.weekMs)}</span>
+                  <span className="text-[12px] tabular-nums text-crt-gold">{dur(r.weekMs)}</span>
                   {/* 偷到的摸魚幣。跟時數並列而不是取代它:名次仍然比時數,
                       這一格是「伺服器認可你真的賺到多少」。股市資產是另一本
                       帳,永遠不加進來 —— 分開才查得出作弊 */}
-                  <span className="text-sm tabular-nums text-crt-white" title={t.zoneHint}>
+                  <span className="text-[12px] tabular-nums text-crt-white" title={t.zoneHint}>
                     {pts.format(r.points)} {t.pointsUnit}
                   </span>
                   {r.userId !== me && r.latestEventId && (
@@ -583,7 +583,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
                         <button
                           key={e}
                           title={e}
-                          className="px-1 text-sm opacity-60 hover:opacity-100"
+                          className="px-1 text-[12px] opacity-60 hover:opacity-100"
                           onClick={() => react(r.latestEventId!, e)}
                         >
                           {e}
