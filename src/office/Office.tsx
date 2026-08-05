@@ -333,7 +333,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
         </button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 text-[12px]">
+      <div className="flex flex-wrap items-center gap-2 px-small">
         {activeSince === null ? (
           <span className="px-bevel-in bg-crt-deep px-3 py-1 text-crt-green">
             {t.stateWorking}
@@ -367,7 +367,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
 
       {/* 一隊一房,點分頁串門子。只有一間(或沒登入)就不顯示 */}
       {roomNames.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1 text-[12px]">
+        <div className="flex flex-wrap items-center gap-1 px-small">
           <span className="mr-1 text-crt-dim">{t.visitTabs}</span>
           {roomNames.map((name) => (
             <button
@@ -423,7 +423,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
               style={{ transform: `translate(${fishPos.x * TILE}px, ${fishPos.y * TILE}px)` }}
             >
               <span className="px-bob text-[24px]">🐟</span>
-              <span className="bg-crt-deep/90 px-1 text-[12px] leading-tight text-crt-gold tabular-nums">
+              <span className="bg-crt-deep/90 px-1 px-small leading-tight text-crt-gold tabular-nums">
                 {mmss(activeSpot.end_ms - now)}
               </span>
             </div>
@@ -438,7 +438,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
               title={`${m.handle} · ${m.state === "slacking" ? t.officeSlacking : t.stateWorking}`}
             >
               <span className="text-[24px] opacity-90">🧑‍💼</span>
-              <span className="max-w-16 truncate bg-crt-deep/80 px-1 text-[12px] leading-tight text-crt-white">
+              <span className="max-w-16 truncate bg-crt-deep/80 px-1 px-small leading-tight text-crt-white">
                 {m.handle}
               </span>
             </div>
@@ -459,7 +459,17 @@ export default function Office({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className="text-crt-dim">{isOwnRoom ? t.officeHint : t.visitHint}</p>
+      {/* 手機沒有鍵盤,叫人按方向鍵是空話 —— 兩份文案用斷點切,不用 JS 測裝置 */}
+      <p className="text-crt-dim">
+        {isOwnRoom ? (
+          <>
+            <span className="sm:hidden">{t.officeHintMobile}</span>
+            <span className="hidden sm:inline">{t.officeHint}</span>
+          </>
+        ) : (
+          t.visitHint
+        )}
+      </p>
     </div>
   );
 }

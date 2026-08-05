@@ -49,7 +49,7 @@ function Heatmap({ events }: { events: SlackEvent[] }) {
     <div>
       <div className="mb-2 text-crt-dim">{t.heatmap}</div>
       <div className="flex gap-1.5">
-        <div className="grid grid-rows-7 gap-1 text-[12px] leading-3 text-crt-dim">
+        <div className="grid grid-rows-7 gap-1 px-small leading-3 text-crt-dim">
           {["", "一", "", "三", "", "五", ""].map((d, i) => (
             <span key={i} className="h-3">
               {d}
@@ -72,7 +72,7 @@ function Heatmap({ events }: { events: SlackEvent[] }) {
           })}
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-[12px] text-crt-dim">
+      <div className="mt-2 flex items-center justify-end gap-1 px-small text-crt-dim">
         <span>{t.less}</span>
         {LEVEL_BG.map((bg) => (
           <span key={bg} className={`size-3 ${bg}`} />

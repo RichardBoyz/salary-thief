@@ -38,7 +38,28 @@
   display: none;
 }
 
+/*
+ * 次要文字的一個旋鈕:按鈕、輸入框、說明、徽章、密集清單全走這個值。
+ *
+ * 手機 18px 是**刻意違反像素格線**的例外(規範是 12/24/36/48,18 是 1.5 倍
+ * 會讓邊緣微糊)—— 使用者實測後要的:12 在手機上看不清,24 又太大,而
+ * 中間沒有乾淨檔位。桌機沒這個問題,維持 12。要改就改這一行,不要散回
+ * 各元件裡。見 .claude/skills/pixel-ui。
+ */
+:root {
+  --px-small: 18px;
+}
+@media (min-width: 640px) {
+  :root {
+    --px-small: 12px;
+  }
+}
+
 @layer components {
+  .px-small {
+    font-size: var(--px-small);
+  }
+
   /* Win3.1 斜角:凸起(按鈕、面板)與凹陷(輸入框、量表槽)。
      像素風的立體感來自 border-color 的亮暗對角,不是圓角不是模糊陰影。
      全部純 CSS —— Tailwind v4 的 @apply 不能引用自訂 class,不玩嵌套 */
@@ -68,7 +89,7 @@
     color: var(--color-crt-white);
     cursor: pointer;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--px-small);
   }
   .px-btn:hover {
     background: var(--color-crt-deep);
@@ -89,7 +110,7 @@
     color: var(--color-crt-white);
     width: 100%;
     padding: 6px 8px;
-    font-size: 12px;
+    font-size: var(--px-small);
     outline: none;
   }
   .px-input:focus {

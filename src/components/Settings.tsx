@@ -43,14 +43,14 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         </button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 text-[12px]">
+      <div className="flex flex-wrap items-center gap-2 px-small">
         <span className="text-crt-dim">{t.lang}</span>
         <div className="flex gap-1">
           {(["zh-TW", "en"] as Lang[]).map((l) => (
             <button
               key={l}
               onClick={() => l !== lang && setLang(l)}
-              className={`px-2.5 py-1 text-[12px] ${
+              className={`px-2.5 py-1 px-small ${
                 lang === l ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
               }`}
             >
@@ -64,7 +64,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             <button
               key={th}
               onClick={() => setTheme(th)}
-              className={`px-2.5 py-1 text-[12px] ${
+              className={`px-2.5 py-1 px-small ${
                 theme === th ? "px-bevel-in bg-crt-deep text-crt-white" : "text-crt-dim hover:text-crt-white"
               }`}
             >
