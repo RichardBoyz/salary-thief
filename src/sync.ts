@@ -3,6 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { dayKey, weekStart } from "./slack";
+import type { Side, Trade } from "./stocks";
 import { useStore } from "./store";
 import { sb } from "./supabase";
 import {
@@ -364,6 +365,85 @@ export async function syncZonePoints(todayPoints: number): Promise<number | null
   }
   return data as number;
 }
+
+// ---------- 股市(v9)----------
+
+export type StockRow = {
+  symbol: string;
+  name: string;
+  close_ntd: number | null;
+  trade_date: string | null;
+};
+
+type TradeRow = {
+  id: string;
+  symbol: string;
+  side: Side;
+  shares: number;
+  price_ntd: number;
+  points: number;
+  at: string;
+};
+
+/**
+ * 股市頁要的三份資料:標的+收盤價、自己的交易、伺服器算的現金。
+ *
+ * 現金一律用伺服器的 my_cash(),不用本機推算 —— 本機那份(stocks.ts 的
+ * cashPts)是拿來對帳與試算的,不是真相。沒跑 migrate-v9 → 查詢失敗 →
+ * 空清單,這頁就是空的,其他功能照常(跟 v3/v5/v8 一樣靜默變空)。
+ */
+export function useStocks(pollMs: number) {
+  const session = useSession();
+  const [stocks, setStocks] = useState<StockRow[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [cash, setCash] = useState(0);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    const load = async () => {
+      const [s, t, c] = await Promise.all([
+        sb.from("stocks").select("*").order("symbol"),
+        sb.from("trades").select("*").order("at"),
+        sb.rpc("my_cash"),
+      ]);
+      if (!alive) return;
+      setStocks((s.data ?? []) as StockRow[]);
+      setTrades(
+        ((t.data ?? []) as TradeRow[]).map((r) => ({
+          id: r.id,
+          symbol: r.symbol,
+          side: r.side,
+          shares: r.shares,
+          priceNtd: Number(r.price_ntd),
+          at: Date.parse(r.at),
+        })),
+      );
+      setCash(Number(c.data ?? 0));
+    };
+    load().catch(warn("stocks"));
+    const id = setInterval(() => load().catch(warn("stocks")), pollMs);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [session, pollMs, tick]);
+
+  return { stocks, trades, cash, refresh: () => setTick((n) => n + 1) };
+}
+
+/**
+ * 下單。client 只送「買什麼、幾股」—— 價格、費用、成不成交全由伺服器判,
+ * 所以這裡沒有任何值得偽造的東西。回傳 null = 成功,字串 = 伺服器的理由。
+ */
+async function trade(fn: "buy_stock" | "sell_stock", symbol: string, shares: number) {
+  const { error } = await sb.rpc(fn, { p_symbol: symbol, p_shares: shares });
+  return error ? error.message : null;
+}
+
+export const buyStock = (symbol: string, shares: number) => trade("buy_stock", symbol, shares);
+export const sellStock = (symbol: string, shares: number) => trade("sell_stock", symbol, shares);
 
 export async function react(eventId: string, emoji: string) {
   const session = (await sb.auth.getSession()).data.session;

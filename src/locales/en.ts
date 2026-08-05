@@ -135,6 +135,23 @@ export const en: Strings = {
   helpPrivacyBody:
     "This app doesn't know your salary — it never asks, so it can't leak it. The database stores no company names, only opaque codes; handles aren't tied to real names. Slack points are points: they say nothing about what you earn.",
 
+  stocks: "Market",
+  cashOnHand: "Points available",
+  holdingValue: "Holdings value",
+  totalAssets: "Total assets",
+  myHoldings: "My holdings",
+  buy: "Buy",
+  sell: "Sell",
+  sharesUnit: "sh",
+  holdingShares: "held",
+  avgCost: "avg",
+  noPrice: "No quote",
+  errNotEnoughPoints: "Not enough slack points — go stand in the green box or catch a fish.",
+  errNotEnoughShares: "You don't hold that many shares.",
+  errNoPrice: "No quote for this one right now, so it can't be traded.",
+  stocksHint:
+    "Simulated trading, not investment advice. Prices are TWSE daily closes (updated once a day). 1 slack point = NT$1; 0.1425% commission, plus 0.3% tax on sells. Prices and fills are decided server-side.",
+
   stats: "Slacking report",
   monthSlack: "This month",
   longest: "Longest run",

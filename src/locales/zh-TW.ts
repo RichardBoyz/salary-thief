@@ -129,6 +129,23 @@ export const zhTW = {
   helpPrivacyBody:
     "這個 app 不知道你的薪水 —— 它從來不問,所以也洩漏不了。資料庫不存公司名,只存看不出意義的代碼;暱稱不綁真名。摸魚幣是點數,跟你賺多少沒有任何關係。",
 
+  stocks: "股市",
+  cashOnHand: "可用摸魚幣",
+  holdingValue: "持股現值",
+  totalAssets: "總資產",
+  myHoldings: "我的持股",
+  buy: "買",
+  sell: "賣",
+  sharesUnit: "股",
+  holdingShares: "持有",
+  avgCost: "均價",
+  noPrice: "尚無報價",
+  errNotEnoughPoints: "摸魚幣不夠 —— 回辦公室站綠框或抓魚再來。",
+  errNotEnoughShares: "你沒有這麼多股可以賣。",
+  errNoPrice: "這檔目前沒有報價,不能交易。",
+  stocksHint:
+    "模擬交易,不是投資建議。用的是證交所每日收盤價(一天更新一次),1 摸魚幣 = 1 元,手續費 0.1425%、賣出加證交稅 0.3%。價格與成交都由伺服器判定。",
+
   stats: "摸魚報告",
   monthSlack: "本月摸魚",
   longest: "最長一次",
