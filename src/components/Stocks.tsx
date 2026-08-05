@@ -88,7 +88,7 @@ function Row({
 }
 
 export default function Stocks({ onBack }: { onBack: () => void }) {
-  const { stocks, trades, cash, refresh } = useStocks(60_000);
+  const { stocks, trades, cash, refresh } = useStocks();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

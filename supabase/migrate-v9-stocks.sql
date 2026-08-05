@@ -174,9 +174,10 @@ create function private.refresh_stock_prices() returns int
 language plpgsql security definer set search_path = '' as $$
 declare
   body json;
+  rid  bigint;
   n    int := 0;
 begin
-  select r.content::json into body
+  select r.id, r.content::json into rid, body
     from private.price_request q
     join net._http_response r on r.id = q.id
    where r.status_code = 200
@@ -198,6 +199,9 @@ begin
      and (e ->> 'ClosingPrice')::numeric > 0;
   get diagnostics n = row_count;
 
+  -- 解析完立刻把回應丟掉。STOCK_DAY_ALL 是全市場一千多檔、一次好幾 MB,
+  -- 我們只要其中 5 檔 —— 留著它純粹是拿免費方案的 500MB 資料庫去存垃圾。
+  delete from net._http_response where id = rid;
   -- 只留最近幾筆請求紀錄,不然這張表會無限長
   delete from private.price_request where requested_at < now() - interval '7 days';
   return n;

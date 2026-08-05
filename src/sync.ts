@@ -391,8 +391,12 @@ type TradeRow = {
  * 現金一律用伺服器的 my_cash(),不用本機推算 —— 本機那份(stocks.ts 的
  * cashPts)是拿來對帳與試算的,不是真相。沒跑 migrate-v9 → 查詢失敗 →
  * 空清單,這頁就是空的,其他功能照常(跟 v3/v5/v8 一樣靜默變空)。
+ *
+ * **刻意沒有輪詢**:價格是每日收盤價,一天只變一次,輪詢等於拿免費方案的
+ * 出站流量去撈同一份資料。進頁面查一次、下單後 refresh 一次就夠 —— 這也是
+ * 為什麼團隊頁那種「誰在摸魚」才需要輪詢,這頁不需要。
  */
-export function useStocks(pollMs: number) {
+export function useStocks() {
   const session = useSession();
   const [stocks, setStocks] = useState<StockRow[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -423,12 +427,10 @@ export function useStocks(pollMs: number) {
       setCash(Number(c.data ?? 0));
     };
     load().catch(warn("stocks"));
-    const id = setInterval(() => load().catch(warn("stocks")), pollMs);
     return () => {
       alive = false;
-      clearInterval(id);
     };
-  }, [session, pollMs, tick]);
+  }, [session, tick]);
 
   return { stocks, trades, cash, refresh: () => setTick((n) => n + 1) };
 }
