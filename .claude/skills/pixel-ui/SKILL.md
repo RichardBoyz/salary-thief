@@ -61,6 +61,19 @@ Tailwind 的 `text-sm`(14)、`text-xs` 之外的預設檔位大多不在格上,*
 - 尊重 `prefers-reduced-motion`;辦公室走位與金額跳動是功能不是裝飾,
   可保留,裝飾性動畫要能關。
 
+## 角色與 sprite
+
+角色定義在 `office/sprite.ts`,**ASCII 手繪**(12×14 字元陣列,一個字母一
+種顏色),跟 `map.ts` 同一個慣用法。要改角色就改字串。
+
+**畫成 inline SVG,不要改成 PNG / sprite sheet / background-image。** 理由不是
+偏好:圖檔裡的顏色是死的,而深色與亮色主題共用同一組 CSS 變數,用圖檔的話
+亮色主題下角色不會換色。`fill` 一定要走 `var(--color-crt-*)`,`sprite.test.ts`
+有斷言擋住寫死色碼。節點數用 `runs()` 橫向合併壓下來,不是靠改用圖檔。
+
+**走路格由「真的移動了」驅動**(`useEffect` 監看 pos),不是 CSS animation ——
+腳步要跟移動同步,走走停停時才不會空踩。
+
 ## 已像素化 / 不像素化清單
 
 - 像素化:計數器、設定、摸魚報告、團隊、辦公室的「介面外框」。

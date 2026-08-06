@@ -24,6 +24,43 @@ import {
   zoneAt,
   type Pos,
 } from "./map";
+import { FRAMES, PIXEL, runs, SPRITE_H, SPRITE_W, walkFrame } from "./sprite";
+
+/**
+ * 8-bit 角色。畫成 inline SVG 而不是 PNG sprite sheet —— 圖檔裡的顏色是死的,
+ * 而這個 app 有深/亮兩套主題共用同一組 CSS 變數,角色要跟著換色。
+ * shapeRendering="crispEdges" 是像素風的關鍵:不給邊緣做抗鋸齒。
+ */
+function Actor({
+  frame,
+  facing = 1,
+  ghost = false,
+}: {
+  frame: number;
+  facing?: number;
+  ghost?: boolean;
+}) {
+  return (
+    <svg
+      width={SPRITE_W * PIXEL}
+      height={SPRITE_H * PIXEL}
+      viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
+      shapeRendering="crispEdges"
+      style={{ transform: `scaleX(${facing})`, opacity: ghost ? 0.45 : 1 }}
+    >
+      {runs(FRAMES[frame]).map((r) => (
+        <rect
+          key={`${r.x},${r.y}`}
+          x={r.x}
+          y={r.y}
+          width={r.w}
+          height={1}
+          fill={r.color}
+        />
+      ))}
+    </svg>
+  );
+}
 
 /** server 給的亂數 → 地圖格子。位置純裝飾,可驗證的核心是時間視窗 */
 const fishTile = (s: Spot): Pos => FLOOR_TILES[(s.r1 * 31 + s.r2) % FLOOR_TILES.length];
@@ -89,6 +126,16 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
           {floor}
           <rect x={px + 2} y={py + 6} width={28} height={22} rx={3} fill="#7c5a3a" />
           <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#0b0d11" />
+          {/* 亮著的螢幕。CRT 不是穩定光源,慢慢地在兩個亮度之間跳 —— 幅度小,
+              因為它是背景不是主角(一整個辦公室的螢幕一起閃會很吵) */}
+          <rect
+            className="px-screen"
+            x={px + 9}
+            y={py + 11}
+            width={14}
+            height={8}
+            fill="#38bdf8"
+          />
         </>
       );
     case "C":
@@ -97,6 +144,8 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
           {floor}
           <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#6f7684" />
           <rect x={px + 10} y={py + 6} width={12} height={12} rx={2} fill="#38bdf8" />
+          {/* 飲水機氣泡:一格一格往上,steps(3) 就是「三格動畫」的字面意思 */}
+          <rect className="px-bubble" x={px + 15} y={py + 16} width={2} height={2} fill="#7dd3fc" />
         </>
       );
     case "S":
@@ -112,7 +161,8 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
         <>
           {floor}
           <rect x={px + 10} y={py + 18} width={12} height={10} rx={2} fill="#7c5a3a" />
-          <circle cx={px + 16} cy={py + 12} r={9} fill="#16a34a" />
+          {/* 盆栽左右各晃一格。transform-origin 在盆口,所以是「搖」不是「平移」 */}
+          <circle className="px-plant" cx={px + 16} cy={py + 12} r={9} fill="#16a34a" />
         </>
       );
     case "y":
@@ -173,6 +223,10 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const pressed = useRef(new Set<string>());
   const posRef = useRef(pos);
   posRef.current = pos;
+  // 踏出的步數。tryMove 撞牆時回傳同一個物件參考,所以這個 effect 只會在
+  // 「真的移動了」的時候跑 —— 面壁走路不會讓腳空踩
+  const [steps, setSteps] = useState(0);
+  useEffect(() => setSteps((n) => n + 1), [pos]);
   // 手機 tap-to-move:點一格 → BFS 算好路徑塞這裡,interval 一格一格消化
   const path = useRef<Pos[]>([]);
 
@@ -316,6 +370,13 @@ export default function Office({ onBack }: { onBack: () => void }) {
         {RAW.flatMap((row, y) =>
           [...row].map((ch, x) => <Tile key={`${x},${y}`} ch={ch} x={x} y={y} />),
         )}
+        {/* 牆上的時鐘。純裝飾,但它是整個房間唯一「一直在動」的東西 ——
+            辦公室看起來活著,靠的就是有東西在你不看它的時候也在走。
+            秒針用 steps(60):一秒跳一格,那正是真實秒針的動作 */}
+        <g transform={`translate(${9 * TILE + 16}, ${TILE + 14})`}>
+          <circle r={10} fill="#0b0d11" stroke="#6f7684" strokeWidth={2} />
+          <rect className="px-hand" x={-1} y={-8} width={2} height={9} fill="#e8c264" />
+        </g>
       </svg>
     ),
     [],
@@ -437,7 +498,11 @@ export default function Office({ onBack }: { onBack: () => void }) {
               style={{ transform: `translate(${m.pos.x * TILE}px, ${m.pos.y * TILE}px)` }}
               title={`${m.handle} · ${m.state === "slacking" ? t.officeSlacking : t.stateWorking}`}
             >
-              <span className="text-[24px] opacity-90">🧑‍💼</span>
+              {/* 同事不同步走位(PLAN Phase 4),所以永遠是站立格;
+                  摸魚中的人輕輕晃,一眼就能從人群裡看出誰在混 */}
+              <span className={m.state === "slacking" ? "px-bob" : undefined}>
+                <Actor frame={0} />
+              </span>
               <span className="max-w-16 truncate bg-crt-deep/80 px-1 px-small leading-tight text-crt-white">
                 {m.handle}
               </span>
@@ -448,13 +513,14 @@ export default function Office({ onBack }: { onBack: () => void }) {
             className="absolute top-0 left-0 flex size-8 items-center justify-center transition-transform duration-130 ease-linear"
             style={{ transform: `translate(${pos.x * TILE}px, ${pos.y * TILE}px)` }}
           >
-            <span
-              className="text-[36px] drop-shadow"
-              style={{ transform: `scaleX(${facing})` }}
-            >
-              {/* 串門子時你是幽靈:對方看不到你,你也踩不動任何機關 */}
-              {!isOwnRoom ? "👻" : moving ? "🚶" : "🧍"}
-            </span>
+            {/* 走路格直接掛在「真的踏出一步」上,不是各跑各的 CSS 計時器 ——
+                腳步因此永遠跟移動同步,停下來就停在站立格。
+                串門子時是半透明的幽靈:對方看不到你,你也踩不動任何機關 */}
+            <Actor
+              frame={moving ? walkFrame(steps) : 0}
+              facing={facing}
+              ghost={!isOwnRoom}
+            />
           </div>
         </div>
       </div>

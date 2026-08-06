@@ -160,6 +160,35 @@
     animation: px-bob 0.7s steps(2) infinite alternate;
   }
 
+  /* ---- 辦公室裡會動的裝飾 ----
+     全部 steps():像素風的動作本來就該一格一格跳,而且這幾個都是背景,
+     幅度小、週期長。一整個房間的東西同時平滑呼吸會讓人分心。 */
+
+  /* 螢幕微閃。CRT 不是穩定光源,但閃太兇很吵 —— 兩個亮度、慢慢換 */
+  .px-screen {
+    animation: px-flicker 3.1s steps(1) infinite alternate;
+  }
+
+  /* 盆栽搖擺。transform-origin 在盆口,所以是「搖」不是整株平移 */
+  .px-plant {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    animation: px-sway 2.4s steps(1) infinite alternate;
+  }
+
+  /* 飲水機氣泡:三格往上,到頂消失 */
+  .px-bubble {
+    transform-box: fill-box;
+    animation: px-bubble 1.9s steps(3) infinite;
+  }
+
+  /* 秒針。steps(60) 就是秒針的字面語意:一秒一格,不是平滑轉 */
+  .px-hand {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    animation: px-tick 60s steps(60) infinite;
+  }
+
   /* 外快區:綠框「白」底(盤內的霧白,不是純白)。功能標記,本體不動 */
   .px-zone {
     border: 2px solid var(--color-crt-green);
@@ -209,9 +238,49 @@
   }
 }
 
+@keyframes px-flicker {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+@keyframes px-sway {
+  from {
+    transform: translateX(-1px);
+  }
+  to {
+    transform: translateX(1px);
+  }
+}
+
+@keyframes px-bubble {
+  from {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(-7px);
+    opacity: 0;
+  }
+}
+
+@keyframes px-tick {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .px-cursor,
-  .px-bob {
+  .px-bob,
+  /* 裝飾動畫全部關掉 —— 角色走路格不在這裡,那是功能不是裝飾 */
+  .px-screen,
+  .px-plant,
+  .px-bubble,
+  .px-hand {
     animation: none;
   }
   .px-heal {
