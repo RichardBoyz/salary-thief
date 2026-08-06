@@ -189,6 +189,22 @@
     animation: px-tick 60s steps(60) infinite;
   }
 
+  /* 窗外的雲。很慢、格數少 —— 它是你偶爾抬頭才會發現在動的東西 */
+  .px-cloud {
+    animation: px-drift 26s steps(9) infinite;
+  }
+
+  /* 冷氣運轉燈 */
+  .px-led {
+    animation: px-led 2.6s steps(1) infinite alternate;
+  }
+
+  /* 咖啡熱氣:四格上升然後散掉 */
+  .px-steam {
+    transform-box: fill-box;
+    animation: px-steam 2.8s steps(4) infinite;
+  }
+
   /* 外快區:綠框「白」底(盤內的霧白,不是純白)。功能標記,本體不動 */
   .px-zone {
     border: 2px solid var(--color-crt-green);
@@ -273,6 +289,32 @@
   }
 }
 
+@keyframes px-drift {
+  to {
+    transform: translateX(84px);
+  }
+}
+
+@keyframes px-led {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+
+@keyframes px-steam {
+  from {
+    transform: translateY(0);
+    opacity: 0.75;
+  }
+  to {
+    transform: translateY(-9px);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .px-cursor,
   .px-bob,
@@ -280,7 +322,10 @@
   .px-screen,
   .px-plant,
   .px-bubble,
-  .px-hand {
+  .px-hand,
+  .px-cloud,
+  .px-led,
+  .px-steam {
     animation: none;
   }
   .px-heal {

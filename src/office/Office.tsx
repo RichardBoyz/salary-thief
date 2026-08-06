@@ -93,6 +93,9 @@ function placeTeammates(rows: Standing[], me: string | undefined) {
   }));
 }
 
+/** 兩步之間的最小間隔。走路動畫的 transition 也用它,兩邊不能各走各的 */
+const STEP_MS = 140;
+
 const DIRS: Record<string, [number, number]> = {
   arrowup: [0, -1],
   w: [0, -1],
@@ -135,6 +138,17 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
             width={14}
             height={8}
             fill="#38bdf8"
+          />
+          {/* 馬克杯與熱氣。delay 用格子座標打散 —— 四張桌子同步冒煙會很假 */}
+          <rect x={px + 4} y={py + 20} width={5} height={6} fill="#d4dae3" />
+          <rect
+            className="px-steam"
+            x={px + 6}
+            y={py + 15}
+            width={2}
+            height={4}
+            fill="#6f7684"
+            style={{ animationDelay: `${(x % 4) * 0.7}s` }}
           />
         </>
       );
@@ -192,6 +206,72 @@ function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
   }
 }
 
+/**
+ * 牆上的裝飾。**刻意不進 map.ts 的 RAW**:它們沒有任何遊戲意義,不該影響
+ * 碰撞、外快區錨點或魚點的可用格。全部畫在最上排那道牆上(角色走不到),
+ * 所以也不會被人擋住或擋到人。
+ *
+ * 每一件都會動,而且都是 steps() —— 房間看起來活著,靠的是有東西在你不看
+ * 它的時候也在走。
+ */
+function WallDecor() {
+  const wall = TILE / 2; // 牆那一排的垂直中線
+  return (
+    <g>
+      {/* 兩扇窗,雲一格一格飄過去。clipPath 讓雲只在窗框內出現 */}
+      {[2, 16].map((col) => (
+        <g key={col}>
+          <clipPath id={`win${col}`}>
+            <rect x={col * TILE + 2} y={6} width={TILE * 2 - 4} height={20} />
+          </clipPath>
+          <rect
+            x={col * TILE + 2}
+            y={6}
+            width={TILE * 2 - 4}
+            height={20}
+            fill="#12314a"
+            stroke="#6f7684"
+            strokeWidth={2}
+          />
+          <g clipPath={`url(#win${col})`}>
+            <g
+              className="px-cloud"
+              style={{ animationDelay: `${col}s` }}
+            >
+              <rect x={col * TILE - 10} y={12} width={14} height={4} fill="#d4dae3" />
+              <rect x={col * TILE - 6} y={9} width={7} height={4} fill="#d4dae3" />
+            </g>
+          </g>
+          {/* 窗框中柱,不然它看起來像一塊藍色貼紙 */}
+          <rect x={col * TILE + TILE - 1} y={6} width={2} height={20} fill="#6f7684" />
+        </g>
+      ))}
+
+      {/* 時鐘。秒針 steps(60):一秒跳一格,那正是真實秒針的動作 */}
+      <g transform={`translate(${9 * TILE + 16}, ${wall})`}>
+        <circle r={11} fill="#0b0d11" stroke="#6f7684" strokeWidth={2} />
+        <rect className="px-hand" x={-1} y={-9} width={2} height={10} fill="#e8c264" />
+      </g>
+
+      {/* 冷氣:出風口 + 一顆會閃的運轉燈 */}
+      <g>
+        <rect x={12 * TILE} y={7} width={TILE * 2} height={18} fill="#343a46" />
+        {[11, 15, 19].map((y) => (
+          <rect key={y} x={12 * TILE + 4} y={y} width={TILE * 2 - 20} height={2} fill="#0b0d11" />
+        ))}
+        <rect className="px-led" x={13 * TILE + 22} y={11} width={3} height={3} fill="#7fc860" />
+      </g>
+
+      {/* 白板:靜態的,不是每樣東西都該動 —— 全都在動就等於都沒在動 */}
+      <g>
+        <rect x={5 * TILE + 4} y={7} width={TILE * 2 - 8} height={18} fill="#d4dae3" />
+        <rect x={5 * TILE + 9} y={12} width={22} height={2} fill="#6f7684" />
+        <rect x={5 * TILE + 9} y={17} width={32} height={2} fill="#6f7684" />
+      </g>
+    </g>
+  );
+}
+
 export default function Office({ onBack }: { onBack: () => void }) {
   const activeSince = useStore((s) => s.activeSince);
   const startSlacking = useStore((s) => s.startSlacking);
@@ -231,8 +311,19 @@ export default function Office({ onBack }: { onBack: () => void }) {
   const path = useRef<Pos[]>([]);
 
   useEffect(() => {
+    /*
+     * 節流:任何兩步之間至少隔 STEP_MS。
+     *
+     * 沒有這個的話起步會「衝一下」—— interval 是自由跑的,按鍵當下又立刻
+     * 走一步,如果按鍵剛好落在 tick 前 5ms,兩步就擠在一起。時間戳擋在
+     * 所有踏步路徑的共同入口,鍵盤與 tap 都吃得到,不用去重設 interval。
+     */
+    const lastStepAt = { at: 0 };
+    const ready = () => Date.now() - lastStepAt.at >= STEP_MS;
+
     const step = (k: string) => {
       const [dx, dy] = DIRS[k];
+      lastStepAt.at = Date.now();
       setPos((p) => tryMove(p, dx, dy));
       if (dx) setFacing(dx);
     };
@@ -244,7 +335,9 @@ export default function Office({ onBack }: { onBack: () => void }) {
       if (!pressed.current.has(k)) {
         pressed.current.add(k);
         setMoving(true);
-        step(k); // 第一步立即走,不等 interval —— 手感差很多
+        // 第一步立即走,不等 interval —— 手感差很多。但仍要過節流,
+        // 否則剛用 tap 走完馬上按鍵就會連踏兩步
+        if (ready()) step(k);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -255,16 +348,20 @@ export default function Office({ onBack }: { onBack: () => void }) {
     const id = setInterval(() => {
       const k = [...pressed.current][0];
       if (k) {
-        step(k);
+        if (ready()) step(k);
       } else if (path.current.length) {
+        if (!ready()) return;
         const next = path.current.shift()!;
         if (next.x !== posRef.current.x) setFacing(next.x > posRef.current.x ? 1 : -1);
+        lastStepAt.at = Date.now();
         setPos(next);
         setMoving(true);
       } else {
         setMoving(false);
       }
-    }, 140);
+      // interval 比 STEP_MS 密一點,節流才是真正決定節奏的東西 —— 不然
+      // tick 與節流的相位差會讓步伐忽快忽慢
+    }, STEP_MS / 2);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => {
@@ -370,13 +467,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
         {RAW.flatMap((row, y) =>
           [...row].map((ch, x) => <Tile key={`${x},${y}`} ch={ch} x={x} y={y} />),
         )}
-        {/* 牆上的時鐘。純裝飾,但它是整個房間唯一「一直在動」的東西 ——
-            辦公室看起來活著,靠的就是有東西在你不看它的時候也在走。
-            秒針用 steps(60):一秒跳一格,那正是真實秒針的動作 */}
-        <g transform={`translate(${9 * TILE + 16}, ${TILE + 14})`}>
-          <circle r={10} fill="#0b0d11" stroke="#6f7684" strokeWidth={2} />
-          <rect className="px-hand" x={-1} y={-8} width={2} height={9} fill="#e8c264" />
-        </g>
+        <WallDecor />
       </svg>
     ),
     [],
@@ -510,7 +601,9 @@ export default function Office({ onBack }: { onBack: () => void }) {
           ))}
           <div
             data-player
-            className="absolute top-0 left-0 flex size-8 items-center justify-center transition-transform duration-130 ease-linear"
+            // 位移動畫剛好一步的時間(STEP_MS):滑到定位的瞬間下一步才開始,
+            // 走起來才連續。比 STEP_MS 短會頓、長會拖影
+            className="absolute top-0 left-0 flex size-8 items-center justify-center transition-transform duration-140 ease-linear"
             style={{ transform: `translate(${pos.x * TILE}px, ${pos.y * TILE}px)` }}
           >
             {/* 走路格直接掛在「真的踏出一步」上,不是各跑各的 CSS 計時器 ——
