@@ -140,6 +140,8 @@ export const zhTW = {
   holdingShares: "持有",
   avgCost: "均價",
   noPrice: "尚無報價",
+  stockSearch: "搜尋股票(代號或名稱,例如 2330 或 台積電)",
+  stockNoResult: "找不到 —— 試試四位數代號,或換個關鍵字。",
   errNotEnoughPoints: "摸魚幣不夠 —— 回辦公室站綠框或抓魚再來。",
   errNotEnoughShares: "你沒有這麼多股可以賣。",
   errNoPrice: "這檔目前沒有報價,不能交易。",

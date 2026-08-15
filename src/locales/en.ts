@@ -146,6 +146,8 @@ export const en: Strings = {
   holdingShares: "held",
   avgCost: "avg",
   noPrice: "No quote",
+  stockSearch: "Search stocks (code or name, e.g. 2330 or 台積電)",
+  stockNoResult: "Nothing found — try the 4-digit code, or another keyword.",
   errNotEnoughPoints: "Not enough slack points — go stand in the green box or catch a fish.",
   errNotEnoughShares: "You don't hold that many shares.",
   errNoPrice: "No quote for this one right now, so it can't be traded.",

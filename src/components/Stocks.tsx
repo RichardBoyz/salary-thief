@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { pts } from "../fmt";
 import {
   buyCost,
@@ -10,7 +10,7 @@ import {
   sellProceeds,
 } from "../stocks";
 import { t } from "../strings";
-import { buyStock, sellStock, useStocks, type StockRow } from "../sync";
+import { buyStock, searchStocks, sellStock, useStocks, type StockRow } from "../sync";
 
 /** 伺服器的錯誤訊息是英文技術字串,對到看得懂的文案;沒對到就照實顯示 */
 const errText = (msg: string): string =>
@@ -91,6 +91,22 @@ export default function Stocks({ onBack }: { onBack: () => void }) {
   const { stocks, trades, cash, refresh } = useStocks();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<StockRow[]>([]);
+
+  // 搜尋 debounce 350ms —— 跟公司搜尋同一個手法。差別是這裡打的是自己的
+  // 資料庫(全市場每天排程整批入庫),不是外部 API,所以不用 abort、不怕限流
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setFound([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchStocks(q).then(setFound);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const hs = holdings(trades);
   const prices = Object.fromEntries(
@@ -134,18 +150,30 @@ export default function Stocks({ onBack }: { onBack: () => void }) {
 
       {err && <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{err}</p>}
 
-      <ul className="flex flex-col gap-1">
-        {stocks.map((s) => (
-          <Row
-            key={s.symbol}
-            s={s}
-            held={heldOf(s.symbol)}
-            cash={cash}
-            busy={busy}
-            onTrade={(side, shares) => onTrade(s.symbol, side, shares)}
-          />
-        ))}
-      </ul>
+      <div className="flex flex-col gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t.stockSearch}
+          className="px-input"
+        />
+        {/* 搜到東西就只顯示結果,不然預設清單會被推到很下面找不到 */}
+        <ul className="flex flex-col gap-1">
+          {(query.trim() ? found : stocks).map((s) => (
+            <Row
+              key={s.symbol}
+              s={s}
+              held={heldOf(s.symbol)}
+              cash={cash}
+              busy={busy}
+              onTrade={(side, shares) => onTrade(s.symbol, side, shares)}
+            />
+          ))}
+        </ul>
+        {query.trim() && found.length === 0 && (
+          <p className="px-small text-crt-dim">{t.stockNoResult}</p>
+        )}
+      </div>
 
       {hs.length > 0 && (
         <div>

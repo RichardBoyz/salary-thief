@@ -32,4 +32,9 @@ select 'v8 摸魚幣',
 union all
 select 'v9 股市',
        to_regclass('public.stocks') is not null
-   and to_regprocedure('public.buy_stock(text,int)') is not null;
+   and to_regprocedure('public.buy_stock(text,int)') is not null
+union all
+select 'v10 全市場搜尋',
+       exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'stocks'
+                 and column_name = 'featured');

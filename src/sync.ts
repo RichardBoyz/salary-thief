@@ -373,7 +373,32 @@ export type StockRow = {
   name: string;
   close_ntd: number | null;
   trade_date: string | null;
+  featured?: boolean;
 };
+
+/**
+ * 搜尋全市場。代號或名稱都吃,結果限 20 筆。
+ *
+ * 全市場一千多列已經在自己的 DB 裡(每日排程本來就整批抓回來),所以搜尋
+ * 不打任何外部 API、不需要同源轉發、也不用怕限流 —— 跟公司搜尋要繞 gcis
+ * 是完全不同的處境。一千列的 ilike 掃描不值得為它加索引。
+ */
+export async function searchStocks(q: string): Promise<StockRow[]> {
+  const term = q.trim().replace(/[%,()]/g, "");
+  if (term.length < 1) return [];
+  const { data, error } = await sb
+    .from("stocks")
+    .select("*")
+    .or(`symbol.ilike.%${term}%,name.ilike.%${term}%`)
+    .not("close_ntd", "is", null)
+    .order("symbol")
+    .limit(20);
+  if (error) {
+    warn("stock search")(error);
+    return [];
+  }
+  return (data ?? []) as StockRow[];
+}
 
 type TradeRow = {
   id: string;
@@ -407,23 +432,32 @@ export function useStocks() {
     if (!session) return;
     let alive = true;
     const load = async () => {
-      const [s, t, c] = await Promise.all([
-        sb.from("stocks").select("*").order("symbol"),
+      const [t, c] = await Promise.all([
         sb.from("trades").select("*").order("at"),
         sb.rpc("my_cash"),
       ]);
+      const rows = ((t.data ?? []) as TradeRow[]).map((r) => ({
+        id: r.id,
+        symbol: r.symbol,
+        side: r.side,
+        shares: r.shares,
+        priceNtd: Number(r.price_ntd),
+        at: Date.parse(r.at),
+      }));
+
+      // 只載預設清單 + 你持有的。全市場一千多列不該在每次開頁時整包送過來,
+      // 那是拿免費方案的出站流量去換一個沒人會滑到底的清單 —— 其他靠搜尋。
+      const held = [...new Set(rows.map((r) => r.symbol))];
+      const filter = held.length
+        ? `featured.is.true,symbol.in.(${held.join(",")})`
+        : "featured.is.true";
+      let s = await sb.from("stocks").select("*").or(filter).order("symbol");
+      // 還沒跑 migrate-v10 時沒有 featured 欄位 → 退回舊行為,頁面不會空掉
+      if (s.error) s = await sb.from("stocks").select("*").order("symbol").limit(50);
+
       if (!alive) return;
       setStocks((s.data ?? []) as StockRow[]);
-      setTrades(
-        ((t.data ?? []) as TradeRow[]).map((r) => ({
-          id: r.id,
-          symbol: r.symbol,
-          side: r.side,
-          shares: r.shares,
-          priceNtd: Number(r.price_ntd),
-          at: Date.parse(r.at),
-        })),
-      );
+      setTrades(rows);
       setCash(Number(c.data ?? 0));
     };
     load().catch(warn("stocks"));
