@@ -481,6 +481,61 @@ async function trade(fn: "buy_stock" | "sell_stock", symbol: string, shares: num
 export const buyStock = (symbol: string, shares: number) => trade("buy_stock", symbol, shares);
 export const sellStock = (symbol: string, shares: number) => trade("sell_stock", symbol, shares);
 
+// ---------- 留言板(v11)----------
+
+export type MessageRow = {
+  id: string;
+  user_id: string;
+  handle: string;
+  body: string;
+  at: string;
+};
+
+/** 一次最多讀 50 則。留言板不是檔案庫,DB 端也只留七天 */
+export const BOARD_LIMIT = 50;
+
+/**
+ * 同公司留言。**只在分頁可見時輪詢** —— 掛在背景的分頁每 20 秒撈一次資料
+ * 是純粹的浪費(心跳那邊也是同一個判斷)。切回來會立刻補一次。
+ */
+export function useBoard(pollMs: number) {
+  const session = useSession();
+  const [rows, setRows] = useState<MessageRow[]>([]);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    const load = () => {
+      if (document.hidden) return;
+      sb.from("messages")
+        .select("id,user_id,handle,body,at")
+        .order("at", { ascending: false })
+        .limit(BOARD_LIMIT)
+        .then(({ data, error }) => {
+          if (error) return warn("board")(error);
+          if (alive) setRows((data ?? []) as MessageRow[]);
+        });
+    };
+    load();
+    const id = setInterval(load, pollMs);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [session, pollMs, tick]);
+
+  return { rows, refresh: () => setTick((n) => n + 1) };
+}
+
+/** 發言。長度、頻率、重複全在伺服器判 —— 回傳 null = 成功,字串 = 理由 */
+export async function postMessage(body: string): Promise<string | null> {
+  const { error } = await sb.rpc("post_message", { p_body: body });
+  return error ? error.message : null;
+}
+
 export async function react(eventId: string, emoji: string) {
   const session = (await sb.auth.getSession()).data.session;
   if (!session) return;

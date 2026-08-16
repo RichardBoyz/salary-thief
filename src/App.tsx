@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Board from "./components/Board";
 import Counter from "./components/Counter";
 import Disguise from "./components/Disguise";
 import Help from "./components/Help";
@@ -20,7 +21,15 @@ const setFavicon = (emoji: string) => {
 
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
-type View = "counter" | "settings" | "stats" | "office" | "team" | "help" | "stocks";
+type View =
+  | "counter"
+  | "settings"
+  | "stats"
+  | "office"
+  | "team"
+  | "help"
+  | "stocks"
+  | "board";
 
 // 字級只走像素字型的整數倍檔位(12/24/36/48/72/96)—— 12 是最小格,
 // 所以「大一點」只有 24 這一個乾淨選擇,中間沒有 16/18 可以挑。
@@ -140,6 +149,7 @@ export default function App() {
           onStats={() => setView("stats")}
           onOffice={() => setView("office")}
           onStocks={() => setView("stocks")}
+          onBoard={() => setView("board")}
           onTeam={() => setView("team")}
           onHelp={() => setView("help")}
           onDisguise={() => setDisguised(true)}
@@ -148,6 +158,7 @@ export default function App() {
       {view === "settings" && <Settings onBack={() => setView("counter")} />}
       {view === "stats" && <Stats onBack={() => setView("counter")} />}
       {view === "stocks" && <Stocks onBack={() => setView("counter")} />}
+      {view === "board" && <Board onBack={() => setView("counter")} />}
       {view === "office" && <Office onBack={() => setView("counter")} />}
       {view === "team" && <Team onBack={() => setView("counter")} />}
       {view === "help" && <Help onClose={closeHelp} />}

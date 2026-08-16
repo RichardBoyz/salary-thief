@@ -20,7 +20,9 @@ const errText = (msg: string): string =>
       ? t.errNotEnoughShares
       : msg.includes("no price")
         ? t.errNoPrice
-        : msg;
+        : msg.includes("daily trade limit")
+          ? t.errTradeLimit
+          : msg;
 
 function Row({
   s,

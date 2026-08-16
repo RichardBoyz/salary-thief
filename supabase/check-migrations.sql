@@ -37,4 +37,9 @@ union all
 select 'v10 全市場搜尋',
        exists (select 1 from information_schema.columns
                where table_schema = 'public' and table_name = 'stocks'
-                 and column_name = 'featured');
+                 and column_name = 'featured')
+union all
+select 'v11 留言板 + 灌列防線',
+       to_regclass('public.messages') is not null
+   and to_regprocedure('public.post_message(text)') is not null
+   and exists (select 1 from pg_trigger where tgname = 'slack_events_row_cap');

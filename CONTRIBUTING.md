@@ -86,6 +86,12 @@ type(scope): 主旨(繁中、祈使句、≤50 字)
 5. **CSP connect-src 白名單**只有 self + supabase。新的外部服務一律走同源轉發
    (worker.js 的 `/gcis` 是先例),CSP 改動要同步兩份:
    `vite.config.ts` 與 `public/_headers`。
+6. **新增任何可寫入的表,先問「列數怎麼封頂」**。既有的防線大多在防數字
+   (時長上限、重疊不計、點數夾制),但拿合法 JWT 跑迴圈灌**列數**一樣能
+   把資料庫撐爆。標準做法:寫入只走 security definer 的 RPC(表本身不給
+   insert policy),再加總列數或每日列數的 trigger —— `messages`、
+   `slack_events`、`reactions`、`trades` 都是先例(migrate-v11)。
+   會長大的表要一併想好留存期限,能自動刪的就用 pg_cron 刪。
 
 ## 部署
 

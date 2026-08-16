@@ -151,8 +151,21 @@ export const en: Strings = {
   errNotEnoughPoints: "Not enough slack points — go stand in the green box or catch a fish.",
   errNotEnoughShares: "You don't hold that many shares.",
   errNoPrice: "No quote for this one right now, so it can't be traded.",
+  errTradeLimit: "That's 100 orders today. Come back tomorrow.",
   stocksHint:
     "Simulated trading, not investment advice. Prices are TWSE daily closes (updated once a day). 1 slack point = NT$1; 0.1425% commission, plus 0.3% tax on sells. Prices and fills are decided server-side.",
+
+  board: "Board",
+  boardHint: "Only your company sees this. Messages are kept for 7 days, then vanish.",
+  boardPlaceholder: "Say something (140 chars max)",
+  boardSend: "Post",
+  boardRateHint: "One per 10s, 40 a day",
+  boardEmpty: "Nothing here yet. First word is yours.",
+  boardTooFast: "Too fast — one message per 10 seconds.",
+  boardDuplicate: "Same as your last one. Try different words.",
+  boardDailyLimit: "That's all 40 for today. Come back tomorrow.",
+  boardTooLong: "Over 140 characters.",
+  boardNeedProfile: "Pick a handle under Team before posting.",
 
   stats: "Slacking report",
   monthSlack: "This month",

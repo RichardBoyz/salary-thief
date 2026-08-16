@@ -145,8 +145,21 @@ export const zhTW = {
   errNotEnoughPoints: "摸魚幣不夠 —— 回辦公室站綠框或抓魚再來。",
   errNotEnoughShares: "你沒有這麼多股可以賣。",
   errNoPrice: "這檔目前沒有報價,不能交易。",
+  errTradeLimit: "今天已經下滿 100 筆單了,明天請早。",
   stocksHint:
     "模擬交易,不是投資建議。用的是證交所每日收盤價(一天更新一次),1 摸魚幣 = 1 元,手續費 0.1425%、賣出加證交稅 0.3%。價格與成交都由伺服器判定。",
+
+  board: "留言板",
+  boardHint: "同公司的人才看得到。留言只保留 7 天,之後自動消失。",
+  boardPlaceholder: "說點什麼(140 字以內)",
+  boardSend: "貼上去",
+  boardRateHint: "每 10 秒一則、一天 40 則",
+  boardEmpty: "還沒有人留言。第一句話交給你了。",
+  boardTooFast: "太快了 —— 每 10 秒才能貼一則。",
+  boardDuplicate: "跟你上一則一模一樣,換句話說。",
+  boardDailyLimit: "今天的 40 則用完了,明天請早。",
+  boardTooLong: "超過 140 字了。",
+  boardNeedProfile: "要先在「團隊」取個代號才能留言。",
 
   stats: "摸魚報告",
   monthSlack: "本月摸魚",
