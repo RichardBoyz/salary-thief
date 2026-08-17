@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "../strings";
 import { postMessage, useBoard, useSession } from "../sync";
 
@@ -48,6 +48,13 @@ export default function Board({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // 板子在地圖下方,而地圖有 384px 高 —— 手機上點了白板卻什麼都沒發生
+  // (其實開在畫面外)是最糟的。捲進畫面裡,而且不搶走輸入焦點
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    panel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
+
   const send = async () => {
     const text = body.trim();
     if (!text || busy) return;
@@ -61,7 +68,10 @@ export default function Board({
   };
 
   return (
-    <div className="px-panel flex max-h-[70vh] flex-col gap-3 px-4 py-3">
+    <div
+      ref={panel}
+      className="px-panel px-unroll flex max-h-[70vh] flex-col gap-3 px-4 py-3"
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-crt-white">
           {t.board}

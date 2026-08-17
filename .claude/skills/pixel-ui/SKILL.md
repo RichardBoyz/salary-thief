@@ -55,6 +55,10 @@ Tailwind 的 `text-sm`(14)、`text-xs` 之外的預設檔位大多不在格上,*
 
 - **CSS `steps()` 優先** —— 像素風的動作本來就該一格一格跳,這正是
   steps() 的語意,免費且免依賴。游標閃爍、精靈步伐、打字機效果都是它。
+- **面板展開用 `clip-path` 由上往下揭開,不要 `scaleY`**(`.px-unroll` 是
+  先例):scaleY 會在中間的格數把字壓扁,clip-path 讓內容原地不動、只是還沒
+  露出來 —— 那才是「一張紙從板子上捲下來」。六格 240ms,開視窗要是幾格跳完
+  的,不是滑進來的。
 - 真的需要 tween/timeline(彈性、物理、複雜編排)才用 GSAP —— skills
   已裝(gsap-core / gsap-react / gsap-timeline),npm 套件**等真的要用
   才裝**,不要因為 skill 在就先裝。

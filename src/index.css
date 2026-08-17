@@ -205,6 +205,16 @@
     animation: px-steam 2.8s steps(4) infinite;
   }
 
+  /*
+   * 佈告欄拉下來。用 clip-path 由上往下揭開,不是 scaleY ——
+   * scaleY 會在中間的格數把字壓扁,clip-path 讓內容原地不動、只是還沒露出來,
+   * 那才是「一張紙從板子上捲下來」的樣子。
+   * steps(6):六格,240ms。像素遊戲開視窗本來就該是幾格跳完,不是滑進來。
+   */
+  .px-unroll {
+    animation: px-unroll 0.24s steps(6);
+  }
+
   /* 外快區:綠框「白」底(盤內的霧白,不是純白)。功能標記,本體不動 */
   .px-zone {
     border: 2px solid var(--color-crt-green);
@@ -283,6 +293,15 @@
   }
 }
 
+@keyframes px-unroll {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 @keyframes px-tick {
   to {
     transform: rotate(360deg);
@@ -325,7 +344,9 @@
   .px-hand,
   .px-cloud,
   .px-led,
-  .px-steam {
+  .px-steam,
+  /* 佈告欄直接出現,不捲 —— 它是轉場不是裝飾,關掉也不影響功能 */
+  .px-unroll {
     animation: none;
   }
   .px-heal {
