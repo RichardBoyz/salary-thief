@@ -42,4 +42,9 @@ union all
 select 'v11 留言板 + 灌列防線',
        to_regclass('public.messages') is not null
    and to_regprocedure('public.post_message(text)') is not null
-   and exists (select 1 from pg_trigger where tgname = 'slack_events_row_cap');
+   and exists (select 1 from pg_trigger where tgname = 'slack_events_row_cap')
+union all
+select 'v12 留言板綁房間',
+       exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'messages'
+                 and column_name = 'team');

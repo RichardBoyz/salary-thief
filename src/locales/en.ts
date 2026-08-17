@@ -156,7 +156,9 @@ export const en: Strings = {
     "Simulated trading, not investment advice. Prices are TWSE daily closes (updated once a day). 1 slack point = NT$1; 0.1425% commission, plus 0.3% tax on sells. Prices and fills are decided server-side.",
 
   board: "Board",
-  boardHint: "Only your company sees this. Messages are kept for 7 days, then vanish.",
+  close: "Close",
+  boardHint: "This room's board — only your team sees it. Messages are kept for 7 days.",
+  boardVisiting: "You're visiting another team's room. You can read, but not post.",
   boardPlaceholder: "Say something (140 chars max)",
   boardSend: "Post",
   boardRateHint: "One per 10s, 40 a day",

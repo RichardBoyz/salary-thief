@@ -498,7 +498,7 @@ export const BOARD_LIMIT = 50;
  * 同公司留言。**只在分頁可見時輪詢** —— 掛在背景的分頁每 20 秒撈一次資料
  * 是純粹的浪費(心跳那邊也是同一個判斷)。切回來會立刻補一次。
  */
-export function useBoard(pollMs: number) {
+export function useBoard(team: string | null, pollMs: number) {
   const session = useSession();
   const [rows, setRows] = useState<MessageRow[]>([]);
   const [tick, setTick] = useState(0);
@@ -508,8 +508,9 @@ export function useBoard(pollMs: number) {
     let alive = true;
     const load = () => {
       if (document.hidden) return;
-      sb.from("messages")
-        .select("id,user_id,handle,body,at")
+      const q = sb.from("messages").select("id,user_id,handle,body,at");
+      // 一隊一房,留言板也一樣。沒選隊的人在大廳(team is null)
+      (team === null ? q.is("team", null) : q.eq("team", team))
         .order("at", { ascending: false })
         .limit(BOARD_LIMIT)
         .then(({ data, error }) => {
@@ -525,7 +526,7 @@ export function useBoard(pollMs: number) {
       clearInterval(id);
       document.removeEventListener("visibilitychange", load);
     };
-  }, [session, pollMs, tick]);
+  }, [session, team, pollMs, tick]);
 
   return { rows, refresh: () => setTick((n) => n + 1) };
 }

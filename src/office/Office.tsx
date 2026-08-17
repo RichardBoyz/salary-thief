@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Board from "../components/Board";
 import { dur, pts } from "../fmt";
 import { points } from "../money";
 import { dayKey } from "../slack";
@@ -262,13 +263,39 @@ function WallDecor() {
         <rect className="px-led" x={13 * TILE + 22} y={11} width={3} height={3} fill="#7fc860" />
       </g>
 
-      {/* 白板:靜態的,不是每樣東西都該動 —— 全都在動就等於都沒在動 */}
-      <g>
-        <rect x={5 * TILE + 4} y={7} width={TILE * 2 - 8} height={18} fill="#d4dae3" />
-        <rect x={5 * TILE + 9} y={12} width={22} height={2} fill="#6f7684" />
-        <rect x={5 * TILE + 9} y={17} width={32} height={2} fill="#6f7684" />
-      </g>
     </g>
+  );
+}
+
+/**
+ * 牆上的留言板。點它就開 —— 留言板屬於「這間辦公室」,所以入口就在辦公室
+ * 牆上,不是主畫面上的第八顆按鈕。
+ *
+ * stopPropagation 是必要的:地圖的點擊是 tap-to-move,不擋的話點白板會順便
+ * 叫角色往牆上走(雖然 BFS 會因為目標不可走而回空陣列,但那是碰巧沒事,
+ * 不是設計)。
+ */
+function BoardSign({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      title={t.board}
+      aria-label={t.board}
+      className="absolute top-0 left-0 cursor-pointer"
+      style={{ transform: `translate(${5 * TILE}px, 0px)` }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+    >
+      <svg width={TILE * 2} height={TILE} shapeRendering="crispEdges">
+        <rect x={4} y={7} width={TILE * 2 - 8} height={18} fill="#d4dae3" />
+        <rect x={9} y={12} width={22} height={2} fill="#6f7684" />
+        <rect x={9} y={17} width={32} height={2} fill="#6f7684" />
+        {/* 角落一顆會閃的金色圖釘 —— 不然沒人知道那塊板可以點 */}
+        <rect className="px-led" x={TILE * 2 - 14} y={9} width={4} height={4} fill="#e8c264" />
+      </svg>
+    </button>
   );
 }
 
@@ -286,6 +313,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
   // 房間清單 = 公司裡實際存在的隊(有沒選隊的人就多一間大廳)。
   const myTeam = team?.profile?.team ?? null;
   const [visitingRaw, setVisiting] = useState<string | null | "OWN">("OWN");
+  const [boardOpen, setBoardOpen] = useState(false);
   const room = visitingRaw === "OWN" ? myTeam : visitingRaw;
   const isOwnRoom = room === myTeam;
   const roomNames = [
@@ -580,6 +608,8 @@ export default function Office({ onBack }: { onBack: () => void }) {
               </span>
             </div>
           )}
+          {/* 留言板入口在牆上,不在主畫面 —— 它屬於這間辦公室 */}
+          <BoardSign onOpen={() => setBoardOpen(true)} />
           {teammates.map((m) => (
             <div
               key={m.userId}
@@ -617,6 +647,11 @@ export default function Office({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* 留言板開在辦公室裡。串門子時看得到別隊的板但不能發言 —— 你是幽靈 */}
+      {boardOpen && (
+        <Board team={room} canPost={isOwnRoom} onClose={() => setBoardOpen(false)} />
+      )}
 
       {/* 手機沒有鍵盤,叫人按方向鍵是空話 —— 兩份文案用斷點切,不用 JS 測裝置 */}
       <p className="text-crt-dim">

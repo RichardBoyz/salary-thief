@@ -40,7 +40,6 @@ export default function Counter({
   onStats,
   onOffice,
   onStocks,
-  onBoard,
   onTeam,
   onHelp,
   onDisguise,
@@ -49,7 +48,6 @@ export default function Counter({
   onStats: () => void;
   onOffice: () => void;
   onStocks: () => void;
-  onBoard: () => void;
   onTeam: () => void;
   onHelp: () => void;
   onDisguise: () => void;
@@ -99,12 +97,6 @@ export default function Counter({
             className="px-btn"
           >
             {t.stocks}
-          </button>
-          <button
-            onClick={onBoard}
-            className="px-btn"
-          >
-            {t.board}
           </button>
           <button
             onClick={onTeam}

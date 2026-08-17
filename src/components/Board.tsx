@@ -25,9 +25,25 @@ const hhmm = (iso: string): string => {
 
 const MAX = 140;
 
-export default function Board({ onBack }: { onBack: () => void }) {
+/**
+ * 房間的留言板。開在辦公室裡(點牆上那塊白板),不是獨立頁面 —— 留言板
+ * 屬於「這間辦公室」,一隊一房,跟辦公室本身同一個分房規則。
+ *
+ * `canPost` 為 false = 你在別隊房間串門子。你是幽靈,別隊的牆不歸你寫;
+ * 而且伺服器蓋的是**你自己的隊**,就算硬送也只會貼到自己房間,看起來像
+ * 訊息消失了 —— 直接把輸入框關掉比事後解釋清楚。
+ */
+export default function Board({
+  team,
+  canPost,
+  onClose,
+}: {
+  team: string | null;
+  canPost: boolean;
+  onClose: () => void;
+}) {
   const session = useSession();
-  const { rows, refresh } = useBoard(20_000);
+  const { rows, refresh } = useBoard(team, 20_000);
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,49 +61,62 @@ export default function Board({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-6 py-12">
-      <header className="flex items-center justify-between">
-        <h1 className="text-[36px] text-crt-white">{t.board}</h1>
-        <button onClick={onBack} className="px-btn">
-          {t.back}
+    <div className="px-panel flex max-h-[70vh] flex-col gap-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-crt-white">
+          {t.board}
+          <span className="px-small ml-2 text-crt-dim">{team ?? t.lobby}</span>
+        </span>
+        <button onClick={onClose} className="px-btn">
+          {t.close}
         </button>
-      </header>
+      </div>
 
       <p className="px-small text-crt-dim">{t.boardHint}</p>
 
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <div className="flex gap-2">
-          <input
-            value={body}
-            onChange={(e) => setBody(e.target.value.slice(0, MAX))}
-            maxLength={MAX}
-            placeholder={t.boardPlaceholder}
-            className="px-input"
-          />
-          <button type="submit" className="px-btn text-crt-gold" disabled={busy || !body.trim()}>
-            {t.boardSend}
-          </button>
-        </div>
-        <div className="px-small flex justify-between text-crt-dim">
-          <span>{t.boardRateHint}</span>
-          <span className="tabular-nums">
-            {body.length}/{MAX}
-          </span>
-        </div>
-      </form>
+      {canPost ? (
+        <form
+          className="flex flex-col gap-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <div className="flex gap-2">
+            <input
+              value={body}
+              onChange={(e) => setBody(e.target.value.slice(0, MAX))}
+              maxLength={MAX}
+              placeholder={t.boardPlaceholder}
+              className="px-input"
+            />
+            <button
+              type="submit"
+              className="px-btn text-crt-gold"
+              disabled={busy || !body.trim()}
+            >
+              {t.boardSend}
+            </button>
+          </div>
+          <div className="px-small flex justify-between text-crt-dim">
+            <span>{t.boardRateHint}</span>
+            <span className="tabular-nums">
+              {body.length}/{MAX}
+            </span>
+          </div>
+        </form>
+      ) : (
+        <p className="px-small px-bevel-in bg-crt-deep px-3 py-2 text-crt-dim">
+          {t.boardVisiting}
+        </p>
+      )}
 
       {err && <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{err}</p>}
 
       {rows.length === 0 ? (
         <p className="text-crt-dim">{t.boardEmpty}</p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1 overflow-y-auto">
           {rows.map((m) => (
             <li
               key={m.id}
