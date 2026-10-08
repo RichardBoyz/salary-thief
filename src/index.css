@@ -194,6 +194,12 @@
     animation: px-drift 26s steps(9) infinite;
   }
 
+  /* 眨眼:上半眼的 fill 每 4.7 秒換成膚色一瞬間。顏色由角色 svg 上的
+     --eye/--skin 帶進來,delay 用 --blink 打散,全辦公室不會同時眨眼 */
+  .px-eye {
+    animation: px-eye 4.7s steps(1) var(--blink, 0s) infinite;
+  }
+
   /* 冷氣運轉燈 */
   .px-led {
     animation: px-led 2.6s steps(1) infinite alternate;
@@ -288,7 +294,7 @@
     opacity: 0.9;
   }
   to {
-    transform: translateY(-7px);
+    transform: translateY(-4px);
     opacity: 0;
   }
 }
@@ -310,7 +316,18 @@
 
 @keyframes px-drift {
   to {
-    transform: translateX(84px);
+    transform: translateX(42px);
+  }
+}
+
+@keyframes px-eye {
+  0%,
+  95% {
+    fill: var(--eye);
+  }
+  96%,
+  100% {
+    fill: var(--skin);
   }
 }
 
@@ -329,7 +346,7 @@
     opacity: 0.75;
   }
   to {
-    transform: translateY(-9px);
+    transform: translateY(-5px);
     opacity: 0;
   }
 }
@@ -345,6 +362,7 @@
   .px-cloud,
   .px-led,
   .px-steam,
+  .px-eye,
   /* 佈告欄直接出現,不捲 —— 它是轉場不是裝飾,關掉也不影響功能 */
   .px-unroll {
     animation: none;

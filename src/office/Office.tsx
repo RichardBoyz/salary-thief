@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import Board from "../components/Board";
 import { dur, pts } from "../fmt";
 import { points } from "../money";
@@ -14,54 +14,103 @@ import {
   FLOOR_TILES,
   inBonusZone,
   pathTo,
-  RAW,
   ROWS,
+  slide,
   SPAWN_BREAK,
   SPAWN_DESK,
   SPAWN_VISIT,
   SPOTS,
   TILE,
-  tryMove,
+  tileOf,
   zoneAt,
   type Pos,
 } from "./map";
-import { FRAMES, PIXEL, runs, SPRITE_H, SPRITE_W, walkFrame } from "./sprite";
+import { ART } from "./props";
+import Scene from "./Scene";
+import { lookFor, PIXEL, shapeRuns, SPRITE_H, SPRITE_W, WALK, type Dir, type Look } from "./sprite";
+
+type Pose = { dir: Dir; flip: boolean; body: number; lift: boolean };
+
+// 同事的姿勢是常數 —— Actor 是 memo,每次 render 都新建物件的話 memo 就白做了
+const SIT: Pose = { dir: "up", flip: false, body: 0, lift: false };
+const STAND: Pose = { dir: "down", flip: false, body: 0, lift: false };
+
+/** svg 多一列給「收腳時身體提起 1px」的空間 */
+const ACTOR_W = SPRITE_W * PIXEL;
+const ACTOR_H = (SPRITE_H + 1) * PIXEL;
+
+/** 腳底點(小數格座標)→ 角色 svg 左上角(螢幕 px)。鞋底落在腳底點下方 6px,
+ *  看起來是踩在格子裡,而不是頭頂對齊格線、整個人飄在上一格 */
+const actorAt = (x: number, y: number): [number, number] => [
+  Math.round(x * TILE - ACTOR_W / 2),
+  Math.round(y * TILE - ACTOR_H + 6),
+];
+
+/** 深度排序:腳底越下面越前面。家具用底邊列數 × 10,同一條軸 */
+const depth = (y: number) => Math.round(y * 10);
+
+const center = (p: Pos): Pos => ({ x: p.x + 0.5, y: p.y + 0.5 });
 
 /**
- * 8-bit 角色。畫成 inline SVG 而不是 PNG sprite sheet —— 圖檔裡的顏色是死的,
- * 而這個 app 有深/亮兩套主題共用同一組 CSS 變數,角色要跟著換色。
- * shapeRendering="crispEdges" 是像素風的關鍵:不給邊緣做抗鋸齒。
+ * 角色。inline SVG:顏色依每個人的 Look 套上去,形狀全場共用(shapeRuns 有快取)。
+ * memo 很重要 —— Office 每 100ms 重畫一次(useNow),一個角色一百多個 rect。
+ *
+ * 眨眼不是另一張圖:上半眼那幾格掛 .px-eye,CSS 每幾秒把它的 fill 換成膚色
+ * 一瞬間。delay 由呼叫端打散,全辦公室同時眨眼會很詭異。
  */
-function Actor({
-  frame,
-  facing = 1,
+const Actor = memo(function Actor({
+  look,
+  pose,
   ghost = false,
+  blink = 0,
 }: {
-  frame: number;
-  facing?: number;
+  look: Look;
+  pose: Pose;
   ghost?: boolean;
+  blink?: number;
 }) {
   return (
     <svg
-      width={SPRITE_W * PIXEL}
-      height={SPRITE_H * PIXEL}
-      viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
+      width={ACTOR_W}
+      height={ACTOR_H}
+      viewBox={`0 -1 ${SPRITE_W} ${SPRITE_H + 1}`}
       shapeRendering="crispEdges"
-      style={{ transform: `scaleX(${facing})`, opacity: ghost ? 0.45 : 1 }}
+      style={
+        {
+          display: "block",
+          transform: pose.flip ? "scaleX(-1)" : undefined,
+          opacity: ghost ? 0.45 : undefined,
+          "--eye": look.colors.E,
+          "--skin": look.colors.s,
+          "--blink": `${-blink}s`,
+        } as CSSProperties
+      }
     >
-      {runs(FRAMES[frame]).map((r) => (
-        <rect
-          key={`${r.x},${r.y}`}
-          x={r.x}
-          y={r.y}
-          width={r.w}
-          height={1}
-          fill={r.color}
-        />
-      ))}
+      <rect x={3} y={22} width={10} height={2} fill="#000" opacity={0.28} />
+      <rect x={2} y={22.5} width={12} height={1} fill="#000" opacity={0.28} />
+      <g transform={pose.lift ? "translate(0,-1)" : undefined}>
+        {shapeRuns(look.hair, pose.dir, pose.body).map((r) => (
+          <rect
+            key={`${r.x},${r.y}`}
+            className={r.ch === "E" ? "px-eye" : undefined}
+            x={r.x}
+            y={r.y}
+            width={r.w}
+            height={1}
+            fill={look.colors[r.ch]}
+          />
+        ))}
+      </g>
     </svg>
   );
-}
+});
+
+/** 名牌:頂在頭上,不擋腳下的格子(魚、綠框都在地上) */
+const NameTag = ({ name }: { name: string }) => (
+  <span className="absolute bottom-full left-1/2 max-w-24 -translate-x-1/2 truncate bg-crt-deep/80 px-1 px-small leading-tight whitespace-nowrap text-crt-white">
+    {name}
+  </span>
+);
 
 /** server 給的亂數 → 地圖格子。位置純裝飾,可驗證的核心是時間視窗 */
 const fishTile = (s: Spot): Pos => FLOOR_TILES[(s.r1 * 31 + s.r2) % FLOOR_TILES.length];
@@ -94,8 +143,10 @@ function placeTeammates(rows: Standing[], me: string | undefined) {
   }));
 }
 
-/** 兩步之間的最小間隔。走路動畫的 transition 也用它,兩邊不能各走各的 */
-const STEP_MS = 140;
+/** 走路速度(格/秒)。舊版一格 140ms ≈ 7 格/秒,但那是跳格;連續移動 5 格就夠快 */
+const SPEED = 5;
+/** 走多遠換一拍走路動畫(格)。太短腳會像在跑,太長會像在滑 */
+const STRIDE = 0.4;
 
 const DIRS: Record<string, [number, number]> = {
   arrowup: [0, -1],
@@ -108,163 +159,22 @@ const DIRS: Record<string, [number, number]> = {
   d: [1, 0],
 };
 
-/** 一格 SVG。純視覺,碰撞由 map.ts 的 walkable 管,兩邊都只看 RAW */
-function Tile({ ch, x, y }: { ch: string; x: number; y: number }) {
-  const px = x * TILE;
-  const py = y * TILE;
-  const floor = (
-    <rect
-      x={px}
-      y={py}
-      width={TILE}
-      height={TILE}
-      fill={(x + y) % 2 ? "#1a1d24" : "#1e222a"}
-    />
-  );
-  switch (ch) {
-    case "#":
-      return <rect x={px} y={py} width={TILE} height={TILE} fill="#0b0d11" />;
-    case "D":
-      return (
-        <>
-          {floor}
-          <rect x={px + 2} y={py + 6} width={28} height={22} rx={3} fill="#7c5a3a" />
-          <rect x={px + 8} y={py + 10} width={16} height={10} rx={1} fill="#0b0d11" />
-          {/* 亮著的螢幕。CRT 不是穩定光源,慢慢地在兩個亮度之間跳 —— 幅度小,
-              因為它是背景不是主角(一整個辦公室的螢幕一起閃會很吵) */}
-          <rect
-            className="px-screen"
-            x={px + 9}
-            y={py + 11}
-            width={14}
-            height={8}
-            fill="#38bdf8"
-          />
-          {/* 馬克杯與熱氣。delay 用格子座標打散 —— 四張桌子同步冒煙會很假 */}
-          <rect x={px + 4} y={py + 20} width={5} height={6} fill="#d4dae3" />
-          <rect
-            className="px-steam"
-            x={px + 6}
-            y={py + 15}
-            width={2}
-            height={4}
-            fill="#6f7684"
-            style={{ animationDelay: `${(x % 4) * 0.7}s` }}
-          />
-        </>
-      );
-    case "C":
-      return (
-        <>
-          {floor}
-          <rect x={px + 8} y={py + 4} width={16} height={26} rx={3} fill="#6f7684" />
-          <rect x={px + 10} y={py + 6} width={12} height={12} rx={2} fill="#38bdf8" />
-          {/* 飲水機氣泡:一格一格往上,steps(3) 就是「三格動畫」的字面意思 */}
-          <rect className="px-bubble" x={px + 15} y={py + 16} width={2} height={2} fill="#7dd3fc" />
-        </>
-      );
-    case "S":
-      return (
-        <>
-          {floor}
-          <rect x={px + 2} y={py + 8} width={28} height={20} rx={6} fill="#b91c1c" />
-          <rect x={px + 2} y={py + 4} width={28} height={8} rx={4} fill="#991b1b" />
-        </>
-      );
-    case "P":
-      return (
-        <>
-          {floor}
-          <rect x={px + 10} y={py + 18} width={12} height={10} rx={2} fill="#7c5a3a" />
-          {/* 盆栽左右各晃一格。transform-origin 在盆口,所以是「搖」不是「平移」 */}
-          <circle className="px-plant" cx={px + 16} cy={py + 12} r={9} fill="#16a34a" />
-        </>
-      );
-    case "y":
-      return (
-        <>
-          {floor}
-          <circle cx={px + 16} cy={py + 16} r={10} fill="#343a46" />
-        </>
-      );
-    case "b":
-      return (
-        <>
-          {floor}
-          <rect
-            x={px + 1}
-            y={py + 1}
-            width={TILE - 2}
-            height={TILE - 2}
-            fill="rgba(232,194,100,.12)"
-            stroke="rgba(232,194,100,.3)"
-            strokeDasharray="3 3"
-          />
-        </>
-      );
-    default:
-      return floor;
-  }
-}
+/** 打字中的按鍵不是走路 —— 不擋的話在留言板打 w/a/s/d 會被 preventDefault 吃掉 */
+const typing = (el: EventTarget | null) =>
+  el instanceof HTMLElement &&
+  (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 
-/**
- * 牆上的裝飾。**刻意不進 map.ts 的 RAW**:它們沒有任何遊戲意義,不該影響
- * 碰撞、外快區錨點或魚點的可用格。全部畫在最上排那道牆上(角色走不到),
- * 所以也不會被人擋住或擋到人。
- *
- * 每一件都會動,而且都是 steps() —— 房間看起來活著,靠的是有東西在你不看
- * 它的時候也在走。
- */
-function WallDecor() {
-  const wall = TILE / 2; // 牆那一排的垂直中線
-  return (
-    <g>
-      {/* 兩扇窗,雲一格一格飄過去。clipPath 讓雲只在窗框內出現 */}
-      {[2, 16].map((col) => (
-        <g key={col}>
-          <clipPath id={`win${col}`}>
-            <rect x={col * TILE + 2} y={6} width={TILE * 2 - 4} height={20} />
-          </clipPath>
-          <rect
-            x={col * TILE + 2}
-            y={6}
-            width={TILE * 2 - 4}
-            height={20}
-            fill="#12314a"
-            stroke="#6f7684"
-            strokeWidth={2}
-          />
-          <g clipPath={`url(#win${col})`}>
-            <g
-              className="px-cloud"
-              style={{ animationDelay: `${col}s` }}
-            >
-              <rect x={col * TILE - 10} y={12} width={14} height={4} fill="#d4dae3" />
-              <rect x={col * TILE - 6} y={9} width={7} height={4} fill="#d4dae3" />
-            </g>
-          </g>
-          {/* 窗框中柱,不然它看起來像一塊藍色貼紙 */}
-          <rect x={col * TILE + TILE - 1} y={6} width={2} height={20} fill="#6f7684" />
-        </g>
-      ))}
-
-      {/* 時鐘。秒針 steps(60):一秒跳一格,那正是真實秒針的動作 */}
-      <g transform={`translate(${9 * TILE + 16}, ${wall})`}>
-        <circle r={11} fill="#0b0d11" stroke="#6f7684" strokeWidth={2} />
-        <rect className="px-hand" x={-1} y={-9} width={2} height={10} fill="#e8c264" />
-      </g>
-
-      {/* 冷氣:出風口 + 一顆會閃的運轉燈 */}
-      <g>
-        <rect x={12 * TILE} y={7} width={TILE * 2} height={18} fill="#343a46" />
-        {[11, 15, 19].map((y) => (
-          <rect key={y} x={12 * TILE + 4} y={y} width={TILE * 2 - 20} height={2} fill="#0b0d11" />
-        ))}
-        <rect className="px-led" x={13 * TILE + 22} y={11} width={3} height={3} fill="#7fc860" />
-      </g>
-
-    </g>
-  );
+/** 朝向:誰的分量大就面向誰。正斜走時原本的朝向還說得通就不換,不然會左右/上下抖 */
+function facing(c: Pose, vx: number, vy: number): Pick<Pose, "dir" | "flip"> {
+  const side = { dir: "side" as Dir, flip: vx < 0 };
+  const vert = { dir: (vy < 0 ? "up" : "down") as Dir, flip: c.flip };
+  const ax = Math.abs(vx);
+  const ay = Math.abs(vy);
+  if (ax > ay + 0.01) return side;
+  if (ay > ax + 0.01) return vert;
+  if (c.dir === "side" && c.flip === side.flip) return side;
+  if (c.dir === vert.dir) return vert;
+  return side;
 }
 
 /**
@@ -281,19 +191,29 @@ function BoardSign({ onOpen }: { onOpen: () => void }) {
       type="button"
       title={t.board}
       aria-label={t.board}
-      className="absolute top-0 left-0 cursor-pointer"
+      className="absolute top-0 left-0 z-[1] cursor-pointer"
       style={{ transform: `translate(${5 * TILE}px, 0px)` }}
       onClick={(e) => {
         e.stopPropagation();
         onOpen();
       }}
     >
-      <svg width={TILE * 2} height={TILE} shapeRendering="crispEdges">
-        <rect x={4} y={7} width={TILE * 2 - 8} height={18} fill="#d4dae3" />
-        <rect x={9} y={12} width={22} height={2} fill="#6f7684" />
-        <rect x={9} y={17} width={32} height={2} fill="#6f7684" />
-        {/* 角落一顆會閃的金色圖釘 —— 不然沒人知道那塊板可以點 */}
-        <rect className="px-led" x={TILE * 2 - 14} y={9} width={4} height={4} fill="#e8c264" />
+      <svg
+        className="block"
+        width={TILE * 2}
+        height={TILE}
+        viewBox={`0 0 ${ART * 2} ${ART}`}
+        shapeRendering="crispEdges"
+      >
+        <rect x={2} y={1} width={28} height={10} fill="#1d1720" />
+        <rect x={3} y={2} width={26} height={8} fill="#ece8df" />
+        <rect x={5} y={4} width={9} height={1} fill="#6f7684" />
+        <rect x={5} y={6} width={14} height={1} fill="#6f7684" />
+        <rect x={18} y={3} width={6} height={4} fill="#f2d16b" />
+        <rect x={6} y={8} width={6} height={1} fill="#6f7684" />
+        {/* 角落一顆會閃的圖釘 —— 不然沒人知道那塊板可以點 */}
+        <rect className="px-led" x={26} y={3} width={2} height={2} fill="#e0625f" />
+        <rect x={2} y={11} width={28} height={1} fill="#7b5637" />
       </svg>
     </button>
   );
@@ -323,89 +243,154 @@ export default function Office({ onBack }: { onBack: () => void }) {
     (team?.rows ?? []).filter((r) => r.team === room),
     session?.user.id,
   );
+  const myLook = lookFor(session?.user.id ?? "me");
 
-  // 出生點跟著狀態走:摸魚中進來就站在茶水間,不會出現「人在座位卻在摸魚」
-  const [pos, setPos] = useState<Pos>(activeSince ? SPAWN_BREAK : SPAWN_DESK);
-  const [facing, setFacing] = useState(1);
-  const [moving, setMoving] = useState(false);
-  const pressed = useRef(new Set<string>());
-  const posRef = useRef(pos);
-  posRef.current = pos;
-  // 踏出的步數。tryMove 撞牆時回傳同一個物件參考,所以這個 effect 只會在
-  // 「真的移動了」的時候跑 —— 面壁走路不會讓腳空踩
-  const [steps, setSteps] = useState(0);
-  useEffect(() => setSteps((n) => n + 1), [pos]);
-  // 手機 tap-to-move:點一格 → BFS 算好路徑塞這裡,interval 一格一格消化
+  /*
+   * 走位。腳底座標是小數(feet),每幀移動;遊戲判定只看它落在哪一格(pos)。
+   * 位置與鏡頭直接寫 DOM transform,不經 React —— 60fps 重畫整個辦公室沒必要,
+   * React 只在「換格」與「換姿勢」時才知道(一秒幾次)。
+   */
+  const feet = useRef<Pos>(center(activeSince ? SPAWN_BREAK : SPAWN_DESK));
+  const [pos, setPos] = useState<Pos>(() => tileOf(feet.current));
+  const [pose, setPose] = useState<Pose>(activeSince ? STAND : SIT);
+  const poseRef = useRef(pose);
+  // 手機 tap-to-move:點一格 → BFS 算好路徑塞這裡,每幀朝下一個格子中心走
   const path = useRef<Pos[]>([]);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const meRef = useRef<HTMLDivElement>(null);
+  const ctl = useRef({ kick: () => {}, place: () => {} });
 
-  useEffect(() => {
-    /*
-     * 節流:任何兩步之間至少隔 STEP_MS。
-     *
-     * 沒有這個的話起步會「衝一下」—— interval 是自由跑的,按鍵當下又立刻
-     * 走一步,如果按鍵剛好落在 tick 前 5ms,兩步就擠在一起。時間戳擋在
-     * 所有踏步路徑的共同入口,鍵盤與 tap 都吃得到,不用去重設 interval。
-     */
-    const lastStepAt = { at: 0 };
-    const ready = () => Date.now() - lastStepAt.at >= STEP_MS;
+  useLayoutEffect(() => {
+    const stage = stageRef.current!;
+    const world = worldRef.current!;
+    const me = meRef.current!;
+    const keys = new Set<string>();
+    let stageW = stage.clientWidth;
+    let raf = 0;
+    let last = 0;
+    let walked = 0;
 
-    const step = (k: string) => {
-      const [dx, dy] = DIRS[k];
-      lastStepAt.at = Date.now();
-      setPos((p) => tryMove(p, dx, dy));
-      if (dx) setFacing(dx);
+    const setPoseIf = (next: Pose) => {
+      const c = poseRef.current;
+      if (c.dir === next.dir && c.flip === next.flip && c.body === next.body && c.lift === next.lift)
+        return;
+      poseRef.current = next;
+      setPose(next);
     };
+
+    // 角色、鏡頭、深度一次寫完。鏡頭:舞台比房間寬就置中,窄(手機)就跟著人走
+    const place = () => {
+      const { x, y } = feet.current;
+      const [ax, ay] = actorAt(x, y);
+      me.style.transform = `translate(${ax}px, ${ay}px)`;
+      me.style.zIndex = String(depth(y));
+      const worldW = COLS * TILE;
+      const cam =
+        stageW >= worldW
+          ? (stageW - worldW) / 2
+          : Math.min(0, Math.max(stageW - worldW, stageW / 2 - x * TILE));
+      world.style.transform = `translateX(${Math.round(cam)}px)`;
+      const tile = tileOf(feet.current);
+      setPos((p) => (p.x === tile.x && p.y === tile.y ? p : tile));
+    };
+
+    const frame = (time: number) => {
+      // dt 夾在 100ms:切回分頁的第一幀不會一口氣瞬移好幾格,掉幀的舊電腦也不會變慢動作
+      const dt = last ? Math.min(time - last, 100) / 1000 : 1 / 60;
+      last = time;
+      let vx = 0;
+      let vy = 0;
+      let limit = Infinity;
+      for (const k of keys) {
+        vx += DIRS[k][0];
+        vy += DIRS[k][1];
+      }
+      const p = feet.current;
+      if (vx || vy) {
+        path.current = []; // 鍵盤介入就取消 tap 走路
+      } else {
+        while (path.current.length) {
+          const c = center(path.current[0]);
+          const d = Math.hypot(c.x - p.x, c.y - p.y);
+          if (d > 0.02) {
+            vx = (c.x - p.x) / d;
+            vy = (c.y - p.y) / d;
+            limit = d; // 不要衝過頭,到格子中心剛好停
+            break;
+          }
+          path.current.shift();
+        }
+      }
+      const len = Math.hypot(vx, vy);
+      let moved = 0;
+      if (len) {
+        const step = Math.min(SPEED * dt, limit);
+        const next = slide(p, (vx / len) * step, (vy / len) * step);
+        moved = Math.hypot(next.x - p.x, next.y - p.y);
+        feet.current = next;
+        if (path.current.length && moved < step / 4) path.current = []; // 卡住就放棄
+      }
+      // 走路格由「實際移動距離」驅動:面壁推不動時腳不會空踩
+      walked += moved;
+      const beat = WALK[Math.floor(walked / STRIDE) % WALK.length];
+      const turn = len ? facing(poseRef.current, vx, vy) : poseRef.current;
+      setPoseIf({ ...turn, body: moved ? beat : 0, lift: moved > 0 && beat === 0 });
+      place();
+      if (keys.size || path.current.length) raf = requestAnimationFrame(frame);
+      else {
+        // 停下來就停掉 rAF:這個 app 會被開一整天,站著不動不該燒 CPU
+        raf = 0;
+        last = 0;
+        setPoseIf({ ...poseRef.current, body: 0, lift: false });
+      }
+    };
+    const kick = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (!(k in DIRS)) return;
+      if (!(k in DIRS) || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
       e.preventDefault(); // 方向鍵不捲頁面
-      path.current = []; // 鍵盤介入就取消 tap 走路
-      if (!pressed.current.has(k)) {
-        pressed.current.add(k);
-        setMoving(true);
-        // 第一步立即走,不等 interval —— 手感差很多。但仍要過節流,
-        // 否則剛用 tap 走完馬上按鍵就會連踏兩步
-        if (ready()) step(k);
-      }
+      keys.add(k);
+      kick();
     };
-    const up = (e: KeyboardEvent) => {
-      pressed.current.delete(e.key.toLowerCase());
-      if (pressed.current.size === 0 && path.current.length === 0) setMoving(false);
-    };
-    // 按著不放 / tap 路徑:固定節奏一格一格走。鍵盤優先,其次消化 tap 路徑
-    const id = setInterval(() => {
-      const k = [...pressed.current][0];
-      if (k) {
-        if (ready()) step(k);
-      } else if (path.current.length) {
-        if (!ready()) return;
-        const next = path.current.shift()!;
-        if (next.x !== posRef.current.x) setFacing(next.x > posRef.current.x ? 1 : -1);
-        lastStepAt.at = Date.now();
-        setPos(next);
-        setMoving(true);
-      } else {
-        setMoving(false);
-      }
-      // interval 比 STEP_MS 密一點,節流才是真正決定節奏的東西 —— 不然
-      // tick 與節流的相位差會讓步伐忽快忽慢
-    }, STEP_MS / 2);
+    const up = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+    // 切走分頁時收不到 keyup,不清掉的話回來角色會自己一直走
+    const blur = () => keys.clear();
+    const ro = new ResizeObserver(() => {
+      stageW = stage.clientWidth;
+      place();
+    });
+
+    ctl.current = { kick, place };
+    place();
+    ro.observe(stage);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
     return () => {
-      clearInterval(id);
+      cancelAnimationFrame(raf);
+      ro.disconnect();
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
 
-  // 點/觸控地圖某一格 → 走過去(BFS)。座標沒縮放(1px=1格線性),直接換算
-  const tapMove: React.MouseEventHandler = (e) => {
+  // 點/觸控地圖某一格 → 走過去(BFS)。world 的 rect 已含鏡頭位移,直接換算
+  const tapMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const tx = Math.floor((e.clientX - rect.left) / TILE);
-    const ty = Math.floor((e.clientY - rect.top) / TILE);
-    const p = pathTo(posRef.current, { x: tx, y: ty });
-    if (p.length) path.current = p;
+    const target = {
+      x: Math.floor((e.clientX - rect.left) / TILE),
+      y: Math.floor((e.clientY - rect.top) / TILE),
+    };
+    const p = pathTo(tileOf(feet.current), target);
+    if (p.length) {
+      path.current = p;
+      ctl.current.kick();
+    }
   };
 
   // 魚點:今天的時刻表由伺服器種子決定,只在自己房間出現
@@ -485,21 +470,14 @@ export default function Office({ onBack }: { onBack: () => void }) {
   // deps 只有 room —— 摸魚開始/結束不該把人瞬移回出生點
   useEffect(() => {
     const s = useStore.getState();
-    setPos(isOwnRoom ? (s.activeSince ? SPAWN_BREAK : SPAWN_DESK) : SPAWN_VISIT);
+    const spawn = isOwnRoom ? (s.activeSince ? SPAWN_BREAK : SPAWN_DESK) : SPAWN_VISIT;
+    feet.current = center(spawn);
+    path.current = [];
+    poseRef.current = spawn === SPAWN_DESK ? SIT : STAND;
+    setPose(poseRef.current);
+    ctl.current.place();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
-
-  const map = useMemo(
-    () => (
-      <svg width={COLS * TILE} height={ROWS * TILE} className="block">
-        {RAW.flatMap((row, y) =>
-          [...row].map((ch, x) => <Tile key={`${x},${y}`} ch={ch} x={x} y={y} />),
-        )}
-        <WallDecor />
-      </svg>
-    ),
-    [],
-  );
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-4 px-6 py-8">
@@ -568,19 +546,25 @@ export default function Office({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      <div className="px-bevel overflow-x-auto">
+      {/* 舞台:寬度跟著容器,房間比它寬時(手機)鏡頭跟著人走,不再整片橫向捲動 */}
+      <div
+        ref={stageRef}
+        className="px-bevel relative overflow-hidden bg-crt-deep"
+        style={{ height: ROWS * TILE + 4 }}
+      >
         <div
-          className="relative cursor-pointer select-none"
+          ref={worldRef}
+          className="absolute top-0 left-0 cursor-pointer select-none"
           style={{ width: COLS * TILE, height: ROWS * TILE, touchAction: "manipulation" }}
           onClick={tapMove}
         >
-          {map}
+          <Scene />
           {/* 外快區:綠框白底,站進去補血十字往上飄 + 加倍領錢。
-              pointer-events-none 讓 tap-to-move 的點擊穿過去 */}
+              畫在地上(z=1),家具與人都在它上面。pointer-events-none 讓點擊穿過去 */}
           {isOwnRoom && (
             <div
               data-bonus
-              className="pointer-events-none absolute top-0 left-0"
+              className="pointer-events-none absolute top-0 left-0 z-[1]"
               style={{
                 transform: `translate(${bonusAnchor.x * TILE}px, ${bonusAnchor.y * TILE}px)`,
               }}
@@ -599,8 +583,11 @@ export default function Office({ onBack }: { onBack: () => void }) {
           {isOwnRoom && activeSpot && fishPos && (
             <div
               data-fish
-              className="absolute top-0 left-0 flex size-8 flex-col items-center justify-center"
-              style={{ transform: `translate(${fishPos.x * TILE}px, ${fishPos.y * TILE}px)` }}
+              className="pointer-events-none absolute top-0 left-0 flex size-8 flex-col items-center justify-center"
+              style={{
+                transform: `translate(${fishPos.x * TILE}px, ${fishPos.y * TILE}px)`,
+                zIndex: depth(fishPos.y + 0.5) - 1,
+              }}
             >
               <span className="px-bob text-[24px]">🐟</span>
               <span className="bg-crt-deep/90 px-1 px-small leading-tight text-crt-gold tabular-nums">
@@ -610,40 +597,37 @@ export default function Office({ onBack }: { onBack: () => void }) {
           )}
           {/* 留言板入口在牆上,不在主畫面 —— 它屬於這間辦公室 */}
           <BoardSign onOpen={() => setBoardOpen(true)} />
-          {teammates.map((m) => (
-            <div
-              key={m.userId}
-              data-teammate={m.handle}
-              // 狀態變了(座位↔茶水間)靠 transition 自己「走」過去
-              className="absolute top-0 left-0 flex size-8 flex-col items-center justify-center transition-transform duration-700 ease-in-out"
-              style={{ transform: `translate(${m.pos.x * TILE}px, ${m.pos.y * TILE}px)` }}
-              title={`${m.handle} · ${m.state === "slacking" ? t.officeSlacking : t.stateWorking}`}
-            >
-              {/* 同事不同步走位(PLAN Phase 4),所以永遠是站立格;
-                  摸魚中的人輕輕晃,一眼就能從人群裡看出誰在混 */}
-              <span className={m.state === "slacking" ? "px-bob" : undefined}>
-                <Actor frame={0} />
-              </span>
-              <span className="max-w-16 truncate bg-crt-deep/80 px-1 px-small leading-tight text-crt-white">
-                {m.handle}
-              </span>
-            </div>
-          ))}
-          <div
-            data-player
-            // 位移動畫剛好一步的時間(STEP_MS):滑到定位的瞬間下一步才開始,
-            // 走起來才連續。比 STEP_MS 短會頓、長會拖影
-            className="absolute top-0 left-0 flex size-8 items-center justify-center transition-transform duration-140 ease-linear"
-            style={{ transform: `translate(${pos.x * TILE}px, ${pos.y * TILE}px)` }}
-          >
-            {/* 走路格直接掛在「真的踏出一步」上,不是各跑各的 CSS 計時器 ——
-                腳步因此永遠跟移動同步,停下來就停在站立格。
-                串門子時是半透明的幽靈:對方看不到你,你也踩不動任何機關 */}
-            <Actor
-              frame={moving ? walkFrame(steps) : 0}
-              facing={facing}
-              ghost={!isOwnRoom}
-            />
+          {teammates.map((m) => {
+            const [ax, ay] = actorAt(m.pos.x + 0.5, m.pos.y + 0.5);
+            const slacking = m.state === "slacking";
+            return (
+              <div
+                key={m.userId}
+                data-teammate={m.handle}
+                // 狀態變了(座位↔茶水間)靠 transition 自己「走」過去
+                className="absolute top-0 left-0 transition-transform duration-700 ease-in-out"
+                style={{
+                  transform: `translate(${ax}px, ${ay}px)`,
+                  zIndex: depth(m.pos.y + 0.5),
+                }}
+                title={`${m.handle} · ${slacking ? t.officeSlacking : t.stateWorking}`}
+              >
+                <NameTag name={m.handle} />
+                {/* 上班中背對鏡頭坐在螢幕前;摸魚中面向你、輕輕晃 ——
+                    一眼就能從人群裡看出誰在混 */}
+                <div className={slacking ? "px-bob" : undefined}>
+                  <Actor
+                    look={lookFor(m.userId)}
+                    pose={slacking ? STAND : SIT}
+                    blink={(m.pos.x * 7 + m.pos.y * 3) % 5}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <div ref={meRef} data-player className="pointer-events-none absolute top-0 left-0">
+            {/* 串門子時是半透明的幽靈:對方看不到你,你也踩不動任何機關 */}
+            <Actor look={myLook} pose={pose} ghost={!isOwnRoom} blink={2.3} />
           </div>
         </div>
       </div>

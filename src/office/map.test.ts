@@ -9,9 +9,11 @@ import {
   SPAWN_BREAK,
   SPAWN_DESK,
   SPAWN_VISIT,
+  hits,
+  slide,
   SPOTS,
   tileAt,
-  tryMove,
+  tileOf,
   walkable,
   ZONE_ANCHORS,
   ZONE_SLOT_MS,
@@ -67,28 +69,72 @@ describe("zoneAt", () => {
   });
 });
 
-describe("tryMove", () => {
-  it("空地板走得動", () => {
-    expect(tryMove({ x: 10, y: 5 }, 1, 0)).toEqual({ x: 11, y: 5 });
-  });
-
-  it("撞牆站在原地,回傳同一個參考", () => {
-    const p = { x: 1, y: 1 };
-    expect(tryMove(p, -1, 0)).toBe(p);
-    expect(tryMove(p, 0, -1)).toBe(p);
-  });
-
-  it("桌子、飲水機、沙發、盆栽都是實體,穿不過去", () => {
-    // 座位 (2,3) 正上方 (2,2) 是桌子
-    const atDesk = SPAWN_DESK;
-    expect(tryMove(atDesk, 0, -1)).toBe(atDesk);
-    // 茶水間 b 的正上方是飲水機 C
-    expect(tryMove(SPAWN_BREAK, 0, -1)).toBe(SPAWN_BREAK);
+describe("家具都是實體", () => {
+  it("桌子、茶水間、沙發、盆栽、書櫃、印表機都走不進去", () => {
+    for (const ch of "DCSPBR") {
+      const y = RAW.findIndex((row) => row.includes(ch));
+      expect(y, `地圖上找不到 ${ch}`).toBeGreaterThan(-1);
+      expect(walkable({ x: RAW[y].indexOf(ch), y })).toBe(false);
+    }
   });
 
   it("地圖外當牆:就算資料壞掉指到外面,也走不出去", () => {
-    const p = { x: 0, y: 0 };
-    expect(tryMove(p, -1, -1)).toBe(p);
+    expect(walkable({ x: -1, y: 3 })).toBe(false);
+    expect(walkable({ x: 3, y: 99 })).toBe(false);
+  });
+});
+
+describe("slide(連續移動 + 碰撞)", () => {
+  const open = { x: 10.5, y: 4.5 }; // 走道正中間,四周都是地板
+
+  it("空地板照實移動", () => {
+    expect(slide(open, 0.1, -0.05)).toEqual({ x: 10.6, y: 4.45 });
+  });
+
+  it("撞牆停下,不會走進牆裡", () => {
+    let p = { x: 1.5, y: 4.5 };
+    for (let i = 0; i < 20; i++) p = slide(p, -0.1, 0);
+    expect(p.x).toBeGreaterThan(1);
+    expect(p.x).toBeLessThan(1.5);
+    expect(hits(p.x, p.y)).toBe(false);
+  });
+
+  it("斜著貼牆走會沿牆滑,不會整個黏住", () => {
+    // 貼著上牆往右上走:y 被擋,x 照走
+    let p = { x: 10.5, y: 1.25 };
+    for (let i = 0; i < 5; i++) p = slide(p, 0.1, -0.1);
+    expect(p.x).toBeCloseTo(11, 5);
+    expect(p.y).toBeGreaterThan(1);
+  });
+
+  it("擦到桌角會被推進走道 —— 不用先對準格子", () => {
+    // 桌子在 (5,2),(3,2)(4,2) 是走道。站在 (4,3) 偏右、碰撞框跨進桌子那欄,一直往上
+    let p = { x: 4.9, y: 3.5 };
+    for (let i = 0; i < 40; i++) p = slide(p, 0, -0.1);
+    expect(p.y).toBeLessThan(2); // 穿過桌子那一排,一路走到上牆
+    expect(tileOf(p).x).toBe(4);
+  });
+
+  it("正面撞牆不亂推:框整個在桌子正下方時就是停住", () => {
+    let p = { x: 5.5, y: 3.5 };
+    for (let i = 0; i < 20; i++) p = slide(p, 0, -0.1);
+    expect(p.x).toBe(5.5);
+    expect(tileOf(p)).toEqual({ x: 5, y: 3 });
+  });
+
+  it("隨機亂走五千步,碰撞框一次都沒有壓進實體格", () => {
+    let seed = 42;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31) * 2 - 1;
+    let p = { x: 10.5, y: 4.5 };
+    for (let i = 0; i < 5000; i++) {
+      p = slide(p, rand() * 0.3, rand() * 0.3);
+      expect(hits(p.x, p.y)).toBe(false);
+      expect(walkable(tileOf(p))).toBe(true);
+    }
+  });
+
+  it("tileOf 取腳底所在的格子", () => {
+    expect(tileOf({ x: 2.99, y: 3.01 })).toEqual({ x: 2, y: 3 });
   });
 });
 

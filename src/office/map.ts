@@ -1,21 +1,24 @@
 // 辦公室地圖。ASCII 手繪,要改格局改字串就好,不需要地圖編輯器。
 //
-// 圖例:# 牆  D 桌子  C 飲水機  S 沙發  P 盆栽(以上不可走)
+// 圖例:# 牆  D 桌子  C 茶水間(飲水機/咖啡機)  S 沙發  P 盆栽
+//       B 書櫃  R 印表機(以上不可走)
 //       . 地板  y 你的座位(工作區)  b 摸魚區(茶水間前/沙發前)
 export const RAW = [
   "####################",
-  "#..................#",
-  "#.D..D..D..D...P...#",
+  "#B................P#",
+  "#.D..D..D..D.R.P...#",
   "#.y................#",
   "#..................#",
-  "#..................#",
+  "#.D..D..D..........#",
   "#..................#",
   "#..............CC..#",
-  "#....S.........bb..#",
+  "#....SS........bb..#",
   "#....b.............#",
-  "#..................#",
+  "#P.................#",
   "####################",
 ] as const;
+
+const SOLID = "#DCSPBR";
 
 export const TILE = 32;
 export const COLS = RAW[0].length;
@@ -27,7 +30,7 @@ export type Zone = "desk" | "break" | "floor";
 /** 地圖外一律當牆,走不出去 */
 export const tileAt = (p: Pos): string => RAW[p.y]?.[p.x] ?? "#";
 
-export const walkable = (p: Pos): boolean => !"#DCSP".includes(tileAt(p));
+export const walkable = (p: Pos): boolean => !SOLID.includes(tileAt(p));
 
 export const zoneAt = (p: Pos): Zone =>
   tileAt(p) === "y" ? "desk" : tileAt(p) === "b" ? "break" : "floor";
@@ -83,11 +86,73 @@ export const bonusZoneAt = (now: number): Pos => {
 export const inBonusZone = (p: Pos, a: Pos): boolean =>
   p.x >= a.x && p.x <= a.x + 1 && p.y >= a.y && p.y <= a.y + 1;
 
-/** 撞牆就站在原地。回傳同一個物件參考 = 沒動,呼叫端可以直接比較 */
-export const tryMove = (p: Pos, dx: number, dy: number): Pos => {
-  const next = { x: p.x + dx, y: p.y + dy };
-  return walkable(next) ? next : p;
+// ---- 連續移動 ----
+// v13 前是一格一格跳(Pokémon 式),現在角色座標是小數、每幀移動。遊戲判定
+// (座位、茶水間、魚、外快區)仍然只看「腳底在哪一格」—— tileOf —— 所以
+// 上面那些整數格的邏輯一行都不用改。
+
+/** 腳底碰撞框的半寬/半高(格)。比一格小,一格寬的走道走得過去 */
+const HX = 0.3;
+const HY = 0.2;
+const EPS = 1e-3;
+/** 卡桌角時最多往旁邊推多遠(格)。再遠就是正面撞牆,不是擦邊 */
+const NUDGE = 0.45;
+
+/** 小數座標 → 腳底所在的格子 */
+export const tileOf = (p: Pos): Pos => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
+
+const solidAt = (x: number, y: number) => !walkable({ x: Math.floor(x), y: Math.floor(y) });
+
+/** 腳底框中心在 (x,y) 時有沒有壓到實體格。框小於一格,四個角就涵蓋所有可能 */
+export const hits = (x: number, y: number): boolean =>
+  solidAt(x - HX, y - HY) ||
+  solidAt(x + HX, y - HY) ||
+  solidAt(x - HX, y + HY) ||
+  solidAt(x + HX, y + HY);
+
+/**
+ * 沿 a 軸前進被擋時,b 軸要挪多少才鑽得過去(0 = 正面撞牆,不推)。
+ * hitAt(a, b) 把軸換回 (x,y),同一份邏輯給兩個方向用。
+ */
+const nudge = (
+  hitAt: (a: number, b: number) => boolean,
+  a0: number,
+  a1: number,
+  b: number,
+  h: number,
+  step: number,
+): number => {
+  const lo = Math.floor(b - h);
+  const hi = Math.floor(b + h);
+  if (lo === hi) return 0;
+  const targets = [lo + 1 - h - EPS, hi + h + EPS].sort(
+    (m, n) => Math.abs(m - b) - Math.abs(n - b),
+  );
+  for (const t of targets) {
+    if (Math.abs(t - b) > NUDGE || hitAt(a1, t)) continue;
+    const d = Math.sign(t - b) * Math.min(step, Math.abs(t - b));
+    if (!hitAt(a0, b + d)) return d;
+  }
+  return 0;
 };
+
+/**
+ * 移動 + 碰撞。逐軸處理:撞到的那一軸停下、另一軸照走,所以斜著貼牆會沿牆滑,
+ * 不會整個黏住。只按一個方向卻擦到桌角時,往空的那邊推一點 —— 不用先對準格子
+ * 才鑽得進桌子之間的走道。手感順不順,九成在這幾行。
+ */
+export function slide(p: Pos, dx: number, dy: number): Pos {
+  let { x, y } = p;
+  if (dx) {
+    if (!hits(x + dx, y)) x += dx;
+    else if (!dy) y += nudge((a, b) => hits(a, b), x, x + dx, y, HY, Math.abs(dx));
+  }
+  if (dy) {
+    if (!hits(x, y + dy)) y += dy;
+    else if (!dx) x += nudge((a, b) => hits(b, a), y, y + dy, x, HX, Math.abs(dy));
+  }
+  return { x, y };
+}
 
 /**
  * BFS 找從 from 到 to 的路徑,回傳步驟座標陣列(不含 from,含 to)。
@@ -131,6 +196,9 @@ export const SPOTS = {
     { x: 5, y: 3 },
     { x: 8, y: 3 },
     { x: 11, y: 3 },
+    { x: 2, y: 6 },
+    { x: 5, y: 6 },
+    { x: 8, y: 6 },
   ] as Pos[],
   breaks: [
     { x: 16, y: 8 },
@@ -138,11 +206,11 @@ export const SPOTS = {
     { x: 15, y: 8 },
   ] as Pos[],
   floor: [
-    { x: 3, y: 5 },
-    { x: 5, y: 5 },
-    { x: 7, y: 5 },
-    { x: 9, y: 5 },
-    { x: 11, y: 5 },
-    { x: 13, y: 5 },
+    { x: 3, y: 4 },
+    { x: 7, y: 4 },
+    { x: 11, y: 4 },
+    { x: 4, y: 7 },
+    { x: 8, y: 7 },
+    { x: 12, y: 9 },
   ] as Pos[],
 };
