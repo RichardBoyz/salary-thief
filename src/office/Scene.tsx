@@ -1,6 +1,6 @@
 import { memo } from "react";
-import { COLS, RAW, ROWS, TILE, tileAt } from "./map";
-import { ART, CHAIR, PANTRY, PROP_COLORS, PROPS, RUG } from "./props";
+import { TILE, type GameMap } from "./map";
+import { ART, CHAIR, PROP_COLORS, PROPS, STOOL, type Rect, type SceneDef } from "./props";
 import { PIXEL, runs, type Run } from "./sprite";
 
 /*
@@ -13,9 +13,6 @@ import { PIXEL, runs, type Run } from "./sprite";
  *
  * 全部用 art 像素座標(一格 16),畫面放大 2 倍:跟角色同一個像素密度。
  */
-
-const W = COLS * ART;
-const H = ROWS * ART;
 
 /** 一組色塊。runs 已經把同色橫向合併,這裡只負責上色;給 fill 就整組塗同一色 */
 const Rects = ({ list, fill }: { list: Run[]; fill?: string }) =>
@@ -31,6 +28,7 @@ const Rects = ({ list, fill }: { list: Run[]; fill?: string }) =>
   ));
 
 const CHAIR_RUNS = runs(CHAIR);
+const STOOL_RUNS = runs(STOOL);
 
 const FADES = new Set(["px-screen", "px-led"]);
 
@@ -109,11 +107,11 @@ function Planks() {
   );
 }
 
-function WallDecor() {
+function WallDecor({ def }: { def: SceneDef }) {
   return (
     <g>
-      {/* 兩扇窗,雲一格一格飄過去。clipPath 讓雲只在窗框內出現 */}
-      {[2, 16].map((col) => {
+      {/* 窗戶,雲一格一格飄過去。clipPath 讓雲只在窗框內出現 */}
+      {def.windows.map((col) => {
         const x = col * ART + 2;
         return (
           <g key={col}>
@@ -137,7 +135,7 @@ function WallDecor() {
       })}
 
       {/* 時鐘。秒針 steps(60):一秒跳一格,那正是真實秒針的動作 */}
-      <g transform={`translate(${9 * ART + 8}, 6)`}>
+      <g transform={`translate(${def.clock * ART + 8}, 6)`}>
         <rect x={-5} y={-4} width={10} height={8} fill="#1d1720" />
         <rect x={-4} y={-5} width={8} height={10} fill="#1d1720" />
         <rect x={-4} y={-3} width={8} height={6} fill="#ece8df" />
@@ -147,23 +145,44 @@ function WallDecor() {
       </g>
 
       {/* 冷氣:出風口 + 一顆會閃的運轉燈 */}
-      <g>
-        <rect x={12 * ART + 1} y={1} width={30} height={9} fill="#1d1720" />
-        <rect x={12 * ART + 2} y={2} width={28} height={7} fill="#e6e3dc" />
-        <rect x={12 * ART + 4} y={6} width={22} height={1} fill="#9a968e" />
-        <rect x={12 * ART + 4} y={8} width={22} height={1} fill="#9a968e" />
-        <rect className="px-led" x={12 * ART + 26} y={3} width={2} height={1} fill="#8fe07a" />
-      </g>
+      {def.ac !== null && (
+        <g transform={`translate(${def.ac * ART}, 0)`}>
+          <rect x={1} y={1} width={30} height={9} fill="#1d1720" />
+          <rect x={2} y={2} width={28} height={7} fill="#e6e3dc" />
+          <rect x={4} y={6} width={22} height={1} fill="#9a968e" />
+          <rect x={4} y={8} width={22} height={1} fill="#9a968e" />
+          <rect className="px-led" x={26} y={3} width={2} height={1} fill="#8fe07a" />
+        </g>
+      )}
     </g>
   );
 }
 
-function Floor() {
+/** 地毯:深色底 + 虛線滾邊 */
+const Rug = ({ r }: { r: Rect }) => (
+  <>
+    <rect x={r.x * ART} y={r.y * ART + 4} width={r.w * ART} height={r.h * ART - 4} fill="#2f4656" />
+    <rect
+      x={r.x * ART + 2}
+      y={r.y * ART + 6}
+      width={r.w * ART - 4}
+      height={r.h * ART - 8}
+      fill="#3a5869"
+      stroke="#6f93a6"
+      strokeWidth={1}
+      strokeDasharray="2 2"
+    />
+  </>
+);
+
+function Floor({ map, def }: { map: GameMap; def: SceneDef }) {
+  const W = map.cols * ART;
+  const H = map.rows * ART;
   return (
     <svg
       className="absolute top-0 left-0"
-      width={COLS * TILE}
-      height={ROWS * TILE}
+      width={map.cols * TILE}
+      height={map.rows * TILE}
       viewBox={`0 0 ${W} ${H}`}
       shapeRendering="crispEdges"
     >
@@ -182,33 +201,19 @@ function Floor() {
 
       {/* 地板:木頭為主,茶水間磁磚,沙發前一塊地毯 */}
       <rect x={ART} y={ART} width={W - 2 * ART} height={H - 2 * ART} fill="url(#px-wood)" />
-      <rect
-        x={PANTRY.x * ART}
-        y={PANTRY.y * ART}
-        width={PANTRY.w * ART}
-        height={PANTRY.h * ART}
-        fill="url(#px-tiles)"
-      />
-      <rect
-        x={RUG.x * ART}
-        y={RUG.y * ART + 4}
-        width={RUG.w * ART}
-        height={RUG.h * ART - 4}
-        fill="#2f4656"
-      />
-      <rect
-        x={RUG.x * ART + 2}
-        y={RUG.y * ART + 6}
-        width={RUG.w * ART - 4}
-        height={RUG.h * ART - 8}
-        fill="#3a5869"
-        stroke="#6f93a6"
-        strokeWidth={1}
-        strokeDasharray="2 2"
-      />
+      {def.tiles && (
+        <rect
+          x={def.tiles.x * ART}
+          y={def.tiles.y * ART}
+          width={def.tiles.w * ART}
+          height={def.tiles.h * ART}
+          fill="url(#px-tiles)"
+        />
+      )}
+      {def.rug && <Rug r={def.rug} />}
 
       {/* 窗光斜斜灑在地上。透明度很低 —— 是氣氛,不是聚光燈 */}
-      {[2, 16].map((col) => (
+      {def.windows.map((col) => (
         <polygon
           key={col}
           points={`${col * ART + 2},${ART} ${col * ART + 30},${ART} ${col * ART + 46},${ART * 4} ${col * ART + 18},${ART * 4}`}
@@ -217,16 +222,25 @@ function Floor() {
         />
       ))}
 
-      {RAW.flatMap((row, y) =>
+      {map.raw.flatMap((row, y) =>
         [...row].map((ch, x) => {
           const px = x * ART;
           const py = y * ART;
           const parts = [];
           // 桌子正下方那格放椅子
-          if (tileAt({ x, y: y - 1 }) === "D")
+          if (map.tileAt({ x, y: y - 1 }) === "D")
             parts.push(
               <g key="chair" transform={`translate(${px}, ${py})`}>
                 <Rects list={CHAIR_RUNS} />
+              </g>,
+            );
+          // 咖啡桌左右兩格放高腳椅
+          const besideTable =
+            map.tileAt({ x: x - 1, y }) === "T" || map.tileAt({ x: x + 1, y }) === "T";
+          if (ch === "." && besideTable)
+            parts.push(
+              <g key="stool" transform={`translate(${px}, ${py})`}>
+                <Rects list={STOOL_RUNS} />
               </g>,
             );
           // 功能標記:綠 = 你的座位(回來就是上班),金 = 摸魚區
@@ -261,21 +275,24 @@ function Floor() {
       <rect x={W - ART} y={ART} width={1} height={H - 2 * ART} fill="#2c3240" />
       <rect x={ART} y={H - ART} width={W - 2 * ART} height={1} fill="#2c3240" />
       <rect x={ART} y={ART} width={2} height={H - 2 * ART} fill="#000" opacity={0.18} />
-      <WallDecor />
+      <WallDecor def={def} />
     </svg>
   );
 }
 
-/** 整個房間。Office 把角色跟它疊在同一個定位容器裡,z-index 才排得到一起 */
-export default memo(function Scene() {
+/**
+ * 整個房間。呼叫端把角色跟它疊在同一個定位容器裡,z-index 才排得到一起。
+ * map/def 傳模組層級的常數 —— memo 靠參照相等,每次 render 新建物件就白做了
+ */
+export default memo(function Scene({ map, def }: { map: GameMap; def: SceneDef }) {
   return (
     <>
-      <Floor />
-      {RAW.flatMap((row, y) =>
+      <Floor map={map} def={def} />
+      {map.raw.flatMap((row, y) =>
         [...row].map((ch, x) => {
           if (!PROPS[ch]) return null;
-          if (ch === "S" && tileAt({ x: x - 1, y }) === "S") return null; // 沙發只畫一次
-          const art = ch === "C" && tileAt({ x: x - 1, y }) === "C" ? "c" : ch;
+          if (ch === "S" && map.tileAt({ x: x - 1, y }) === "S") return null; // 沙發只畫一次
+          const art = ch === "C" && map.tileAt({ x: x - 1, y }) === "C" ? "c" : ch;
           return <Prop key={`${x},${y}`} ch={art} x={x} y={y} />;
         }),
       )}

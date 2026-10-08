@@ -69,3 +69,10 @@ export default memo(function Actor({
     </svg>
   );
 });
+
+/** 名牌:頂在頭上,不擋腳下的格子(魚、綠框都在地上) */
+export const NameTag = ({ name }: { name: string }) => (
+  <span className="absolute bottom-full left-1/2 max-w-24 -translate-x-1/2 truncate bg-crt-deep/80 px-1 px-small leading-tight whitespace-nowrap text-crt-white">
+    {name}
+  </span>
+);

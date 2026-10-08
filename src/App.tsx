@@ -6,6 +6,7 @@ import Settings from "./components/Settings";
 import Stats from "./components/Stats";
 import Stocks from "./components/Stocks";
 import Team from "./components/Team";
+import Lounge from "./office/Lounge";
 import Office from "./office/Office";
 import { useStore } from "./store";
 import { lang, onLangChange, t } from "./strings";
@@ -21,7 +22,7 @@ const setFavicon = (emoji: string) => {
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
 // 留言板刻意不在這裡:它開在辦公室裡(點牆上那塊板),因為它屬於那間辦公室
-type View = "counter" | "settings" | "stats" | "office" | "team" | "help" | "stocks";
+type View = "counter" | "settings" | "stats" | "office" | "lounge" | "team" | "help" | "stocks";
 
 // 字級只走像素字型的整數倍檔位(12/24/36/48/72/96)—— 12 是最小格,
 // 所以「大一點」只有 24 這一個乾淨選擇,中間沒有 16/18 可以挑。
@@ -149,7 +150,10 @@ export default function App() {
       {view === "settings" && <Settings onBack={() => setView("counter")} />}
       {view === "stats" && <Stats onBack={() => setView("counter")} />}
       {view === "stocks" && <Stocks onBack={() => setView("counter")} />}
-      {view === "office" && <Office onBack={() => setView("counter")} />}
+      {view === "office" && (
+        <Office onBack={() => setView("counter")} onLounge={() => setView("lounge")} />
+      )}
+      {view === "lounge" && <Lounge onBack={() => setView("office")} />}
       {view === "team" && <Team onBack={() => setView("counter")} />}
       {view === "help" && <Help onClose={closeHelp} />}
     </main>

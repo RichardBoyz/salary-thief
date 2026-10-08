@@ -223,6 +223,83 @@ export const CHAIR = [
   "................",
 ];
 
+
+/** 咖啡桌(休息室)。圓桌面 + 單腳,桌上一杯咖啡 */
+const TABLE = [
+  "................",
+  "................",
+  "................",
+  "................",
+  "....kkkkkkkk....",
+  "..kkddddddddkk..",
+  ".kddddduudddddk.",
+  ".kddddUUUUddddk.",
+  ".kDddddddddddDk.",
+  "..kkDDDDDDDDkk..",
+  "....kkkkkkkk....",
+  "......kffk......",
+  "......kffk......",
+  "......kFFk......",
+  "......kFFk......",
+  "....kkkFFkkk....",
+  "...kFFFFFFFFk...",
+  "...kkkkkkkkkk...",
+  "................",
+  "................",
+];
+
+/** 販賣機(休息室)。玻璃窗裡一排排飲料,右邊投幣面板的燈會閃 */
+const VENDING = [
+  "..kkkkkkkkkkkk..",
+  "..kRRRRRRRRRRk..",
+  "..kRwwwRRRRRRk..",
+  "..kRRRRRRRRRRk..",
+  "..kkkkkkkkkkkk..",
+  "..kGGGGGGGkxxk..",
+  "..kG1G2G3GkxNk..",
+  "..kG1G2G3Gkxxk..",
+  "..kGGGGGGGkxxk..",
+  "..kG4G5G1Gkxxk..",
+  "..kG4G5G1Gkxxk..",
+  "..kGGGGGGGkxxk..",
+  "..kG2G3G4GkxRk..",
+  "..kG2G3G4Gkxxk..",
+  "..kGGGGGGGkxxk..",
+  "..kbGGGGGGkxxk..",
+  "..kkkkkkkkkxxk..",
+  "..kRRRRRRRRRRk..",
+  "..kRRRRRRRRRRk..",
+  "..kRkkkkkkkkRk..",
+  "..kRkGGGGGGkRk..",
+  "..kRkkkkkkkkRk..",
+  "..kRRRRRRRRRRk..",
+  "..kaaaaaaaaaak..",
+  "..kkkkkkkkkkkk..",
+  "................",
+  "................",
+  "................",
+];
+
+/** 高腳椅:咖啡桌左右那兩格。純裝飾、不擋路,站上去就像坐著 */
+export const STOOL = [
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  ".....kkkkkk.....",
+  "....kHHHHHHk....",
+  "....kOOOOOOk....",
+  ".....kkkkkk.....",
+  ".......kk.......",
+  ".......kk.......",
+  "......kXXk......",
+  ".....kkkkkk.....",
+  "................",
+];
+
 /**
  * 地圖代號 → 家具。茶水間那兩格 C:左邊飲水機、右邊咖啡機(Scene 依左鄰決定)。
  * 沙發跨兩格,只在最左那格畫一次。
@@ -235,6 +312,8 @@ export const PROPS: Record<string, Prop> = {
   S: { art: SOFA },
   B: { art: SHELF },
   R: { art: PRINTER, anim: { N: "px-led" } },
+  T: { art: TABLE },
+  V: { art: VENDING, anim: { N: "px-led" } },
 };
 
 /** 家具調色盤。跟角色共用描邊色 —— 同一個世界的東西要有同一條輪廓線 */
@@ -287,6 +366,34 @@ export const PROP_COLORS: Record<string, string> = {
   "5": "#8a69cc",
 };
 
-/** 純視覺的地板分區(矩形,單位:格)。不影響碰撞與任何遊戲判定,所以不進 map.ts */
-export const PANTRY = { x: 14, y: 6, w: 5, h: 5 };
-export const RUG = { x: 4, y: 8, w: 4, h: 2 };
+export type Rect = { x: number; y: number; w: number; h: number };
+
+/**
+ * 每張地圖的「佈置」:牆上掛什麼、地板怎麼分區。純視覺 —— 不影響碰撞與任何
+ * 遊戲判定,所以不進 map.ts。單位都是格;窗戶與冷氣各佔 2 格寬,填的是左邊那格。
+ * 位置要避開會往上長進牆面的家具(書櫃、販賣機、飲水機)。
+ */
+export type SceneDef = {
+  windows: number[];
+  clock: number;
+  ac: number | null;
+  /** 磁磚地板(茶水間那種) */
+  tiles: Rect | null;
+  rug: Rect | null;
+};
+
+export const OFFICE_SCENE: SceneDef = {
+  windows: [2, 16],
+  clock: 9,
+  ac: 12,
+  tiles: { x: 14, y: 6, w: 5, h: 5 },
+  rug: { x: 4, y: 8, w: 4, h: 2 },
+};
+
+export const LOUNGE_SCENE: SceneDef = {
+  windows: [2, 7, 18],
+  clock: 10,
+  ac: 20,
+  tiles: { x: 11, y: 1, w: 7, h: 2 },
+  rug: { x: 18, y: 5, w: 7, h: 4 },
+};

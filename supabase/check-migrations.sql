@@ -52,4 +52,10 @@ union all
 select 'v14 自訂外觀',
        exists (select 1 from information_schema.columns
                where table_schema = 'public' and table_name = 'profiles'
-                 and column_name = 'avatar');
+                 and column_name = 'avatar')
+union all
+select 'v15 公司休息室',
+       to_regclass('public.lounge_members') is not null
+   and to_regprocedure('public.lounge_join(real,real)') is not null
+   and exists (select 1 from pg_policies
+               where schemaname = 'realtime' and policyname = 'lounge members receive');

@@ -1,7 +1,20 @@
 // 網路層。原則:server 掛了 app 照常動 —— 每個寫入都是 fire-and-forget,
 // 失敗只 console.warn,本地 localStorage 永遠是你自己資料的真相來源。
-import type { Session } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import type { RealtimeChannel, Session } from "@supabase/supabase-js";
+import { useEffect, useRef, useState } from "react";
+import {
+  apply,
+  EMPTY,
+  errorKind,
+  fromSnapshot,
+  parseEvent,
+  reconcile,
+  shouldSend,
+  supersedes,
+  type Facing,
+  type LoungeError,
+  type LoungeState,
+} from "./lounge";
 import { dayKey, weekStart } from "./slack";
 import type { Side, Trade } from "./stocks";
 import { useStore } from "./store";
@@ -591,4 +604,228 @@ export function useTeam(pollMs: number): (TeamData & { refresh: () => void }) | 
   }, [session, pollMs, tick]);
   if (!session || !data) return null;
   return { ...data, refresh: () => setTick((t) => t + 1) };
+}
+
+// ---------- 休息室(v15:同公司共用一間,即時) ----------
+
+export type LoungeStatus =
+  | "connecting"
+  | "live"
+  | "away"
+  | "full"
+  | "replaced"
+  | "needCompany"
+  | "notReady"
+  | "error";
+
+const LOUNGE_EVENTS = ["join", "leave", "move", "say", "emote"] as const;
+
+/**
+ * 離開休息室。⚠ 一定要 .then():supabase 的查詢是「有人 then 才送出」的 thenable,
+ * 只寫 `void sb.rpc(...)` 請求根本不會發 —— 實機測試時抓到人影離開後還掛 60 秒。
+ */
+const leaveLounge = (session: string) =>
+  sb.rpc("lounge_leave", { p_session: session }).then(({ error }) => error && warn("lounge leave")(error));
+
+/**
+ * 休息室的連線。進門(RPC 發 session)→ 訂閱私有頻道(只收不發)→ 對帳 → 之後
+ * 每 20 秒心跳、每 30 秒對帳。所有「發」都走 RPC,由 DB 驗證、蓋章後才廣播 ——
+ * 瀏覽器沒有直接廣播的權限(migrate-v15 的 realtime.messages 只給 select)。
+ *
+ * 生命週期就是元件的生命週期:離開畫面、按老闆鍵(整個辦公室 unmount)就離開;
+ * 切走分頁 30 秒也離開(別人不該看到一個掛著不動的人),切回來自動重新進門。
+ * 關掉分頁來不及送 leave 的,DB 60 秒沒心跳就不算在場。
+ */
+/** company:undefined = 還在載入(先不連),null = 沒選公司 */
+export function useLounge(company: string | null | undefined, spawn: { x: number; y: number }) {
+  const session = useSession();
+  const uid = session?.user.id ?? null;
+  const [status, setStatus] = useState<LoungeStatus>("connecting");
+  const [state, setState] = useState<LoungeState>(EMPTY);
+  const [emotes, setEmotes] = useState<Record<string, { emoji: string; at: number }>>({});
+  const [mutedUntil, setMutedUntil] = useState<number | null>(null);
+  // 換一個數字 = 重新進門(對方分頁接手後按「在這裡繼續」、被清掉後自動回來)
+  const [epoch, setEpoch] = useState(0);
+  const ticket = useRef<{ session: string; sid: string } | null>(null);
+  const lastSent = useRef<{ at: number; x: number; y: number } | null>(null);
+  // 動作 RPC 回來的錯誤若代表「這張票不能用了」,交給目前這一輪連線處理
+  const lostTicket = useRef<(kind: LoungeError | null) => void>(() => {});
+
+  useEffect(() => {
+    if (!uid || company === undefined) return;
+    if (company === null) {
+      setStatus("needCompany");
+      return;
+    }
+    let alive = true;
+    let away = false;
+    let channel: RealtimeChannel | null = null;
+    let awayTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const timers: ReturnType<typeof setInterval>[] = [];
+    const me = { uid, sid: "" };
+
+    const stop = (leave: boolean) => {
+      timers.splice(0).forEach(clearInterval);
+      if (channel) void sb.removeChannel(channel);
+      channel = null;
+      const t = ticket.current;
+      ticket.current = null;
+      lastSent.current = null;
+      if (leave && t) void leaveLounge(t.session);
+    };
+
+    lostTicket.current = (kind) => {
+      if (!alive) return;
+      if (kind === "replaced") {
+        stop(false); // 票已經是別的分頁的了,不能拿它去 leave
+        setStatus("replaced");
+      } else if (kind === "gone") {
+        stop(false); // 被清掉(太久沒心跳)或換了公司:重新進門
+        setEpoch((e) => e + 1);
+      }
+    };
+
+    const refresh = async () => {
+      const { data, error } = await sb.rpc("lounge_state");
+      if (!alive || error) return;
+      setState((s) => reconcile(s, fromSnapshot(data)));
+      setMutedUntil((data as { mutedUntil?: number | null } | null)?.mutedUntil ?? null);
+    };
+
+    const start = async () => {
+      setStatus("connecting");
+      const { data, error } = await sb.rpc("lounge_join", { p_x: spawn.x, p_y: spawn.y });
+      if (error) {
+        if (!alive) return;
+        const kind = errorKind(error.message);
+        // 剛離開又馬上進(重新整理、切回分頁)會撞到「三秒內不能重進」:等一下再試
+        if (kind === "tooFast") {
+          retryTimer = setTimeout(() => void start(), 3000);
+          return;
+        }
+        setStatus(
+          kind === "full"
+            ? "full"
+            : kind === "needCompany"
+              ? "needCompany"
+              : kind === "notReady"
+                ? "notReady"
+                : "error",
+        );
+        return;
+      }
+      const t = data as { session: string; sid: string };
+      // 進門的回應回來時元件已經不在了:馬上離開,不要留一個沒人操作的人影
+      if (!alive) {
+        void leaveLounge(t.session);
+        return;
+      }
+      ticket.current = t;
+      me.sid = t.sid;
+      const token = (await sb.auth.getSession()).data.session?.access_token;
+      if (token) await sb.realtime.setAuth(token);
+      if (!alive) return;
+
+      channel = sb.channel(`lounge:${company}`, { config: { private: true } });
+      for (const name of LOUNGE_EVENTS) {
+        channel.on("broadcast", { event: name }, ({ payload }) => {
+          const ev = parseEvent(name, payload);
+          if (!ev || !alive) return;
+          if (supersedes(ev, me)) {
+            stop(false);
+            setStatus("replaced");
+            return;
+          }
+          if (ev.type === "emote")
+            setEmotes((e) => ({ ...e, [ev.uid]: { emoji: ev.emoji, at: Date.now() } }));
+          setState((s) => apply(s, ev));
+        });
+      }
+      // 每次(重新)接上都對一次帳:斷線期間漏掉的廣播靠這個補回來
+      channel.subscribe((st) => {
+        if (st === "SUBSCRIBED") void refresh();
+      });
+      setStatus("live");
+      timers.push(
+        setInterval(async () => {
+          const cur = ticket.current;
+          if (!cur) return;
+          const { error: e } = await sb.rpc("lounge_ping", { p_session: cur.session });
+          if (e) lostTicket.current(errorKind(e.message));
+        }, 20_000),
+        setInterval(() => void refresh(), 30_000),
+      );
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        awayTimer = setTimeout(() => {
+          away = true;
+          stop(true);
+          if (alive) setStatus("away");
+        }, 30_000);
+        return;
+      }
+      if (awayTimer) clearTimeout(awayTimer);
+      awayTimer = null;
+      // 只有「因為切走而離開」才自動回來 —— 被別的分頁接手的不能自動搶回去,
+      // 不然兩個分頁會在每次切換時互相踢來踢去
+      if (away && alive) {
+        away = false;
+        void start();
+      }
+    };
+
+    void start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      if (awayTimer) clearTimeout(awayTimer);
+      if (retryTimer) clearTimeout(retryTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop(true);
+    };
+  }, [uid, company, spawn.x, spawn.y, epoch]);
+
+  /** 走位。每一幀都可以叫,依 shouldSend 節流(停下時、走路中每 2 秒) */
+  const move = (x: number, y: number, dir: Facing, stopped: boolean) => {
+    const t = ticket.current;
+    if (!t) return;
+    const now = Date.now();
+    if (!shouldSend(lastSent.current, now, x, y, stopped)) return;
+    lastSent.current = { at: now, x, y };
+    void sb
+      .rpc("lounge_move", { p_session: t.session, p_x: x, p_y: y, p_dir: dir })
+      .then(({ error }) => {
+        // 太快、預算滿、被判瞬移都不用補救:下一則送的是最新位置,DB 那邊自然追上
+        if (error) lostTicket.current(errorKind(error.message));
+      });
+  };
+
+  /** 帶票的動作。回傳 null = 成功,字串 = 伺服器給的理由 */
+  const act = async (fn: string, args: Record<string, unknown>): Promise<string | null> => {
+    const t = ticket.current;
+    if (!t) return "not in lounge";
+    const { error } = await sb.rpc(fn, { p_session: t.session, ...args });
+    if (!error) return null;
+    lostTicket.current(errorKind(error.message));
+    return error.message;
+  };
+
+  return {
+    status,
+    state,
+    emotes,
+    mutedUntil,
+    me: uid,
+    move,
+    say: (body: string) => act("lounge_say", { p_body: body }),
+    emote: (emoji: string) => act("lounge_emote", { p_emoji: emoji }),
+    report: async (target: string): Promise<string | null> => {
+      const { error } = await sb.rpc("lounge_report", { p_target: target });
+      return error?.message ?? null;
+    },
+    retry: () => setEpoch((e) => e + 1),
+  };
 }

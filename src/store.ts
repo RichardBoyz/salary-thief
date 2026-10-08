@@ -53,6 +53,9 @@ type State = {
    */
   myAvatar: { uid: string; code: string | null } | null;
   setMyAvatar: (v: { uid: string; code: string | null }) => void;
+  /** 休息室裡被我靜音的人(只影響這台裝置的畫面,對方不會知道) */
+  loungeMuted: string[];
+  toggleLoungeMute: (uid: string) => void;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
@@ -83,6 +86,13 @@ export const useStore = create<State>()(
       setTheme: (theme) => set({ theme }),
       myAvatar: null,
       setMyAvatar: (myAvatar) => set({ myAvatar }),
+      loungeMuted: [],
+      toggleLoungeMute: (uid) =>
+        set((s) => ({
+          loungeMuted: s.loungeMuted.includes(uid)
+            ? s.loungeMuted.filter((u) => u !== uid)
+            : [...s.loungeMuted, uid],
+        })),
 
       // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
       addZoneMs: (ms, day) =>

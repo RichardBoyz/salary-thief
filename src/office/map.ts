@@ -18,7 +18,8 @@ export const RAW = [
   "####################",
 ] as const;
 
-const SOLID = "#DCSPBR";
+/** 不可走的代號。同一個字母在每張地圖意思都一樣(T 桌子、V 販賣機是休息室的) */
+const SOLID = "#DCSPBRTV";
 
 export const TILE = 32;
 export const COLS = RAW[0].length;
@@ -27,10 +28,133 @@ export const ROWS = RAW.length;
 export type Pos = { x: number; y: number };
 export type Zone = "desk" | "break" | "floor";
 
-/** 地圖外一律當牆,走不出去 */
-export const tileAt = (p: Pos): string => RAW[p.y]?.[p.x] ?? "#";
+// ---- 連續移動 ----
+// v13 前是一格一格跳(Pokémon 式),現在角色座標是小數、每幀移動。遊戲判定
+// (座位、茶水間、魚、外快區)仍然只看「腳底在哪一格」—— tileOf —— 所以
+// 上面那些整數格的邏輯一行都不用改。
 
-export const walkable = (p: Pos): boolean => !SOLID.includes(tileAt(p));
+/** 腳底碰撞框的半寬/半高(格)。比一格小,一格寬的走道走得過去 */
+const HX = 0.3;
+const HY = 0.2;
+const EPS = 1e-3;
+/** 卡桌角時最多往旁邊推多遠(格)。再遠就是正面撞牆,不是擦邊 */
+const NUDGE = 0.45;
+
+/** 小數座標 → 腳底所在的格子 */
+export const tileOf = (p: Pos): Pos => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
+
+/**
+ * 沿 a 軸前進被擋時,b 軸要挪多少才鑽得過去(0 = 正面撞牆,不推)。
+ * hitAt(a, b) 把軸換回 (x,y),同一份邏輯給兩個方向用。
+ */
+const nudge = (
+  hitAt: (a: number, b: number) => boolean,
+  a0: number,
+  a1: number,
+  b: number,
+  h: number,
+  step: number,
+): number => {
+  const lo = Math.floor(b - h);
+  const hi = Math.floor(b + h);
+  if (lo === hi) return 0;
+  const targets = [lo + 1 - h - EPS, hi + h + EPS].sort(
+    (m, n) => Math.abs(m - b) - Math.abs(n - b),
+  );
+  for (const t of targets) {
+    if (Math.abs(t - b) > NUDGE || hitAt(a1, t)) continue;
+    const d = Math.sign(t - b) * Math.min(step, Math.abs(t - b));
+    if (!hitAt(a0, b + d)) return d;
+  }
+  return 0;
+};
+
+export type GameMap = {
+  raw: readonly string[];
+  cols: number;
+  rows: number;
+  /** 地圖外一律當牆,走不出去 */
+  tileAt: (p: Pos) => string;
+  walkable: (p: Pos) => boolean;
+  /** 腳底框中心在 (x,y) 時有沒有壓到實體格 */
+  hits: (x: number, y: number) => boolean;
+  slide: (p: Pos, dx: number, dy: number) => Pos;
+  pathTo: (from: Pos, to: Pos) => Pos[];
+};
+
+/**
+ * 一張 ASCII 地圖 → 碰撞與尋路。辦公室和休息室各一張,規則同一套:
+ * 走起來手感一樣,遠端玩家的走位也用同一份 pathTo 重播。
+ */
+export function makeMap(raw: readonly string[]): GameMap {
+  const tileAt = (p: Pos): string => raw[p.y]?.[p.x] ?? "#";
+  const walkable = (p: Pos): boolean => !SOLID.includes(tileAt(p));
+  const solidAt = (x: number, y: number) => !walkable({ x: Math.floor(x), y: Math.floor(y) });
+
+  // 框小於一格,四個角就涵蓋所有可能
+  const hits = (x: number, y: number): boolean =>
+    solidAt(x - HX, y - HY) ||
+    solidAt(x + HX, y - HY) ||
+    solidAt(x - HX, y + HY) ||
+    solidAt(x + HX, y + HY);
+
+  /**
+   * 移動 + 碰撞。逐軸處理:撞到的那一軸停下、另一軸照走,所以斜著貼牆會沿牆滑,
+   * 不會整個黏住。只按一個方向卻擦到桌角時,往空的那邊推一點 —— 不用先對準格子
+   * 才鑽得進桌子之間的走道。手感順不順,九成在這幾行。
+   */
+  const slide = (p: Pos, dx: number, dy: number): Pos => {
+    let { x, y } = p;
+    if (dx) {
+      if (!hits(x + dx, y)) x += dx;
+      else if (!dy) y += nudge((a, b) => hits(a, b), x, x + dx, y, HY, Math.abs(dx));
+    }
+    if (dy) {
+      if (!hits(x, y + dy)) y += dy;
+      else if (!dx) x += nudge((a, b) => hits(b, a), y, y + dy, x, HX, Math.abs(dy));
+    }
+    return { x, y };
+  };
+
+  /**
+   * BFS 找從 from 到 to 的路徑,回傳步驟座標陣列(不含 from,含 to)。
+   * 走不到或 to 不可走就回空陣列。地圖才幾百格,BFS 成本可以忽略。
+   */
+  const pathTo = (from: Pos, to: Pos): Pos[] => {
+    if (!walkable(to)) return [];
+    if (from.x === to.x && from.y === to.y) return [];
+    const key = (p: Pos) => `${p.x},${p.y}`;
+    const queue: Pos[] = [from];
+    const prev = new Map<string, Pos | null>([[key(from), null]]);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      if (cur.x === to.x && cur.y === to.y) {
+        const path: Pos[] = [];
+        let step: Pos | null = cur;
+        while (step && !(step.x === from.x && step.y === from.y)) {
+          path.unshift(step);
+          step = prev.get(key(step)) ?? null;
+        }
+        return path;
+      }
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+        const next = { x: cur.x + dx, y: cur.y + dy };
+        if (walkable(next) && !prev.has(key(next))) {
+          prev.set(key(next), cur);
+          queue.push(next);
+        }
+      }
+    }
+    return [];
+  };
+
+  return { raw, cols: raw[0].length, rows: raw.length, tileAt, walkable, hits, slide, pathTo };
+}
+
+export const OFFICE = makeMap(RAW);
+// 辦公室的既有名字照舊匯出 —— 呼叫端與測試不用跟著改
+export const { tileAt, walkable, hits, slide, pathTo } = OFFICE;
+
 
 export const zoneAt = (p: Pos): Zone =>
   tileAt(p) === "y" ? "desk" : tileAt(p) === "b" ? "break" : "floor";
@@ -86,106 +210,33 @@ export const bonusZoneAt = (now: number): Pos => {
 export const inBonusZone = (p: Pos, a: Pos): boolean =>
   p.x >= a.x && p.x <= a.x + 1 && p.y >= a.y && p.y <= a.y + 1;
 
-// ---- 連續移動 ----
-// v13 前是一格一格跳(Pokémon 式),現在角色座標是小數、每幀移動。遊戲判定
-// (座位、茶水間、魚、外快區)仍然只看「腳底在哪一格」—— tileOf —— 所以
-// 上面那些整數格的邏輯一行都不用改。
-
-/** 腳底碰撞框的半寬/半高(格)。比一格小,一格寬的走道走得過去 */
-const HX = 0.3;
-const HY = 0.2;
-const EPS = 1e-3;
-/** 卡桌角時最多往旁邊推多遠(格)。再遠就是正面撞牆,不是擦邊 */
-const NUDGE = 0.45;
-
-/** 小數座標 → 腳底所在的格子 */
-export const tileOf = (p: Pos): Pos => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
-
-const solidAt = (x: number, y: number) => !walkable({ x: Math.floor(x), y: Math.floor(y) });
-
-/** 腳底框中心在 (x,y) 時有沒有壓到實體格。框小於一格,四個角就涵蓋所有可能 */
-export const hits = (x: number, y: number): boolean =>
-  solidAt(x - HX, y - HY) ||
-  solidAt(x + HX, y - HY) ||
-  solidAt(x - HX, y + HY) ||
-  solidAt(x + HX, y + HY);
-
 /**
- * 沿 a 軸前進被擋時,b 軸要挪多少才鑽得過去(0 = 正面撞牆,不推)。
- * hitAt(a, b) 把軸換回 (x,y),同一份邏輯給兩個方向用。
+ * 公司休息室(v15)。同公司所有隊伍共用一間,人可以很多,所以比辦公室大、
+ * 中間留大片空地。整間都算摸魚,沒有座位/茶水間那種區域語意。
+ *
+ * 圖例(除辦公室那些之外):T 咖啡桌  V 販賣機
+ * ⚠ 尺寸寫死在 migrate-v15-lounge.sql 的座標檢查裡(26×11),改大小要一起改
  */
-const nudge = (
-  hitAt: (a: number, b: number) => boolean,
-  a0: number,
-  a1: number,
-  b: number,
-  h: number,
-  step: number,
-): number => {
-  const lo = Math.floor(b - h);
-  const hi = Math.floor(b + h);
-  if (lo === hi) return 0;
-  const targets = [lo + 1 - h - EPS, hi + h + EPS].sort(
-    (m, n) => Math.abs(m - b) - Math.abs(n - b),
-  );
-  for (const t of targets) {
-    if (Math.abs(t - b) > NUDGE || hitAt(a1, t)) continue;
-    const d = Math.sign(t - b) * Math.min(step, Math.abs(t - b));
-    if (!hitAt(a0, b + d)) return d;
-  }
-  return 0;
-};
+export const LOUNGE_RAW = [
+  "##########################",
+  "#B...P......VV.CC.....P.B#",
+  "#........................#",
+  "#..T....T....T...........#",
+  "#........................#",
+  "#..T....T....T.....SS.SS.#",
+  "#........................#",
+  "#..................SS.SS.#",
+  "#........................#",
+  "#P......................P#",
+  "##########################",
+] as const;
 
-/**
- * 移動 + 碰撞。逐軸處理:撞到的那一軸停下、另一軸照走,所以斜著貼牆會沿牆滑,
- * 不會整個黏住。只按一個方向卻擦到桌角時,往空的那邊推一點 —— 不用先對準格子
- * 才鑽得進桌子之間的走道。手感順不順,九成在這幾行。
- */
-export function slide(p: Pos, dx: number, dy: number): Pos {
-  let { x, y } = p;
-  if (dx) {
-    if (!hits(x + dx, y)) x += dx;
-    else if (!dy) y += nudge((a, b) => hits(a, b), x, x + dx, y, HY, Math.abs(dx));
-  }
-  if (dy) {
-    if (!hits(x, y + dy)) y += dy;
-    else if (!dx) x += nudge((a, b) => hits(b, a), y, y + dy, x, HX, Math.abs(dy));
-  }
-  return { x, y };
-}
-
-/**
- * BFS 找從 from 到 to 的路徑,回傳步驟座標陣列(不含 from,含 to)。
- * 走不到或 to 不可走就回空陣列。給手機 tap-to-move 用 —— 點一格就走過去。
- * 地圖才 20×12,BFS 成本可以忽略。
- */
-export const pathTo = (from: Pos, to: Pos): Pos[] => {
-  if (!walkable(to)) return [];
-  if (from.x === to.x && from.y === to.y) return [];
-  const key = (p: Pos) => `${p.x},${p.y}`;
-  const queue: Pos[] = [from];
-  const prev = new Map<string, Pos | null>([[key(from), null]]);
-  while (queue.length) {
-    const cur = queue.shift()!;
-    if (cur.x === to.x && cur.y === to.y) {
-      const path: Pos[] = [];
-      let step: Pos | null = cur;
-      while (step && !(step.x === from.x && step.y === from.y)) {
-        path.unshift(step);
-        step = prev.get(key(step)) ?? null;
-      }
-      return path;
-    }
-    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
-      const next = { x: cur.x + dx, y: cur.y + dy };
-      if (walkable(next) && !prev.has(key(next))) {
-        prev.set(key(next), cur);
-        queue.push(next);
-      }
-    }
-  }
-  return [];
-};
+export const LOUNGE = makeMap(LOUNGE_RAW);
+/** 進休息室的位置:中間偏下的空地(格子座標;腳底在格子中心,見 LOUNGE_SPAWN_FEET) */
+export const LOUNGE_SPAWN: Pos = { x: 12, y: 8 };
+/** 進門時回報給伺服器的腳底座標 = 格子中心。報格子左上角的話,別人在你第一次
+ *  移動前會看到你偏半格 */
+export const LOUNGE_SPAWN_FEET: Pos = { x: LOUNGE_SPAWN.x + 0.5, y: LOUNGE_SPAWN.y + 0.5 };
 
 /**
  * 同事 avatar 的站位。上班中 → 座位,摸魚中 → 茶水間/沙發,滿了站走道。

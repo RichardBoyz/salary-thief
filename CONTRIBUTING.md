@@ -12,7 +12,7 @@
 
 ```
 src/
-  money.ts slack.ts team.ts companies.ts fmt.ts   ← 純邏輯層:純函式,每檔配 .test.ts
+  money.ts slack.ts team.ts companies.ts fmt.ts lounge.ts  ← 純邏輯層:純函式,每檔配 .test.ts
   store.ts             ← 本機狀態(zustand persist;唯一碰 localStorage 的地方)
   supabase.ts sync.ts  ← 網路層(唯一打網路的地方)
   strings.ts locales/  ← i18n(zh-TW.ts 是型別來源,en.ts 用 Strings 強制對齊)
@@ -92,6 +92,11 @@ type(scope): 主旨(繁中、祈使句、≤50 字)
    insert policy),再加總列數或每日列數的 trigger —— `messages`、
    `slack_events`、`reactions`、`trades` 都是先例(migrate-v11)。
    會長大的表要一併想好留存期限,能自動刪的就用 pg_cron 刪。
+7. **即時頻道(Realtime)一律私有,client 只收不發**(v15)。`realtime.messages`
+   只給 select policy、不給 insert;任何要廣播的東西都走 security definer RPC,
+   身分用 `auth.uid()` 蓋章、限速、檢查之後才 `realtime.send`。每則廣播的成本
+   = 在場人數,要經過 `lounge_emit` 的事件預算 —— 免費方案全專案每秒 100 則,
+   超過會斷掉所有人的連線。
 
 ## 部署
 
