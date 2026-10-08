@@ -47,4 +47,9 @@ union all
 select 'v12 留言板綁房間',
        exists (select 1 from information_schema.columns
                where table_schema = 'public' and table_name = 'messages'
-                 and column_name = 'team');
+                 and column_name = 'team')
+union all
+select 'v14 自訂外觀',
+       exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'profiles'
+                 and column_name = 'avatar');

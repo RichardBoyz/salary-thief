@@ -117,6 +117,23 @@ export async function setEmployment(employment: Employment) {
     .then(({ error }) => error && warn("employment")(error));
 }
 
+/**
+ * 自訂外觀。存的是 6 碼選項編號(office/sprite.ts 的 encodeAvatar),null = 回預設。
+ * 回傳錯誤訊息,null = 成功。select 回來確認真的改到一列:還沒建 profile 的人
+ * update 不會報錯、只是什麼都沒改,不檢查的話會以為存好了。
+ */
+export async function saveAvatar(code: string | null): Promise<string | null> {
+  const uid = (await sb.auth.getSession()).data.session?.user.id;
+  if (!uid) return "no profile";
+  const { data, error } = await sb
+    .from("profiles")
+    .update({ avatar: code })
+    .eq("user_id", uid)
+    .select("user_id");
+  if (error) return error.message;
+  return data.length ? null : "no profile";
+}
+
 // ---------- 事件上傳(單寫者:每一列只有這台裝置會寫) ----------
 
 const DAYS_30 = 30 * 86_400_000;

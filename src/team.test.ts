@@ -39,6 +39,16 @@ const ev = (
 });
 
 describe("standings", () => {
+  it("自訂外觀原樣帶到排行列;沒自訂、或還沒跑 v14 遷移(整欄不存在)都是 null", () => {
+    const rows = standings(
+      [{ ...member("a", "阿明"), avatar: "102340" }, member("b", "小華")],
+      [],
+      now,
+    );
+    expect(rows.find((r) => r.userId === "a")?.avatar).toBe("102340");
+    expect(rows.find((r) => r.userId === "b")?.avatar).toBeNull();
+  });
+
   it("依本週摸魚時數排序,摸最多的在最上面", () => {
     const rows = standings(
       [member("a", "阿明"), member("b", "小華")],

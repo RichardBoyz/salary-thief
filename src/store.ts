@@ -46,6 +46,13 @@ type State = {
   /** 深色終端機(預設)或 Win3.1 復古灰。App 把它印到 <html data-theme> */
   theme: "dark" | "light";
   setTheme: (t: "dark" | "light") => void;
+  /**
+   * 自己外觀的本機快取。真相在伺服器(profiles.avatar),這份只是讓進辦公室的
+   * 第一幀就是你挑的樣子 —— 不然每次都先閃一下預設臉,等資料回來才換裝。
+   * 綁 uid:同一台電腦換帳號登入時不會套到別人的造型。
+   */
+  myAvatar: { uid: string; code: string | null } | null;
+  setMyAvatar: (v: { uid: string; code: string | null }) => void;
   setConfig: (patch: Partial<Config>) => void;
   setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
@@ -74,6 +81,8 @@ export const useStore = create<State>()(
       setHelpSeen: (helpSeen) => set({ helpSeen }),
       theme: "dark",
       setTheme: (theme) => set({ theme }),
+      myAvatar: null,
+      setMyAvatar: (myAvatar) => set({ myAvatar }),
 
       // 換日自動歸零:day 對不上就從 0 起算,不用排程也不用清舊資料
       addZoneMs: (ms, day) =>

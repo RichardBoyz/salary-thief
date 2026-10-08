@@ -81,7 +81,9 @@ Tailwind 的 `text-sm`(14)、`text-xs` 之外的預設檔位大多不在格上,*
   有自己的盤,寫在 sprite.ts / props.ts,**不走 `var(--color-crt-*)`、不跟主題換色**。
   舊規則(角色只准用 UI 7 色)正是角色看起來敷衍的原因,已翻轉,理由見 PLAN v13。
   辦公室**外框**(名牌、狀態列、按鈕)照舊只用 7 色。
-- **每人一張臉**:`lookFor(userId)` 雜湊出髮型/膚色/髮色/衣服/領帶,不存任何東西。
+- **每人一張臉**:`lookFor(userId, avatar)`。沒自訂就由 userId 雜湊;自訂存在
+  `profiles.avatar`(6 碼選項編號,換裝面板是 `office/Wardrobe.tsx`)。選項清單
+  **只能往尾巴加**:DB 存的是索引,重排會讓舊存檔解成別的樣子。
 - **畫成 inline SVG,不要改成 PNG / sprite sheet。** 顏色是每個人不同的
   palette swap,形狀全場共用;圖檔做不到這件事,還要在 repo 放二進位檔。
   節點數用 `runs()` 橫向合併壓下來,Actor 用 memo 擋住 Office 每 100ms 的重畫。

@@ -1,13 +1,22 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Board from "../components/Board";
 import { dur, pts } from "../fmt";
 import { points } from "../money";
 import { dayKey } from "../slack";
 import { useStore } from "../store";
 import { t } from "../strings";
-import { catchFish, syncZonePoints, useSession, useSpots, useTeam, type Spot } from "../sync";
+import {
+  catchFish,
+  saveAvatar,
+  syncZonePoints,
+  useSession,
+  useSpots,
+  useTeam,
+  type Spot,
+} from "../sync";
 import type { Standing } from "../team";
 import { useNow } from "../useNow";
+import Actor, { ACTOR_H, ACTOR_W, SIT, STAND, type Pose } from "./Actor";
 import {
   bonusZoneAt,
   COLS,
@@ -27,17 +36,17 @@ import {
 } from "./map";
 import { ART } from "./props";
 import Scene from "./Scene";
-import { lookFor, PIXEL, shapeRuns, SPRITE_H, SPRITE_W, WALK, type Dir, type Look } from "./sprite";
-
-type Pose = { dir: Dir; flip: boolean; body: number; lift: boolean };
-
-// 同事的姿勢是常數 —— Actor 是 memo,每次 render 都新建物件的話 memo 就白做了
-const SIT: Pose = { dir: "up", flip: false, body: 0, lift: false };
-const STAND: Pose = { dir: "down", flip: false, body: 0, lift: false };
-
-/** svg 多一列給「收腳時身體提起 1px」的空間 */
-const ACTOR_W = SPRITE_W * PIXEL;
-const ACTOR_H = (SPRITE_H + 1) * PIXEL;
+import {
+  decodeAvatar,
+  defaultAvatar,
+  encodeAvatar,
+  lookFor,
+  lookOf,
+  WALK,
+  type Avatar,
+  type Dir,
+} from "./sprite";
+import Wardrobe from "./Wardrobe";
 
 /** 腳底點(小數格座標)→ 角色 svg 左上角(螢幕 px)。鞋底落在腳底點下方 6px,
  *  看起來是踩在格子裡,而不是頭頂對齊格線、整個人飄在上一格 */
@@ -50,60 +59,6 @@ const actorAt = (x: number, y: number): [number, number] => [
 const depth = (y: number) => Math.round(y * 10);
 
 const center = (p: Pos): Pos => ({ x: p.x + 0.5, y: p.y + 0.5 });
-
-/**
- * 角色。inline SVG:顏色依每個人的 Look 套上去,形狀全場共用(shapeRuns 有快取)。
- * memo 很重要 —— Office 每 100ms 重畫一次(useNow),一個角色一百多個 rect。
- *
- * 眨眼不是另一張圖:上半眼那幾格掛 .px-eye,CSS 每幾秒把它的 fill 換成膚色
- * 一瞬間。delay 由呼叫端打散,全辦公室同時眨眼會很詭異。
- */
-const Actor = memo(function Actor({
-  look,
-  pose,
-  ghost = false,
-  blink = 0,
-}: {
-  look: Look;
-  pose: Pose;
-  ghost?: boolean;
-  blink?: number;
-}) {
-  return (
-    <svg
-      width={ACTOR_W}
-      height={ACTOR_H}
-      viewBox={`0 -1 ${SPRITE_W} ${SPRITE_H + 1}`}
-      shapeRendering="crispEdges"
-      style={
-        {
-          display: "block",
-          transform: pose.flip ? "scaleX(-1)" : undefined,
-          opacity: ghost ? 0.45 : undefined,
-          "--eye": look.colors.E,
-          "--skin": look.colors.s,
-          "--blink": `${-blink}s`,
-        } as CSSProperties
-      }
-    >
-      <rect x={3} y={22} width={10} height={2} fill="#000" opacity={0.28} />
-      <rect x={2} y={22.5} width={12} height={1} fill="#000" opacity={0.28} />
-      <g transform={pose.lift ? "translate(0,-1)" : undefined}>
-        {shapeRuns(look.hair, pose.dir, pose.body).map((r) => (
-          <rect
-            key={`${r.x},${r.y}`}
-            className={r.ch === "E" ? "px-eye" : undefined}
-            x={r.x}
-            y={r.y}
-            width={r.w}
-            height={1}
-            fill={look.colors[r.ch]}
-          />
-        ))}
-      </g>
-    </svg>
-  );
-});
 
 /** 名牌:頂在頭上,不擋腳下的格子(魚、綠框都在地上) */
 const NameTag = ({ name }: { name: string }) => (
@@ -243,7 +198,34 @@ export default function Office({ onBack }: { onBack: () => void }) {
     (team?.rows ?? []).filter((r) => r.team === room),
     session?.user.id,
   );
-  const myLook = lookFor(session?.user.id ?? "me");
+
+  // 自己的造型:伺服器是真相,store 是本機快取(進門第一幀就是你挑的樣子)。
+  // draft 非 null = 換裝面板開著,房間裡的你即時換上正在挑的那套
+  const myId = session?.user.id ?? "me";
+  const myAvatar = useStore((s) => s.myAvatar);
+  const setMyAvatar = useStore((s) => s.setMyAvatar);
+  const savedCode = myAvatar?.uid === myId ? myAvatar.code : null;
+  const [draft, setDraft] = useState<Avatar | null>(null);
+  const myLook = draft ? lookOf(draft) : lookFor(myId, savedCode);
+  // 伺服器的值回來就蓋掉快取 —— 在別台裝置換過裝,這台也會跟上。
+  // undefined = 還沒載到 profile,不動快取
+  const serverCode = team?.profile ? (team.profile.avatar ?? null) : undefined;
+  useEffect(() => {
+    if (serverCode !== undefined) setMyAvatar({ uid: myId, code: serverCode });
+  }, [serverCode, myId, setMyAvatar]);
+
+  const saveDraft = async (): Promise<string | null> => {
+    if (!draft) return null;
+    // 挑回預設臉就存 null:「沒自訂」比「自訂成跟預設一樣」誠實,之後預設規則變了也跟著走
+    const picked = encodeAvatar(draft);
+    const code = picked === encodeAvatar(defaultAvatar(myId)) ? null : picked;
+    const err = await saveAvatar(code);
+    if (err) return err;
+    setMyAvatar({ uid: myId, code });
+    setDraft(null);
+    team?.refresh();
+    return null;
+  };
 
   /*
    * 走位。腳底座標是小數(feet),每幀移動;遊戲判定只看它落在哪一格(pos)。
@@ -483,12 +465,24 @@ export default function Office({ onBack }: { onBack: () => void }) {
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-4 px-6 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-[36px] text-crt-white">{t.office}</h1>
-        <button
-          onClick={onBack}
-          className="px-btn"
-        >
-          {t.back}
-        </button>
+        <div className="flex gap-2">
+          {/* 再按一次 = 不存直接關,跟面板上的「關閉」一樣 */}
+          <button
+            onClick={() =>
+              setDraft(draft ? null : (decodeAvatar(savedCode) ?? defaultAvatar(myId)))
+            }
+            className="px-btn"
+            aria-pressed={draft !== null}
+          >
+            {t.wardrobe}
+          </button>
+          <button
+            onClick={onBack}
+            className="px-btn"
+          >
+            {t.back}
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2 px-small">
@@ -617,7 +611,7 @@ export default function Office({ onBack }: { onBack: () => void }) {
                     一眼就能從人群裡看出誰在混 */}
                 <div className={slacking ? "px-bob" : undefined}>
                   <Actor
-                    look={lookFor(m.userId)}
+                    look={lookFor(m.userId, m.avatar)}
                     pose={slacking ? STAND : SIT}
                     blink={(m.pos.x * 7 + m.pos.y * 3) % 5}
                   />
@@ -631,6 +625,16 @@ export default function Office({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+
+      {draft && (
+        <Wardrobe
+          draft={draft}
+          onDraft={(change) => setDraft((d) => d && change(d))}
+          defaults={defaultAvatar(myId)}
+          onSave={saveDraft}
+          onClose={() => setDraft(null)}
+        />
+      )}
 
       {/* 留言板開在辦公室裡。串門子時看得到別隊的板但不能發言 —— 你是幽靈 */}
       {boardOpen && (

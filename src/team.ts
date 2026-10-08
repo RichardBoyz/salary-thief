@@ -16,6 +16,8 @@ export type ProfileRow = {
   /** 在職/離職自報。離職者不列入公司統計 */
   employment: Employment;
   last_seen_at: number;
+  /** 自訂外觀(6 碼選項編號,office/sprite.ts)。null = 沒自訂;沒跑 v14 遷移時整欄不存在 */
+  avatar?: string | null;
 };
 export type EventRow = {
   id: string;
@@ -59,6 +61,8 @@ export type Standing = {
   points: number;
   /** 他最近一筆事件,起鬨的目標。沒摸過魚就沒得起鬨 */
   latestEventId: string | null;
+  /** 辦公室裡的外觀。null = 用 userId 雜湊的預設臉 */
+  avatar: string | null;
 };
 
 /**
@@ -118,6 +122,7 @@ export function standings(
         fishes,
         points: (pointsByUser.get(m.user_id) ?? 0) + fishes * FISH_POINTS,
         latestEventId: latest?.id ?? null,
+        avatar: m.avatar ?? null,
       };
     })
     .sort((a, b) => b.weekMs - a.weekMs);

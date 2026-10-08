@@ -321,7 +321,9 @@ export const shapeRuns = (hair: Hair, dir: Dir, body: number): Run[] => {
   return r;
 };
 
-// ---- 外觀:userId → 髮型 + 配色 ----
+// ---- 外觀:髮型 + 配色。預設由 userId 雜湊,也可以自己挑(v14)----
+//
+// 清單只能往尾巴加、不能重排:存進 DB 的是「第幾個」,重排會讓舊存檔解成別的樣子。
 
 const OUTLINE = "#1d1720";
 /** [亮, 暗] 成對手調,不用程式算暗色 —— 算出來的暗色會偏灰、沒有色相偏移 */
@@ -359,6 +361,52 @@ const TIES = ["#c43b3b", "#2f4f9e", "#2c2630"];
 
 export type Look = { hair: Hair; colors: Record<string, string> };
 
+/** 外觀 = 每一項選第幾個。DB 存的就是這 6 個編號,不是顏色 */
+export type Avatar = {
+  hair: number;
+  hairColor: number;
+  skin: number;
+  shirt: number;
+  pants: number;
+  /** 0 = 不打領帶,1.. = TIES 的第幾條 */
+  tie: number;
+};
+
+/** [項目, 選項數]。順序就是編碼順序 —— 跟 DB check 的 6 碼一一對應,不能改 */
+export const AVATAR_SLOTS = [
+  ["hair", HAIRS.length],
+  ["hairColor", HAIR_COLORS.length],
+  ["skin", SKINS.length],
+  ["shirt", SHIRTS.length],
+  ["pants", PANTS.length],
+  ["tie", TIES.length + 1],
+] as const;
+
+/** 換裝面板的色票:每個選項的代表色(亮的那一階) */
+export const SWATCHES = {
+  hairColor: HAIR_COLORS.map((c) => c[0]),
+  skin: SKINS.map((c) => c[0]),
+  shirt: SHIRTS.map((c) => c[0]),
+  pants: PANTS.map((c) => c[0]),
+  tie: TIES,
+};
+
+/** 一碼一項,base36。6 個英數字,DB 用 regex 鎖死格式 */
+export const encodeAvatar = (a: Avatar): string =>
+  AVATAR_SLOTS.map(([k]) => a[k].toString(36)).join("");
+
+/** 壞掉的、超出選項範圍的一律回 null —— 呼叫端退回預設外觀,不會畫出缺色的人 */
+export function decodeAvatar(code: string | null | undefined): Avatar | null {
+  if (!code || !/^[0-9a-z]{6}$/.test(code)) return null;
+  const a = {} as Avatar;
+  for (const [i, [k, n]] of AVATAR_SLOTS.entries()) {
+    const v = parseInt(code[i], 36);
+    if (v >= n) return null;
+    a[k] = v;
+  }
+  return a;
+}
+
 /** FNV-1a。只拿來把 userId 打散成「穩定的亂數」,不是密碼學用途 */
 const hash = (s: string): number => {
   let h = 0x811c9dc5;
@@ -367,24 +415,35 @@ const hash = (s: string): number => {
 };
 
 /**
- * 同一個 id 永遠同一張臉 —— 換裝置、重整都一樣,不用存任何東西。
+ * 沒自訂的人的臉:同一個 id 永遠同一張,換裝置、重整都一樣,不用存任何東西。
  * 每一項各取 hash 的不同位元,避免「頭髮顏色決定衣服顏色」這種連動。
+ * 模數寫死成 v13 上線時的選項數:之後清單加新顏色,沒自訂的人也不會突然變臉。
  */
-const looks = new Map<string, Look>();
-export function lookFor(id: string): Look {
-  // 快取:同一個 id 回傳同一個物件,Actor 的 memo 才擋得住每 100ms 的重畫
-  const hit = looks.get(id);
-  if (hit) return hit;
+export function defaultAvatar(id: string): Avatar {
   const h = hash(id);
-  const pick = <T,>(list: T[], shift: number) => list[(h >>> shift) % list.length];
-  const [s, S] = pick(SKINS, 0);
-  const [hc, hd, hl] = pick(HAIR_COLORS, 3);
-  const [c, C] = pick(SHIRTS, 7);
-  const [p, P] = pick(PANTS, 11);
-  // 三成的人不打領帶:領帶那幾格就畫成衣服色
-  const tie = (h >>> 14) % 10 < 3 ? c : pick(TIES, 17);
+  return {
+    skin: h % 4,
+    hairColor: (h >>> 3) % 6,
+    shirt: (h >>> 7) % 8,
+    pants: (h >>> 11) % 4,
+    // 三成的人不打領帶
+    tie: (h >>> 14) % 10 < 3 ? 0 : 1 + ((h >>> 17) % 3),
+    hair: (h >>> 20) % 3,
+  };
+}
+
+const looks = new Map<string, Look>();
+/** 編號 → 顏色。快取:同一套外觀回傳同一個物件,Actor 的 memo 才擋得住每 100ms 的重畫 */
+export function lookOf(a: Avatar): Look {
+  const key = encodeAvatar(a);
+  const hit = looks.get(key);
+  if (hit) return hit;
+  const [s, S] = SKINS[a.skin];
+  const [hc, hd, hl] = HAIR_COLORS[a.hairColor];
+  const [c, C] = SHIRTS[a.shirt];
+  const [p, P] = PANTS[a.pants];
   const look: Look = {
-    hair: pick(HAIRS, 20),
+    hair: HAIRS[a.hair],
     colors: {
       k: OUTLINE,
       s,
@@ -399,12 +458,17 @@ export function lookFor(id: string): Look {
       c,
       C,
       w: "#f4f1ea",
-      t: tie,
+      // 不打領帶:領帶那幾格就畫成衣服色
+      t: a.tie ? TIES[a.tie - 1] : c,
       p,
       P,
       o: "#2a2026",
     },
   };
-  looks.set(id, look);
+  looks.set(key, look);
   return look;
 }
+
+/** 有自訂用自訂;沒有、或存檔壞掉,就用 userId 雜湊出來的那張臉 */
+export const lookFor = (id: string, code?: string | null): Look =>
+  lookOf(decodeAvatar(code) ?? defaultAvatar(id));
