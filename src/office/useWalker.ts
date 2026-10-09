@@ -172,6 +172,9 @@ export function useWalker(
       const k = e.key.toLowerCase();
       if (!(k in DIRS) || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
       e.preventDefault(); // 方向鍵不捲頁面
+      // 按住不放的自動連發不算「新按下」:按著 ↓ 走進門,到了另一間還按著,不擋的話
+      // 會一路走回門裡被彈回來;切回分頁時還按著的鍵也一樣,要放開再按才走
+      if (e.repeat) return;
       keys.add(k);
       kick();
     };

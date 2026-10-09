@@ -96,7 +96,8 @@ type(scope): 主旨(繁中、祈使句、≤50 字)
    只給 select policy、不給 insert;任何要廣播的東西都走 security definer RPC,
    身分用 `auth.uid()` 蓋章、限速、檢查之後才 `realtime.send`。每則廣播的成本
    = 在場人數,要經過 `lounge_emit` 的事件預算 —— 免費方案全專案每秒 100 則,
-   超過會斷掉所有人的連線。
+   超過會斷掉所有人的連線。要訂閱哪個頻道由伺服器決定(v16:進門 RPC 回傳
+   topic,從 profiles 算),client 不自己組頻道名 —— 新增房間種類照這個做。
 
 ## 部署
 

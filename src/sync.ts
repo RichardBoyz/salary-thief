@@ -4,6 +4,7 @@ import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import {
   apply,
+  clampToRoom,
   EMPTY,
   errorKind,
   fromSnapshot,
@@ -14,6 +15,7 @@ import {
   type Facing,
   type LoungeError,
   type LoungeState,
+  type RoomKind,
 } from "./lounge";
 import { dayKey, weekStart } from "./slack";
 import type { Side, Trade } from "./stocks";
@@ -606,9 +608,10 @@ export function useTeam(pollMs: number): (TeamData & { refresh: () => void }) | 
   return { ...data, refresh: () => setTick((t) => t + 1) };
 }
 
-// ---------- 休息室(v15:同公司共用一間,即時) ----------
+// ---------- 即時房間(v15 休息室、v16 辦公室) ----------
 
-export type LoungeStatus =
+export type RoomStatus =
+  | "off"
   | "connecting"
   | "live"
   | "away"
@@ -618,45 +621,54 @@ export type LoungeStatus =
   | "notReady"
   | "error";
 
-const LOUNGE_EVENTS = ["join", "leave", "move", "say", "emote"] as const;
+const ROOM_EVENTS = ["join", "leave", "move", "say", "emote"] as const;
 
 /**
- * 離開休息室。⚠ 一定要 .then():supabase 的查詢是「有人 then 才送出」的 thenable,
+ * 離開房間。⚠ 一定要 .then():supabase 的查詢是「有人 then 才送出」的 thenable,
  * 只寫 `void sb.rpc(...)` 請求根本不會發 —— 實機測試時抓到人影離開後還掛 60 秒。
  */
-const leaveLounge = (session: string) =>
-  sb.rpc("lounge_leave", { p_session: session }).then(({ error }) => error && warn("lounge leave")(error));
+const leaveRoom = (session: string) =>
+  sb.rpc("lounge_leave", { p_session: session }).then(({ error }) => error && warn("room leave")(error));
 
 /**
- * 休息室的連線。進門(RPC 發 session)→ 訂閱私有頻道(只收不發)→ 對帳 → 之後
- * 每 20 秒心跳、每 30 秒對帳。所有「發」都走 RPC,由 DB 驗證、蓋章後才廣播 ——
- * 瀏覽器沒有直接廣播的權限(migrate-v15 的 realtime.messages 只給 select)。
+ * 即時房間的連線:休息室(同公司共用)或自己隊的辦公室,一個人同時只在一間。
+ * 進門(RPC 發 session 與頻道名)→ 訂閱私有頻道(只收不發)→ 對帳 → 之後每 20 秒
+ * 心跳、每 30 秒對帳。所有「發」都走 RPC,由 DB 驗證、蓋章後才廣播 —— 瀏覽器沒有
+ * 直接廣播的權限(realtime.messages 只給 select)。頻道名由伺服器從 profiles 算,
+ * 前端指定不了要進哪一隊的辦公室。
  *
- * 生命週期就是元件的生命週期:離開畫面、按老闆鍵(整個辦公室 unmount)就離開;
- * 切走分頁 30 秒也離開(別人不該看到一個掛著不動的人),切回來自動重新進門。
+ * 生命週期就是元件的生命週期:離開畫面、走門換房間、按老闆鍵(整個辦公室 unmount)
+ * 就離開;切走分頁 30 秒也離開(別人不該看到一個掛著不動的人),切回來自動重新進門。
  * 關掉分頁來不及送 leave 的,DB 60 秒沒心跳就不算在場。
+ *
+ * kind = null:不連(串門子中)。feet:進門時回報的位置,讀當下的腳底 —— 切回分頁
+ * 重新進門時,別人看到的是你站的地方,不是出生點。
  */
-/** company:undefined = 還在載入(先不連),null = 沒選公司 */
-export function useLounge(company: string | null | undefined, spawn: { x: number; y: number }) {
+export function useRoom(kind: RoomKind | null, feet: { readonly current: { x: number; y: number } }) {
   const session = useSession();
   const uid = session?.user.id ?? null;
-  const [status, setStatus] = useState<LoungeStatus>("connecting");
+  const [status, setStatus] = useState<RoomStatus>("connecting");
   const [state, setState] = useState<LoungeState>(EMPTY);
   const [emotes, setEmotes] = useState<Record<string, { emoji: string; at: number }>>({});
   const [mutedUntil, setMutedUntil] = useState<number | null>(null);
   // 換一個數字 = 重新進門(對方分頁接手後按「在這裡繼續」、被清掉後自動回來)
   const [epoch, setEpoch] = useState(0);
-  const ticket = useRef<{ session: string; sid: string } | null>(null);
+  const ticket = useRef<{ session: string; sid: string; topic: string } | null>(null);
   const lastSent = useRef<{ at: number; x: number; y: number } | null>(null);
+  // 最後一則走位的請求。離開排在它後面送:走進門時別人先看到你走到門口,才看到你離開
+  const lastMove = useRef<PromiseLike<unknown>>(Promise.resolve());
   // 動作 RPC 回來的錯誤若代表「這張票不能用了」,交給目前這一輪連線處理
   const lostTicket = useRef<(kind: LoungeError | null) => void>(() => {});
 
   useEffect(() => {
-    if (!uid || company === undefined) return;
-    if (company === null) {
-      setStatus("needCompany");
+    // 換房間(或不連了)先清空:上一間的人與聊天不能留在畫面上
+    setState(EMPTY);
+    setEmotes({});
+    if (!kind) {
+      setStatus("off");
       return;
     }
+    if (!uid) return;
     let alive = true;
     let away = false;
     let channel: RealtimeChannel | null = null;
@@ -672,65 +684,67 @@ export function useLounge(company: string | null | undefined, spawn: { x: number
       const t = ticket.current;
       ticket.current = null;
       lastSent.current = null;
-      if (leave && t) void leaveLounge(t.session);
+      if (leave && t) void lastMove.current.then(() => leaveRoom(t.session));
     };
 
-    lostTicket.current = (kind) => {
-      if (!alive) return;
-      if (kind === "replaced") {
+    lostTicket.current = (lost) => {
+      if (!alive || away) return;
+      if (lost === "replaced") {
         stop(false); // 票已經是別的分頁的了,不能拿它去 leave
         setStatus("replaced");
-      } else if (kind === "gone") {
-        stop(false); // 被清掉(太久沒心跳)或換了公司:重新進門
+      } else if (lost === "gone") {
+        stop(false); // 被清掉(太久沒心跳)或換了公司/隊伍:重新進門
         setEpoch((e) => e + 1);
       }
     };
 
     const refresh = async () => {
-      const { data, error } = await sb.rpc("lounge_state");
+      const { data, error } = await sb.rpc("lounge_snapshot", { p_kind: kind });
       if (!alive || error) return;
-      setState((s) => reconcile(s, fromSnapshot(data)));
+      setState((s) => reconcile(s, fromSnapshot(kind, data)));
       setMutedUntil((data as { mutedUntil?: number | null } | null)?.mutedUntil ?? null);
     };
 
     const start = async () => {
       setStatus("connecting");
-      const { data, error } = await sb.rpc("lounge_join", { p_x: spawn.x, p_y: spawn.y });
+      const at = clampToRoom(kind, feet.current.x, feet.current.y);
+      const { data, error } = await sb.rpc("lounge_enter", { p_kind: kind, p_x: at.x, p_y: at.y });
       if (error) {
         if (!alive) return;
-        const kind = errorKind(error.message);
-        // 剛離開又馬上進(重新整理、切回分頁)會撞到「三秒內不能重進」:等一下再試
-        if (kind === "tooFast") {
+        const why = errorKind(error.message);
+        // 剛離開又馬上進(重新整理、切回分頁、走門來回)會撞到「三秒內不能重進」:等一下再試
+        if (why === "tooFast") {
           retryTimer = setTimeout(() => void start(), 3000);
           return;
         }
         setStatus(
-          kind === "full"
+          why === "full"
             ? "full"
-            : kind === "needCompany"
+            : why === "needCompany"
               ? "needCompany"
-              : kind === "notReady"
+              : why === "notReady"
                 ? "notReady"
                 : "error",
         );
         return;
       }
-      const t = data as { session: string; sid: string };
+      const t = data as { session: string; sid: string; topic: string };
       // 進門的回應回來時元件已經不在了:馬上離開,不要留一個沒人操作的人影
       if (!alive) {
-        void leaveLounge(t.session);
+        void leaveRoom(t.session);
         return;
       }
       ticket.current = t;
       me.sid = t.sid;
+      lastSent.current = { at: Date.now(), x: at.x, y: at.y };
       const token = (await sb.auth.getSession()).data.session?.access_token;
       if (token) await sb.realtime.setAuth(token);
       if (!alive) return;
 
-      channel = sb.channel(`lounge:${company}`, { config: { private: true } });
-      for (const name of LOUNGE_EVENTS) {
+      channel = sb.channel(t.topic, { config: { private: true } });
+      for (const name of ROOM_EVENTS) {
         channel.on("broadcast", { event: name }, ({ payload }) => {
-          const ev = parseEvent(name, payload);
+          const ev = parseEvent(kind, name, payload);
           if (!ev || !alive) return;
           if (supersedes(ev, me)) {
             stop(false);
@@ -786,17 +800,24 @@ export function useLounge(company: string | null | undefined, spawn: { x: number
       document.removeEventListener("visibilitychange", onVisibility);
       stop(true);
     };
-  }, [uid, company, spawn.x, spawn.y, epoch]);
+    // feet 是 ref,讀的是進門那一刻的位置,不是依賴
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, kind, epoch]);
 
-  /** 走位。每一幀都可以叫,依 shouldSend 節流(停下時、走路中每 2 秒) */
+  /**
+   * 走位。每一幀都可以叫,依 shouldSend 節流(停下時、走路中每 2 秒)。走進門(出界)
+   * 的那一刻當作停下:位置夾回門口立刻送出,別人會看到你走到門口
+   */
   const move = (x: number, y: number, dir: Facing, stopped: boolean) => {
     const t = ticket.current;
-    if (!t) return;
+    if (!t || !kind) return;
+    const at = clampToRoom(kind, x, y);
+    const atDoor = at.x !== x || at.y !== y;
     const now = Date.now();
-    if (!shouldSend(lastSent.current, now, x, y, stopped)) return;
-    lastSent.current = { at: now, x, y };
-    void sb
-      .rpc("lounge_move", { p_session: t.session, p_x: x, p_y: y, p_dir: dir })
+    if (!shouldSend(lastSent.current, now, at.x, at.y, stopped || atDoor)) return;
+    lastSent.current = { at: now, ...at };
+    lastMove.current = sb
+      .rpc("lounge_move", { p_session: t.session, p_x: at.x, p_y: at.y, p_dir: dir })
       .then(({ error }) => {
         // 太快、預算滿、被判瞬移都不用補救:下一則送的是最新位置,DB 那邊自然追上
         if (error) lostTicket.current(errorKind(error.message));
@@ -829,3 +850,5 @@ export function useLounge(company: string | null | undefined, spawn: { x: number
     retry: () => setEpoch((e) => e + 1),
   };
 }
+
+export type Room = ReturnType<typeof useRoom>;

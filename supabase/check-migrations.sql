@@ -58,4 +58,11 @@ select 'v15 公司休息室',
        to_regclass('public.lounge_members') is not null
    and to_regprocedure('public.lounge_join(real,real)') is not null
    and exists (select 1 from pg_policies
-               where schemaname = 'realtime' and policyname = 'lounge members receive');
+               where schemaname = 'realtime' and policyname = 'lounge members receive')
+union all
+select 'v16 即時房間(辦公室 + 門)',
+       to_regprocedure('public.lounge_enter(text,real,real)') is not null
+   and to_regprocedure('public.lounge_my_topic()') is not null
+   and exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'lounge_members'
+                 and column_name = 'topic');

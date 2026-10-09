@@ -1,12 +1,19 @@
-// 休息室的純邏輯層:廣播解析、狀態更新、走位節流。不碰網路(那在 sync.ts),
-// 所以可以直接餵假資料測試。
+// 即時房間(休息室、辦公室)的純邏輯層:廣播解析、狀態更新、走位節流。不碰網路
+// (那在 sync.ts),所以可以直接餵假資料測試。
 //
-// 安全的主體在 DB(migrate-v15-lounge.sql):身分蓋章、限速、內容檢查都在那裡。
-// 這裡再驗一次格式是縱深防禦 —— 萬一哪天 DB 那層漏了,畫面也不會被灌進怪東西。
+// 安全的主體在 DB(migrate-v15-lounge.sql、migrate-v16-rooms.sql):身分蓋章、限速、
+// 內容檢查都在那裡。這裡再驗一次格式是縱深防禦 —— 萬一哪天 DB 那層漏了,畫面也不會
+// 被灌進怪東西。
 import { EMOJIS } from "./team";
 
-/** 跟 migrate-v15 的 lounge_pos_ok 同一個範圍(休息室 26×11,牆內才算) */
-export const BOUNDS = { minX: 1, maxX: 25, minY: 1, maxY: 10 };
+/** 休息室(同公司共用)或自己隊的辦公室。一個人同時只在一間 */
+export type RoomKind = "lounge" | "office";
+
+/** 跟 migrate-v16 的 lounge_pos_ok 同一個範圍:休息室 26×11、辦公室 20×12,牆內才算 */
+export const BOUNDS: Record<RoomKind, { minX: number; maxX: number; minY: number; maxY: number }> = {
+  lounge: { minX: 1, maxX: 25, minY: 1, maxY: 10 },
+  office: { minX: 1, maxX: 19, minY: 1, maxY: 11 },
+};
 
 export type Facing = "down" | "up" | "left" | "right";
 const FACINGS: Facing[] = ["down", "up", "left", "right"];
@@ -42,13 +49,26 @@ const CHAT_KEEP = 100;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
-const inBounds = (x: unknown, y: unknown): boolean =>
+const inBounds = (kind: RoomKind, x: unknown, y: unknown): boolean =>
   typeof x === "number" &&
   typeof y === "number" &&
-  x >= BOUNDS.minX &&
-  x < BOUNDS.maxX &&
-  y >= BOUNDS.minY &&
-  y < BOUNDS.maxY;
+  x >= BOUNDS[kind].minX &&
+  x < BOUNDS[kind].maxX &&
+  y >= BOUNDS[kind].minY &&
+  y < BOUNDS[kind].maxY;
+
+/**
+ * 腳底座標夾進房間範圍。走進門(下牆那一格)的那一刻位置會出界,伺服器不收 ——
+ * 夾回門口送出去,別人才會看到你走到門口才消失,不是在半路蒸發。
+ */
+export function clampToRoom(kind: RoomKind, x: number, y: number): { x: number; y: number } {
+  const b = BOUNDS[kind];
+  const EDGE = 1e-3; // 上界是開區間
+  return {
+    x: Math.min(Math.max(x, b.minX), b.maxX - EDGE),
+    y: Math.min(Math.max(y, b.minY), b.maxY - EDGE),
+  };
+}
 const isFacing = (v: unknown): v is Facing => FACINGS.includes(v as Facing);
 
 /**
@@ -61,10 +81,10 @@ export const safeText = (s: string): string => s.replace(INVISIBLE, "");
 const text = (v: unknown, max: number): string | null =>
   typeof v === "string" && v.length > 0 && v.length <= max ? safeText(v) : null;
 
-function member(p: Record<string, unknown>): Member | null {
+function member(kind: RoomKind, p: Record<string, unknown>): Member | null {
   const handle = text(p.handle, 20);
   const avatar = p.avatar === null || p.avatar === undefined ? null : text(p.avatar, 6);
-  if (!isUuid(p.uid) || typeof p.sid !== "string" || !handle || !inBounds(p.x, p.y) || !isFacing(p.dir))
+  if (!isUuid(p.uid) || typeof p.sid !== "string" || !handle || !inBounds(kind, p.x, p.y) || !isFacing(p.dir))
     return null;
   return { uid: p.uid, sid: p.sid, handle, avatar, x: p.x as number, y: p.y as number, dir: p.dir };
 }
@@ -76,19 +96,19 @@ function chatLine(p: Record<string, unknown>): ChatLine | null {
   return { id: p.id, uid: p.uid, handle, body, at: p.at };
 }
 
-/** 廣播 → 事件。格式不對一律丟掉(null),不嘗試修補 */
-export function parseEvent(event: string, payload: unknown): LoungeEvent | null {
+/** 廣播 → 事件。格式不對一律丟掉(null),不嘗試修補。座標範圍看是哪一間 */
+export function parseEvent(kind: RoomKind, event: string, payload: unknown): LoungeEvent | null {
   if (typeof payload !== "object" || payload === null) return null;
   const p = payload as Record<string, unknown>;
   switch (event) {
     case "join": {
-      const m = member(p);
+      const m = member(kind, p);
       return m && { type: "join", member: m };
     }
     case "leave":
       return isUuid(p.uid) ? { type: "leave", uid: p.uid } : null;
     case "move":
-      return isUuid(p.uid) && inBounds(p.x, p.y) && isFacing(p.dir)
+      return isUuid(p.uid) && inBounds(kind, p.x, p.y) && isFacing(p.dir)
         ? { type: "move", uid: p.uid, x: p.x as number, y: p.y as number, dir: p.dir }
         : null;
     case "say": {
@@ -104,12 +124,12 @@ export function parseEvent(event: string, payload: unknown): LoungeEvent | null 
   }
 }
 
-/** lounge_state() 的回傳 → 狀態。壞掉的列個別丟掉,不影響其他人 */
-export function fromSnapshot(snap: unknown): LoungeState {
+/** lounge_snapshot() 的回傳 → 狀態。壞掉的列個別丟掉,不影響其他人 */
+export function fromSnapshot(kind: RoomKind, snap: unknown): LoungeState {
   const s = (snap ?? {}) as { members?: unknown; chat?: unknown };
   const members: Record<string, Member> = {};
   for (const raw of Array.isArray(s.members) ? s.members : []) {
-    const m = typeof raw === "object" && raw ? member(raw as Record<string, unknown>) : null;
+    const m = typeof raw === "object" && raw ? member(kind, raw as Record<string, unknown>) : null;
     if (m) members[m.uid] = m;
   }
   const chat = (Array.isArray(s.chat) ? s.chat : [])

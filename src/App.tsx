@@ -41,6 +41,8 @@ export default function App() {
         : "help",
   );
   const [disguised, setDisguised] = useState(false);
+  // 從休息室走門回辦公室:辦公室的出生點在門口,不是座位
+  const [atDoor, setAtDoor] = useState(false);
   // 雙擊逃生口要讀「點下當刻是否已偽裝」,同步更新(render 早於 effect)
   const disguisedRef = useRef(disguised);
   disguisedRef.current = disguised;
@@ -140,7 +142,10 @@ export default function App() {
         <Counter
           onSettings={() => setView("settings")}
           onStats={() => setView("stats")}
-          onOffice={() => setView("office")}
+          onOffice={() => {
+            setAtDoor(false);
+            setView("office");
+          }}
           onStocks={() => setView("stocks")}
           onTeam={() => setView("team")}
           onHelp={() => setView("help")}
@@ -151,9 +156,20 @@ export default function App() {
       {view === "stats" && <Stats onBack={() => setView("counter")} />}
       {view === "stocks" && <Stocks onBack={() => setView("counter")} />}
       {view === "office" && (
-        <Office onBack={() => setView("counter")} onLounge={() => setView("lounge")} />
+        <Office
+          atDoor={atDoor}
+          onBack={() => setView("counter")}
+          onLounge={() => setView("lounge")}
+        />
       )}
-      {view === "lounge" && <Lounge onBack={() => setView("office")} />}
+      {view === "lounge" && (
+        <Lounge
+          onBack={() => {
+            setAtDoor(true);
+            setView("office");
+          }}
+        />
+      )}
       {view === "team" && <Team onBack={() => setView("counter")} />}
       {view === "help" && <Help onClose={closeHelp} />}
     </main>

@@ -3,6 +3,8 @@
 // 圖例:# 牆  D 桌子  C 茶水間(飲水機/咖啡機)  S 沙發  P 盆栽
 //       B 書櫃  R 印表機(以上不可走)
 //       . 地板  y 你的座位(工作區)  b 摸魚區(茶水間前/沙發前)
+//       E 門(開在下牆,走進去就換房間:辦公室 ↔ 休息室)
+// ⚠ 尺寸寫死在 migrate-v16-rooms.sql 的座標檢查裡(20×12),改大小要一起改
 export const RAW = [
   "####################",
   "#B................P#",
@@ -15,11 +17,14 @@ export const RAW = [
   "#....SS........bb..#",
   "#....b.............#",
   "#P.................#",
-  "####################",
+  "##########E#########",
 ] as const;
 
 /** 不可走的代號。同一個字母在每張地圖意思都一樣(T 桌子、V 販賣機是休息室的) */
 const SOLID = "#DCSPBRTV";
+
+/** 門。走得進去(不在 SOLID),走進去的那一刻換房間 —— 判斷在 Office / Lounge */
+export const DOOR = "E";
 
 export const TILE = 32;
 export const COLS = RAW[0].length;
@@ -159,19 +164,20 @@ export const { tileAt, walkable, hits, slide, pathTo } = OFFICE;
 export const zoneAt = (p: Pos): Zone =>
   tileAt(p) === "y" ? "desk" : tileAt(p) === "b" ? "break" : "floor";
 
-const find = (ch: string): Pos => {
-  for (let y = 0; y < ROWS; y++) {
-    const x = RAW[y].indexOf(ch);
+const find = (raw: readonly string[], ch: string): Pos => {
+  for (let y = 0; y < raw.length; y++) {
+    const x = raw[y].indexOf(ch);
     if (x !== -1) return { x, y };
   }
   throw new Error(`map has no '${ch}'`);
 };
 
 /** 進辦公室時的出生點:工作中站座位,摸魚中站茶水間 */
-export const SPAWN_DESK = find("y");
-export const SPAWN_BREAK = find("b");
-/** 串門子(進別隊房間)的出生點:門口附近的走道,不是任何人的座位 */
-export const SPAWN_VISIT: Pos = { x: 10, y: 5 };
+export const SPAWN_DESK = find(RAW, "y");
+export const SPAWN_BREAK = find(RAW, "b");
+export const OFFICE_DOOR = find(RAW, DOOR);
+/** 從門進來的人站這裡(門正上方那格):從休息室回來、串門子進別隊房間 */
+export const SPAWN_DOOR: Pos = { x: OFFICE_DOOR.x, y: OFFICE_DOOR.y - 1 };
 
 /** 所有空地板格。魚點用 server 給的亂數對這個清單取模挑格子 —— 位置是
  *  純裝飾(可驗證的核心是時間視窗),所以 client 挑格子沒有作弊空間 */
@@ -214,8 +220,8 @@ export const inBonusZone = (p: Pos, a: Pos): boolean =>
  * 公司休息室(v15)。同公司所有隊伍共用一間,人可以很多,所以比辦公室大、
  * 中間留大片空地。整間都算摸魚,沒有座位/茶水間那種區域語意。
  *
- * 圖例(除辦公室那些之外):T 咖啡桌  V 販賣機
- * ⚠ 尺寸寫死在 migrate-v15-lounge.sql 的座標檢查裡(26×11),改大小要一起改
+ * 圖例(除辦公室那些之外):T 咖啡桌  V 販賣機。門(E)回辦公室
+ * ⚠ 尺寸寫死在 migrate-v16-rooms.sql 的座標檢查裡(26×11),改大小要一起改
  */
 export const LOUNGE_RAW = [
   "##########################",
@@ -228,15 +234,13 @@ export const LOUNGE_RAW = [
   "#..................SS.SS.#",
   "#........................#",
   "#P......................P#",
-  "##########################",
+  "############E#############",
 ] as const;
 
 export const LOUNGE = makeMap(LOUNGE_RAW);
-/** 進休息室的位置:中間偏下的空地(格子座標;腳底在格子中心,見 LOUNGE_SPAWN_FEET) */
-export const LOUNGE_SPAWN: Pos = { x: 12, y: 8 };
-/** 進門時回報給伺服器的腳底座標 = 格子中心。報格子左上角的話,別人在你第一次
- *  移動前會看到你偏半格 */
-export const LOUNGE_SPAWN_FEET: Pos = { x: LOUNGE_SPAWN.x + 0.5, y: LOUNGE_SPAWN.y + 0.5 };
+export const LOUNGE_DOOR = find(LOUNGE_RAW, DOOR);
+/** 進休息室的位置:門口(門正上方那格) —— 不管走門還是按按鈕,都是從門進來 */
+export const LOUNGE_SPAWN: Pos = { x: LOUNGE_DOOR.x, y: LOUNGE_DOOR.y - 1 };
 
 /**
  * 同事 avatar 的站位。上班中 → 座位,摸魚中 → 茶水間/沙發,滿了站走道。

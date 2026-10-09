@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { TILE, type GameMap } from "./map";
+import { DOOR, TILE, type GameMap } from "./map";
 import { ART, CHAIR, PROP_COLORS, PROPS, STOOL, type Rect, type SceneDef } from "./props";
 import { PIXEL, runs, type Run } from "./sprite";
 
@@ -158,6 +158,27 @@ function WallDecor({ def }: { def: SceneDef }) {
   );
 }
 
+/**
+ * 門:下牆開一格,露出地板、鋪一塊地墊,底下一個會閃的箭頭 —— 不然沒人知道走得
+ * 出去。座標寫絕對值不用 transform:地板 pattern 是 userSpaceOnUse,一平移木紋就
+ * 跟房間的地板對不上縫。
+ */
+const Door = ({ x, y }: { x: number; y: number }) => (
+  <g>
+    <rect x={x} y={y} width={ART} height={ART} fill="url(#px-wood)" />
+    <rect x={x} y={y} width={ART} height={ART} fill="#fff3d6" opacity={0.08} />
+    <rect x={x - 1} y={y} width={2} height={ART} fill="#2c3240" />
+    <rect x={x + ART - 1} y={y} width={2} height={ART} fill="#2c3240" />
+    <rect x={x + 3} y={y + 1} width={10} height={8} fill="#6e3532" />
+    <rect x={x + 4} y={y + 2} width={8} height={6} fill="#94463f" />
+    <g className="px-led">
+      <rect x={x + 5} y={y + 10} width={6} height={1} fill="#f2d16b" />
+      <rect x={x + 6} y={y + 11} width={4} height={1} fill="#f2d16b" />
+      <rect x={x + 7} y={y + 12} width={2} height={1} fill="#f2d16b" />
+    </g>
+  </g>
+);
+
 /** 地毯:深色底 + 虛線滾邊 */
 const Rug = ({ r }: { r: Rect }) => (
   <>
@@ -275,6 +296,11 @@ function Floor({ map, def }: { map: GameMap; def: SceneDef }) {
       <rect x={W - ART} y={ART} width={1} height={H - 2 * ART} fill="#2c3240" />
       <rect x={ART} y={H - ART} width={W - 2 * ART} height={1} fill="#2c3240" />
       <rect x={ART} y={ART} width={2} height={H - 2 * ART} fill="#000" opacity={0.18} />
+      {map.raw.flatMap((row, y) =>
+        [...row].map((ch, x) =>
+          ch === DOOR ? <Door key={`door${x},${y}`} x={x * ART} y={y * ART} /> : null,
+        ),
+      )}
       <WallDecor def={def} />
     </svg>
   );

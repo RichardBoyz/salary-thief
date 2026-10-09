@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   apply,
+  clampToRoom,
   displayNames,
   EMPTY,
   errorKind,
@@ -23,34 +24,43 @@ const me = { uid: A, sid: "aaaa1111" };
 
 describe("parseEvent(廣播再驗一次)", () => {
   it("合法的 join / move / say / emote / leave 都解得出來", () => {
-    expect(parseEvent("join", joinA)).toMatchObject({ type: "join", member: { uid: A, handle: "阿明" } });
-    expect(parseEvent("move", { uid: A, x: 3.5, y: 4.2, dir: "left" })).toEqual({
+    expect(parseEvent("lounge", "join", joinA)).toMatchObject({ type: "join", member: { uid: A, handle: "阿明" } });
+    expect(parseEvent("lounge", "move", { uid: A, x: 3.5, y: 4.2, dir: "left" })).toEqual({
       type: "move", uid: A, x: 3.5, y: 4.2, dir: "left",
     });
-    expect(parseEvent("say", { id: uid(9), uid: A, handle: "阿明", body: "嗨", at: 1 })).toMatchObject({
+    expect(parseEvent("lounge", "say", { id: uid(9), uid: A, handle: "阿明", body: "嗨", at: 1 })).toMatchObject({
       type: "say", line: { body: "嗨" },
     });
-    expect(parseEvent("emote", { uid: A, emoji: "🔥" })).toEqual({ type: "emote", uid: A, emoji: "🔥" });
-    expect(parseEvent("leave", { uid: A })).toEqual({ type: "leave", uid: A });
+    expect(parseEvent("lounge", "emote", { uid: A, emoji: "🔥" })).toEqual({ type: "emote", uid: A, emoji: "🔥" });
+    expect(parseEvent("lounge", "leave", { uid: A })).toEqual({ type: "leave", uid: A });
   });
 
   it("格式不對一律丟掉:座標出界、NaN、方向亂填、uid 不是 uuid、未知事件", () => {
-    expect(parseEvent("move", { uid: A, x: 0.5, y: 4, dir: "up" })).toBeNull();
-    expect(parseEvent("move", { uid: A, x: Number.NaN, y: 4, dir: "up" })).toBeNull();
-    expect(parseEvent("move", { uid: A, x: 30, y: 4, dir: "up" })).toBeNull();
-    expect(parseEvent("move", { uid: A, x: 3, y: 4, dir: "sideways" })).toBeNull();
-    expect(parseEvent("move", { uid: "admin", x: 3, y: 4, dir: "up" })).toBeNull();
-    expect(parseEvent("move", "x")).toBeNull();
-    expect(parseEvent("hack", { uid: A })).toBeNull();
+    expect(parseEvent("lounge", "move", { uid: A, x: 0.5, y: 4, dir: "up" })).toBeNull();
+    expect(parseEvent("lounge", "move", { uid: A, x: Number.NaN, y: 4, dir: "up" })).toBeNull();
+    expect(parseEvent("lounge", "move", { uid: A, x: 30, y: 4, dir: "up" })).toBeNull();
+    expect(parseEvent("lounge", "move", { uid: A, x: 3, y: 4, dir: "sideways" })).toBeNull();
+    expect(parseEvent("lounge", "move", { uid: "admin", x: 3, y: 4, dir: "up" })).toBeNull();
+    expect(parseEvent("lounge", "move", "x")).toBeNull();
+    expect(parseEvent("lounge", "hack", { uid: A })).toBeNull();
   });
 
   it("表情只認白名單,聊天超過 100 字不收", () => {
-    expect(parseEvent("emote", { uid: A, emoji: "<img src=x>" })).toBeNull();
-    expect(parseEvent("say", { id: uid(9), uid: A, handle: "x", body: "字".repeat(101), at: 1 })).toBeNull();
+    expect(parseEvent("lounge", "emote", { uid: A, emoji: "<img src=x>" })).toBeNull();
+    expect(parseEvent("lounge", "say", { id: uid(9), uid: A, handle: "x", body: "字".repeat(101), at: 1 })).toBeNull();
+  });
+
+  it("座標範圍看房間:辦公室 20×12、休息室 26×11", () => {
+    const at = (x: number, y: number) => ({ uid: A, x, y, dir: "up" });
+    expect(parseEvent("lounge", "move", at(22, 5))).not.toBeNull();
+    expect(parseEvent("office", "move", at(22, 5))).toBeNull(); // 辦公室只有 20 格寬
+    expect(parseEvent("office", "move", at(10, 10.5))).not.toBeNull();
+    expect(parseEvent("lounge", "move", at(10, 10.5))).toBeNull(); // 休息室 y=10 已經是牆
+    expect(parseEvent("office", "join", { ...joinA, x: 22 })).toBeNull();
   });
 
   it("暱稱裡的雙向覆寫、零寬字元會被剝掉", () => {
-    const ev = parseEvent("join", { ...joinA, handle: "阿‮明​" });
+    const ev = parseEvent("lounge", "join", { ...joinA, handle: "阿‮明​" });
     expect(ev?.type === "join" && ev.member.handle).toBe("阿明");
   });
 });
@@ -58,26 +68,26 @@ describe("parseEvent(廣播再驗一次)", () => {
 describe("apply", () => {
   it("join 進名單、move 更新位置、leave 移出", () => {
     let s: LoungeState = EMPTY;
-    s = apply(s, parseEvent("join", joinA)!);
-    s = apply(s, parseEvent("move", { uid: A, x: 5, y: 5, dir: "up" })!);
+    s = apply(s, parseEvent("lounge", "join", joinA)!);
+    s = apply(s, parseEvent("lounge", "move", { uid: A, x: 5, y: 5, dir: "up" })!);
     expect(s.members[A]).toMatchObject({ x: 5, y: 5, dir: "up" });
-    s = apply(s, parseEvent("leave", { uid: A })!);
+    s = apply(s, parseEvent("lounge", "leave", { uid: A })!);
     expect(s.members[A]).toBeUndefined();
   });
 
   it("同一個帳號從別的分頁進門(同 uid、不同 sid)→ 這個分頁被取代", () => {
-    expect(supersedes(parseEvent("join", joinA)!, me)).toBe(false);
-    expect(supersedes(parseEvent("join", { ...joinA, sid: "bbbb2222" })!, me)).toBe(true);
-    expect(supersedes(parseEvent("join", { ...joinA, uid: B, sid: "bbbb2222" })!, me)).toBe(false);
+    expect(supersedes(parseEvent("lounge", "join", joinA)!, me)).toBe(false);
+    expect(supersedes(parseEvent("lounge", "join", { ...joinA, sid: "bbbb2222" })!, me)).toBe(true);
+    expect(supersedes(parseEvent("lounge", "join", { ...joinA, uid: B, sid: "bbbb2222" })!, me)).toBe(false);
   });
 
   it("還沒對帳到的人的 move 先忽略(連名字都還不知道)", () => {
-    const s = apply(EMPTY, parseEvent("move", { uid: B, x: 5, y: 5, dir: "up" })!);
+    const s = apply(EMPTY, parseEvent("lounge", "move", { uid: B, x: 5, y: 5, dir: "up" })!);
     expect(s.members[B]).toBeUndefined();
   });
 
   it("同一則聊天(同 id)只收一次", () => {
-    const say = parseEvent("say", { id: uid(9), uid: A, handle: "阿明", body: "嗨", at: 1 })!;
+    const say = parseEvent("lounge", "say", { id: uid(9), uid: A, handle: "阿明", body: "嗨", at: 1 })!;
     let s = apply(EMPTY, say);
     s = apply(s, say);
     expect(s.chat).toHaveLength(1);
@@ -86,7 +96,7 @@ describe("apply", () => {
 
 describe("對帳", () => {
   it("快照的壞列個別丟掉,不影響其他人", () => {
-    const s = fromSnapshot({
+    const s = fromSnapshot("lounge", {
       members: [joinA, { ...joinA, uid: "bad" }, { ...joinA, uid: B, x: -5 }],
       chat: [{ id: uid(9), uid: A, handle: "阿明", body: "嗨", at: 1 }, { id: "x" }],
     });
@@ -99,13 +109,25 @@ describe("對帳", () => {
       members: { [B]: { ...(joinA as Member), uid: B } },
       chat: [{ id: uid(8), uid: B, handle: "小華", body: "剛剛那句", at: 5 }],
     };
-    const snap = fromSnapshot({
+    const snap = fromSnapshot("lounge", {
       members: [joinA],
       chat: [{ id: uid(9), uid: A, handle: "阿明", body: "比較早", at: 1 }],
     });
     const s = reconcile(local, snap);
     expect(Object.keys(s.members)).toEqual([A]);
     expect(s.chat.map((c) => c.body)).toEqual(["比較早", "剛剛那句"]);
+  });
+});
+
+describe("clampToRoom(走進門的那一刻)", () => {
+  it("牆內照原樣;走進下牆的門(出界)夾回門口,伺服器才收", () => {
+    expect(clampToRoom("office", 10.5, 9.5)).toEqual({ x: 10.5, y: 9.5 });
+    const door = clampToRoom("office", 10.5, 11.4);
+    expect(door.x).toBe(10.5);
+    expect(door.y).toBeLessThan(11);
+    expect(door.y).toBeGreaterThan(10.99);
+    expect(parseEvent("office", "move", { uid: A, ...door, dir: "down" })).not.toBeNull();
+    expect(clampToRoom("lounge", 12.5, 10.3).y).toBeLessThan(10);
   });
 });
 

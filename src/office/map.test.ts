@@ -4,11 +4,15 @@ import {
   COLS,
   inBonusZone,
   pathTo,
+  DOOR,
+  LOUNGE,
+  LOUNGE_SPAWN,
+  OFFICE_DOOR,
   RAW,
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
-  SPAWN_VISIT,
+  SPAWN_DOOR,
   hits,
   slide,
   SPOTS,
@@ -25,15 +29,28 @@ describe("地圖本身", () => {
     for (const row of RAW) expect(row.length).toBe(COLS);
   });
 
-  it("四周是封閉的牆,角色走不出世界", () => {
+  it("四周是牆,只在下牆開一扇門;走進門也走不出世界", () => {
     for (let x = 0; x < COLS; x++) {
       expect(RAW[0][x]).toBe("#");
-      expect(RAW[ROWS - 1][x]).toBe("#");
+      expect(RAW[ROWS - 1][x]).toBe(x === OFFICE_DOOR.x ? DOOR : "#");
     }
     for (let y = 0; y < ROWS; y++) {
       expect(RAW[y][0]).toBe("#");
       expect(RAW[y][COLS - 1]).toBe("#");
     }
+    expect([...RAW.join("")].filter((c) => c === DOOR)).toHaveLength(1);
+    // 門外(地圖外)當牆:一直往下走,腳底停在門那一格裡
+    let p = { x: OFFICE_DOOR.x + 0.5, y: OFFICE_DOOR.y - 0.5 };
+    for (let i = 0; i < 30; i++) p = slide(p, 0, 0.1);
+    expect(tileOf(p)).toEqual(OFFICE_DOOR);
+  });
+
+  it("兩間的門都走得到:從出生點有路走進門", () => {
+    expect(pathTo(SPAWN_DESK, OFFICE_DOOR).at(-1)).toEqual(OFFICE_DOOR);
+    expect(walkable(OFFICE_DOOR)).toBe(true);
+    const loungeDoor = { x: LOUNGE_SPAWN.x, y: LOUNGE_SPAWN.y + 1 };
+    expect(LOUNGE.tileAt(loungeDoor)).toBe(DOOR);
+    expect(LOUNGE.pathTo(LOUNGE_SPAWN, loungeDoor)).toEqual([loungeDoor]);
   });
 
   it("恰好一個自己的座位、至少一格摸魚區", () => {
@@ -42,11 +59,12 @@ describe("地圖本身", () => {
     expect([...all].filter((c) => c === "b").length).toBeGreaterThan(0);
   });
 
-  it("三個出生點都站得住,串門子出生點是中性走道", () => {
+  it("三個出生點都站得住,門口是中性走道(從門進來不會一進門就開始/結束摸魚)", () => {
     expect(walkable(SPAWN_DESK)).toBe(true);
     expect(walkable(SPAWN_BREAK)).toBe(true);
-    expect(walkable(SPAWN_VISIT)).toBe(true);
-    expect(zoneAt(SPAWN_VISIT)).toBe("floor");
+    expect(walkable(SPAWN_DOOR)).toBe(true);
+    expect(zoneAt(SPAWN_DOOR)).toBe("floor");
+    expect(LOUNGE.walkable(LOUNGE_SPAWN)).toBe(true);
   });
 
   it("同事的每個站位都站得住 —— 改地圖字串時這條會擋住把人埋進牆裡", () => {

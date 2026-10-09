@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Board from "../components/Board";
 import { dur, pts } from "../fmt";
+import { displayNames } from "../lounge";
 import { points } from "../money";
 import { dayKey } from "../slack";
 import { useStore } from "../store";
@@ -9,6 +10,7 @@ import {
   catchFish,
   saveAvatar,
   syncZonePoints,
+  useRoom,
   useSession,
   useSpots,
   useTeam,
@@ -20,19 +22,22 @@ import Actor, { NameTag, SIT, STAND } from "./Actor";
 import {
   bonusZoneAt,
   COLS,
+  DOOR,
   OFFICE,
+  OFFICE_DOOR,
   FLOOR_TILES,
   inBonusZone,
   ROWS,
   SPAWN_BREAK,
   SPAWN_DESK,
-  SPAWN_VISIT,
+  SPAWN_DOOR,
   SPOTS,
   TILE,
   zoneAt,
   type Pos,
 } from "./map";
 import { ART, OFFICE_SCENE } from "./props";
+import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote } from "./Room";
 import Scene from "./Scene";
 import {
   decodeAvatar,
@@ -60,9 +65,9 @@ const mmss = (ms: number): string => {
 };
 
 /**
- * 同事站哪:上班中 → 座位,摸魚中 → 茶水間,離線 → 不出現。位置由狀態
- * 推導(排行榜同一份輪詢資料),不同步逐格走位。userId 排序讓每個人的
- * 站位在兩次輪詢之間穩定,不會無故換位。
+ * 不在這間的同事站哪:上班中 → 座位,摸魚中 → 茶水間,離線 → 不出現。位置由
+ * 狀態推導(排行榜同一份輪詢資料)。人真的在辦公室裡的(即時房間,v16)不走這裡,
+ * 照實際位置走動。userId 排序讓每個人的站位在兩次輪詢之間穩定,不會無故換位。
  */
 function placeTeammates(rows: Standing[], me: string | undefined) {
   const others = rows
@@ -118,7 +123,16 @@ function BoardSign({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-export default function Office({ onBack, onLounge }: { onBack: () => void; onLounge: () => void }) {
+export default function Office({
+  onBack,
+  onLounge,
+  atDoor,
+}: {
+  onBack: () => void;
+  onLounge: () => void;
+  /** 從休息室走門回來:站在門口,不是座位 */
+  atDoor: boolean;
+}) {
   const activeSince = useStore((s) => s.activeSince);
   const startSlacking = useStore((s) => s.startSlacking);
   const stopSlacking = useStore((s) => s.stopSlacking);
@@ -133,15 +147,13 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
   const myTeam = team?.profile?.team ?? null;
   const [visitingRaw, setVisiting] = useState<string | null | "OWN">("OWN");
   const [boardOpen, setBoardOpen] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
+  const muted = useStore((s) => s.loungeMuted);
   const room = visitingRaw === "OWN" ? myTeam : visitingRaw;
   const isOwnRoom = room === myTeam;
   const roomNames = [
     ...new Set((team?.rows ?? []).map((r) => r.team)),
   ].sort((a, b) => (a === myTeam ? -1 : b === myTeam ? 1 : (a ?? "").localeCompare(b ?? "")));
-  const teammates = placeTeammates(
-    (team?.rows ?? []).filter((r) => r.team === room),
-    session?.user.id,
-  );
 
   // 自己的造型:伺服器是真相,store 是本機快取(進門第一幀就是你挑的樣子)。
   // draft 非 null = 換裝面板開著,房間裡的你即時換上正在挑的那套
@@ -171,12 +183,32 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
     return null;
   };
 
-  // 走位(鍵盤、點地板、碰撞、鏡頭)跟休息室共用一份
-  const { stageRef, worldRef, meRef, pos, pose, tapMove, teleport } = useWalker(
+  // 走位(鍵盤、點地板、碰撞、鏡頭)跟休息室共用一份。從休息室走門回來的站門口
+  const { stageRef, worldRef, meRef, feet, pos, pose, tapMove, teleport } = useWalker(
     OFFICE,
-    activeSince ? SPAWN_BREAK : SPAWN_DESK,
-    activeSince ? STAND : SIT,
+    atDoor ? SPAWN_DOOR : activeSince ? SPAWN_BREAK : SPAWN_DESK,
+    atDoor || activeSince ? STAND : SIT,
+    (f, p, stopped) => live.move(f.x, f.y, facingOf(p), stopped),
   );
+  // 即時房間 = 自己隊的辦公室:看得到隊友走動、能聊天。串門子時不連 ——
+  // 你是幽靈,別隊聽不到你,你也聽不到別隊
+  const live = useRoom(isOwnRoom ? "office" : null, feet);
+  const liveMembers = Object.values(live.state.members);
+  const names = displayNames(liveMembers);
+  const { say, emote } = bubbles(live, now);
+  const myName = names[myId] ?? team?.profile?.handle;
+  // 人在這間的照實走動;其他在線的同事照狀態站位(座位/茶水間),跟以前一樣
+  const teammates = placeTeammates(
+    (team?.rows ?? []).filter((r) => r.team === room && !live.state.members[r.userId]),
+    session?.user.id,
+  );
+  const pickedLive = picked ? live.state.members[picked] : undefined;
+  const pickedRow = picked ? team?.rows.find((r) => r.userId === picked) : undefined;
+
+  // 走進下牆的門 = 去休息室(串門子中也一樣,休息室是全公司的)
+  useEffect(() => {
+    if (OFFICE.tileAt(pos) === DOOR) onLounge();
+  }, [pos, onLounge]);
 
   // 魚點:今天的時刻表由伺服器種子決定,只在自己房間出現
   const { spots, refresh: refreshSpots } = useSpots();
@@ -251,15 +283,6 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onFish, activeSpot?.spot_index]);
 
-  // 換房間重生:回自己房照狀態站位,去別隊房站門口走道。
-  // deps 只有 room —— 摸魚開始/結束不該把人瞬移回出生點
-  useEffect(() => {
-    const s = useStore.getState();
-    const spawn = isOwnRoom ? (s.activeSince ? SPAWN_BREAK : SPAWN_DESK) : SPAWN_VISIT;
-    teleport(spawn, spawn === SPAWN_DESK ? SIT : STAND);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room]);
-
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-4 px-6 py-8">
       <header className="flex items-center justify-between">
@@ -327,7 +350,15 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
           {roomNames.map((name) => (
             <button
               key={name ?? "__lobby"}
-              onClick={() => setVisiting(name === myTeam ? "OWN" : name)}
+              onClick={() => {
+                if (name === room) return;
+                setVisiting(name === myTeam ? "OWN" : name);
+                setPicked(null);
+                // 換房間重生:回自己房照狀態站位,去別隊房從門口進去。在點的當下做,
+                // 不用 effect —— 隊伍資料載入完成(room 從 null 變隊名)不該把人瞬移
+                const spawn = name === myTeam ? (activeSince ? SPAWN_BREAK : SPAWN_DESK) : SPAWN_DOOR;
+                teleport(spawn, spawn === SPAWN_DESK ? SIT : STAND);
+              }}
               className={`px-2.5 py-1 ${
                 room === name
                   ? "px-bevel-in bg-crt-deep text-crt-white"
@@ -394,6 +425,7 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
           )}
           {/* 留言板入口在牆上,不在主畫面 —— 它屬於這間辦公室 */}
           <BoardSign onOpen={() => setBoardOpen(true)} />
+          <DoorSign at={OFFICE_DOOR} label={t.lounge} />
           {teammates.map((m) => {
             const [ax, ay] = actorAt(m.pos.x + 0.5, m.pos.y + 0.5);
             const slacking = m.state === "slacking";
@@ -402,12 +434,16 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
                 key={m.userId}
                 data-teammate={m.handle}
                 // 狀態變了(座位↔茶水間)靠 transition 自己「走」過去
-                className="absolute top-0 left-0 transition-transform duration-700 ease-in-out"
+                className="absolute top-0 left-0 cursor-pointer transition-transform duration-700 ease-in-out"
                 style={{
                   transform: `translate(${ax}px, ${ay}px)`,
                   zIndex: depth(m.pos.y + 0.5),
                 }}
                 title={`${m.handle} · ${slacking ? t.officeSlacking : t.stateWorking}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPicked(m.userId);
+                }}
               >
                 <NameTag name={m.handle} />
                 {/* 上班中背對鏡頭坐在螢幕前;摸魚中面向你、輕輕晃 ——
@@ -422,11 +458,40 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
               </div>
             );
           })}
+          {liveMembers
+            .filter((m) => m.uid !== myId)
+            .map((m) => (
+              <Remote
+                key={m.uid}
+                map={OFFICE}
+                member={m}
+                look={lookFor(m.uid, m.avatar)}
+                name={names[m.uid] ?? m.handle}
+                say={muted.includes(m.uid) ? null : (say[m.uid] ?? null)}
+                emoji={muted.includes(m.uid) ? null : emote(m.uid)}
+                onPick={setPicked}
+              />
+            ))}
           <div ref={meRef} data-player className="pointer-events-none absolute top-0 left-0">
+            <Bubble text={say[myId] ?? null} emoji={emote(myId)} />
+            {/* 自己的名牌是金色 —— 人一多,一眼找到自己 */}
+            {myName && <NameTag name={myName} me />}
             {/* 串門子時是半透明的幽靈:對方看不到你,你也踩不動任何機關 */}
             <Actor look={myLook} pose={pose} ghost={!isOwnRoom} blink={2.3} />
           </div>
         </div>
+        {picked && (pickedLive || pickedRow) && (
+          <PersonCard
+            key={picked}
+            uid={picked}
+            name={names[picked] ?? pickedLive?.handle ?? pickedRow?.handle ?? ""}
+            look={lookFor(picked, pickedLive ? pickedLive.avatar : pickedRow?.avatar)}
+            row={pickedRow}
+            here={pickedLive !== undefined}
+            room={live}
+            onClose={() => setPicked(null)}
+          />
+        )}
       </div>
 
       {draft && (
@@ -443,6 +508,9 @@ export default function Office({ onBack, onLounge }: { onBack: () => void; onLou
       {boardOpen && (
         <Board team={room} canPost={isOwnRoom} onClose={() => setBoardOpen(false)} />
       )}
+
+      {/* 辦公室的即時聊天:只有自己隊、人在這間的聽得到。串門子時面板只說為什麼不能聊 */}
+      <ChatPanel room={live} names={names} myId={myId} now={now} privacy={t.chatPrivacyOffice} />
 
       {/* 手機沒有鍵盤,叫人按方向鍵是空話 —— 兩份文案用斷點切,不用 JS 測裝置 */}
       <p className="text-crt-dim">
