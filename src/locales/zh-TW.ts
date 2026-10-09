@@ -48,9 +48,12 @@ export const zhTW = {
   setupHandlePlaceholder: "暱稱(同事認得出、老闆認不出的那種)",
 
   companyPick: "選你的公司",
-  companySearch: "搜尋公司(台積電、TSMC…)",
+  companySearch: "搜尋公司、醫院、財團法人(台積電、台大醫院、工研院…)",
   companyRegistry: "政府登記公司(經濟部商工資料,搜的是登記全名):",
   companySearching: "查詢登記資料中…",
+  companyOrgs: "醫院與財團法人(公司登記裡查不到的):",
+  companyNotFound:
+    "都找不到?學校、政府機關、診所這類不在清單裡 —— 用下面打名字自己開一間,再到「團隊」按「邀請同事」把連結傳給同事。名字要一字不差才會同一間,連結最準。",
   companyCustomHint: "找不到?打完整公司名自己開一間:",
   companyCustomPlaceholder: "公司全名(同事打一樣的就會同房)",
   companyJoin: "加入",

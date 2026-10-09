@@ -6,8 +6,10 @@ import {
   inviteHash,
   isDirectoryCompany,
   normalizeCustom,
+  orgCode,
   type RegistryCompany,
   searchCompanies,
+  searchOrgs,
   searchRegistry,
   slugToUuid,
 } from "../companies";
@@ -113,8 +115,9 @@ function Login() {
  * —— 兩個同事各自選台積電就同房,不用互傳碼。DB 只存 uuid、不存公司名;
  * 自訂公司的顯示名只記在本機(setCompanyLabel)。
  */
-function Setup({ onDone }: { onDone: () => void }) {
-  const [handle, setHandle] = useState("");
+function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: string }) {
+  // 換公司時帶入現在的代號 —— 空著的話搜尋結果全是灰的按不下去,看起來像壞掉
+  const [handle, setHandle] = useState(initialHandle);
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
@@ -124,6 +127,7 @@ function Setup({ onDone }: { onDone: () => void }) {
   const [searching, setSearching] = useState(false);
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
   const results = searchCompanies(query).slice(0, 8);
+  const orgs = searchOrgs(query);
 
   // 目錄之外再搜政府登記(debounce + abort)。目錄是同步的、這裡是非同步的,
   // 兩段各自渲染,gcis 掛了目錄照常能用。
@@ -210,6 +214,26 @@ function Setup({ onDone }: { onDone: () => void }) {
           ))}
         </ul>
 
+        {/* 公司登記查不到的醫院與財團法人(orgs.ts)。跟登記公司一樣不具名 */}
+        {orgs.length > 0 && (
+          <>
+            <span className="mt-1 px-small text-crt-dim">{t.companyOrgs}</span>
+            <ul className="flex flex-col gap-1">
+              {orgs.map((name) => (
+                <li key={name}>
+                  <button
+                    disabled={!ok}
+                    onClick={() => join(orgCode(name), name)}
+                    className="px-row flex w-full items-center gap-2 px-3 py-2 text-left px-small text-crt-white hover:bg-crt-bg disabled:opacity-40"
+                  >
+                    <span className="flex-1">{name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
         {searching && <p className="px-small text-crt-dim">{t.companySearching}</p>}
         {registry.length > 0 && (
           <>
@@ -232,6 +256,13 @@ function Setup({ onDone }: { onDone: () => void }) {
             </ul>
           </>
         )}
+
+        {/* 三種都找不到:說清楚為什麼、該怎麼做 —— 自訂名稱要一字不差,邀請連結最準 */}
+        {query.trim().length >= 2 &&
+          !searching &&
+          results.length === 0 &&
+          orgs.length === 0 &&
+          registry.length === 0 && <p className="px-small text-crt-gold">{t.companyNotFound}</p>}
       </div>
 
       <form
@@ -435,6 +466,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
 
       {session && team && (!profile?.company_code || changing) && (
         <Setup
+          initialHandle={profile?.handle ?? ""}
           onDone={() => {
             setChanging(false);
             team.refresh();

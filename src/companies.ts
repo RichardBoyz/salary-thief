@@ -9,6 +9,7 @@
 //     我用這份清單控制了「哪些公司能被公開具名」,自訂公司永遠不具名。
 
 import { safeText } from "./lounge";
+import { FOUNDATIONS, HOSPITALS } from "./orgs";
 
 export type Company = { slug: string; name: string; aka?: string };
 
@@ -75,13 +76,68 @@ export function slugToUuid(slug: string): string {
 export const normalizeCustom = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, "");
 
-/** company_code(uuid)→ 顯示名的反查表。只認得目錄裡的公司 */
-const byCode = new Map(COMPANIES.map((c) => [slugToUuid(c.slug), c.name]));
+// ---- 醫院與財團法人(公司登記查不到的大雇主,清單在 orgs.ts)----
 
-/** 目錄公司回真名;自訂公司回 fallback(使用者本機記的名字)或短碼 */
+export const ORGS: readonly string[] = [...HOSPITALS, ...FOUNDATIONS];
+
+/** 比對與房間鍵用的正規化:台/臺當成同一個字、去空白。畫面上照原名顯示 */
+const canon = (s: string): string => s.replace(/台/g, "臺").replace(/\s+/g, "");
+
+/**
+ * 房間鍵:由正規化後的名稱導出(所以清單只加不改,見 orgs.ts)。前綴讓它跟目錄、
+ * 登記公司(統編)、自訂公司各自一個鍵空間 —— 資料把「台」改成「臺」也還是同一間
+ */
+export const orgCode = (name: string): string => slugToUuid(`org:${canon(name)}`);
+
+// 搜尋時不管法人型態:打「慈濟財團法人」要找得到「財團法人佛教慈濟…」。
+// 「醫療」不在裡面 —— 打「醫療」本來就該找得到醫療財團法人
+const LEGAL_FORM = /財團法人|社團法人|股份有限公司|有限公司/g;
+
+const ORG_INDEX = ORGS.map((name) => {
+  const full = canon(name);
+  return { name, full, bare: full.replace(LEGAL_FORM, "") };
+});
+
+/**
+ * query 的字依序出現在名稱裡就算,所以縮寫也找得到(台大醫院 → 國立台灣大學醫學院
+ * 附設醫院、工研院 → 工業技術研究院)。回傳涵蓋的最短長度:越短越像,-1 = 不符。
+ * ponytail: 每次搜尋掃一遍 ~170 筆,不到一毫秒;清單上千筆再建索引
+ */
+const span = (q: string, s: string): number => {
+  let best = -1;
+  for (let start = s.indexOf(q[0]); start !== -1; start = s.indexOf(q[0], start + 1)) {
+    let k = 0;
+    let i = start;
+    for (; i < s.length && k < q.length; i++) if (s[i] === q[k]) k++;
+    if (k === q.length && (best === -1 || i - start < best)) best = i - start;
+  }
+  return best;
+};
+
+/** 搜醫院與財團法人。越緊湊的越前面(整段連續出現最好),一樣緊湊就短名先 */
+export const searchOrgs = (q: string, limit = 8): string[] => {
+  const raw = canon(q);
+  const stripped = raw.replace(LEGAL_FORM, "");
+  // 只打了「財團法人」這類字:照原字比,不然拿掉之後什麼都不剩
+  const bare = stripped.length >= 2;
+  const needle = bare ? stripped : raw;
+  if (needle.length < 2) return [];
+  return ORG_INDEX.map((o) => ({ name: o.name, span: span(needle, bare ? o.bare : o.full) }))
+    .filter((r) => r.span !== -1)
+    .sort((a, b) => a.span - b.span || a.name.length - b.name.length)
+    .slice(0, limit)
+    .map((r) => r.name);
+};
+
+/** company_code(uuid)→ 顯示名的反查表。只認得目錄裡的公司(會在跨公司統計具名的那些) */
+const byCode = new Map(COMPANIES.map((c) => [slugToUuid(c.slug), c.name]));
+/** 醫院與財團法人的反查。名稱是公開資料,換裝置也顯示得出來;但不算目錄公司、不具名 */
+const orgByCode = new Map(ORGS.map((n) => [orgCode(n), n]));
+
+/** 目錄公司、醫院與財團法人回正式名稱;其他回 fallback(使用者本機記的名字)或短碼 */
 export const companyName = (code: string | null, fallback?: string | null): string => {
   if (!code) return "";
-  return byCode.get(code) ?? fallback ?? `自訂公司 ${code.slice(0, 4)}`;
+  return byCode.get(code) ?? orgByCode.get(code) ?? fallback ?? `自訂公司 ${code.slice(0, 4)}`;
 };
 
 /** 這個 code 是不是目錄公司(= 可以在跨公司統計被具名) */

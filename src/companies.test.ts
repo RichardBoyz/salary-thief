@@ -6,9 +6,12 @@ import {
   companyName,
   isDirectoryCompany,
   normalizeCustom,
+  ORGS,
+  orgCode,
   parseInvite,
   parseRegistry,
   searchCompanies,
+  searchOrgs,
   slugToUuid,
 } from "./companies";
 
@@ -104,6 +107,48 @@ describe("parseRegistry", () => {
     const code = slugToUuid("22099131");
     expect(code).toMatch(UUID_RE);
     expect(isDirectoryCompany(code)).toBe(false);
+  });
+});
+
+describe("醫院與財團法人(公司登記查不到的)", () => {
+  it("慈濟:醫院和基金會都找得到;打「慈濟財團法人」也行(不管法人型態寫在哪)", () => {
+    for (const q of ["慈濟", "慈濟財團法人", "財團法人慈濟"]) {
+      const hits = searchOrgs(q);
+      expect(hits, q).toContain("財團法人佛教慈濟慈善事業基金會");
+      expect(hits.some((h) => h.includes("花蓮慈濟醫院")), q).toBe(true);
+    }
+  });
+
+  it("縮寫與台/臺混用也找得到,最像的排第一", () => {
+    expect(searchOrgs("台大醫院")[0]).toBe("國立台灣大學醫學院附設醫院");
+    expect(searchOrgs("臺大醫院")[0]).toBe("國立台灣大學醫學院附設醫院");
+    expect(searchOrgs("工研院")[0]).toBe("財團法人工業技術研究院");
+    expect(searchOrgs("北榮")[0]).toBe("臺北榮民總醫院");
+    expect(searchOrgs("長庚").every((h) => h.includes("長庚"))).toBe(true);
+  });
+
+  it("只打法人型態照原字比;一個字不搜", () => {
+    expect(searchOrgs("財團法人").length).toBeGreaterThan(0);
+    expect(searchOrgs("慈")).toEqual([]);
+    expect(searchOrgs("")).toEqual([]);
+  });
+
+  it("房間鍵:合法 uuid、跟自訂同名與目錄各自一個鍵空間、台/臺寫法不同也同一間", () => {
+    const name = "佛教慈濟醫療財團法人台北慈濟醫院";
+    expect(orgCode(name)).toMatch(UUID_RE);
+    expect(orgCode(name)).toBe(orgCode(name.replace("台北", "臺北")));
+    expect(orgCode(name)).not.toBe(slugToUuid(normalizeCustom(name)));
+  });
+
+  it("名稱反查得回來(換裝置也顯示正式名稱),但不算目錄公司 —— 跨公司統計不具名", () => {
+    const name = "財團法人工業技術研究院";
+    expect(companyName(orgCode(name))).toBe(name);
+    expect(isDirectoryCompany(orgCode(name))).toBe(false);
+  });
+
+  it("清單沒有重複,正規化之後也不撞鍵", () => {
+    expect(new Set(ORGS).size).toBe(ORGS.length);
+    expect(new Set(ORGS.map(orgCode)).size).toBe(ORGS.length);
   });
 });
 

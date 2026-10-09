@@ -51,9 +51,12 @@ export const en: Strings = {
   setupHandlePlaceholder: "Nickname (recognizable to coworkers, not to the boss)",
 
   companyPick: "Pick your company",
-  companySearch: "Search company (TSMC, Foxconn…)",
+  companySearch: "Search company, hospital, foundation (TSMC, NTU Hospital, ITRI…)",
   companyRegistry: "Registered companies (MOEA registry, matches the registered full name):",
   companySearching: "Searching the registry…",
+  companyOrgs: "Hospitals & foundations (not in the company registry):",
+  companyNotFound:
+    "Nothing found? Schools, government offices and clinics aren't listed — type the name below to open your own room, then hit \"Invite coworkers\" on the Team page and send them the link. Names must match exactly to land together; the link always works.",
   companyCustomHint: "Not listed? Type the full name to open your own room:",
   companyCustomPlaceholder: "Full company name (coworkers who type the same land together)",
   companyJoin: "Join",
