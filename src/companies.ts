@@ -8,6 +8,8 @@
 //   * 只有列在這份目錄裡的公司,才可能出現在「跨公司統計」被具名。等於
 //     我用這份清單控制了「哪些公司能被公開具名」,自訂公司永遠不具名。
 
+import { safeText } from "./lounge";
+
 export type Company = { slug: string; name: string; aka?: string };
 
 // 台灣知名企業。都是公開已知的真實公司名,非杜撰、非冒充。
@@ -97,35 +99,45 @@ export const searchCompanies = (q: string): Company[] => {
 
 // ---- 邀請連結 ----
 // 自訂公司靠「打同名」同房太碰運氣,邀請連結把房間碼直接帶過去。
-// 用 hash(#join=…)不用 path/query:app 活在單一 URL 上(偽裝考量),
+// 邀請內容放 hash(#join=…)不放 path/query:app 活在單一 URL 上(偽裝考量),
 // hash 不會出現在任何 server log,連自家 worker 都看不到。名字放連結裡
 // 只是幫收件人設本機顯示標籤 —— DB 仍然不存公司名。
 
 // name = 房間顯示名(幫收件人設本機標籤);handle = 邀請人暱稱(給收件人看清楚
-// 是誰邀的)。兩者都只是顯示用,DB 仍不存公司名;handle 本來就是公開的排行榜暱稱。
-export type Invite = { code: string; name: string | null; handle: string | null };
+// 是誰邀的);team = 邀請人當下的隊(null = 大廳)。收件人按「加入」就跟邀請人
+// 同公司、同隊 —— v16b 之前只帶公司,收件人一律落在大廳,邀請人有隊的話兩個人
+// 在辦公室永遠碰不到面。舊連結沒有 t,等於大廳(跟以前一樣)。
+export type Invite = { code: string; name: string | null; handle: string | null; team: string | null };
 
 const INVITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export const buildInviteLink = (
-  origin: string,
-  code: string,
-  name: string,
-  handle: string,
-): string =>
-  `${origin}/#join=${code}&n=${encodeURIComponent(name.slice(0, 30))}` +
-  `&h=${encodeURIComponent(handle.slice(0, 20))}`;
+/** 邀請的 hash(不含 #)。連結本身、與登入前把邀請放回網址列(Team.tsx)共用 */
+export const inviteHash = (i: Invite): string => {
+  const p = new URLSearchParams({ join: i.code });
+  if (i.name) p.set("n", i.name.slice(0, 30));
+  if (i.handle) p.set("h", i.handle.slice(0, 20));
+  if (i.team) p.set("t", i.team.slice(0, 20));
+  return p.toString();
+};
 
-/** hash 是不可信輸入:code 必須是合法 uuid,名字/暱稱截長度。不合格回 null */
+/**
+ * 邀請連結。?openExternalBrowser=1 是 LINE 的開關:在 LINE 裡點開直接跳系統瀏覽器。
+ * LINE 內建瀏覽器擋 Google 登入,使用者改用瀏覽器開時邀請常常就掉了。它不帶任何
+ * 資訊;進站後 main.tsx 連同 hash 一起從網址列洗掉
+ */
+export const buildInviteLink = (origin: string, invite: Invite): string =>
+  `${origin}/?openExternalBrowser=1#${inviteHash(invite)}`;
+
+/**
+ * hash 是不可信輸入:code 必須是合法 uuid,其他欄位剝隱形字元、去頭尾空白、截長度
+ * (隊名在收件人按「加入」後會存進他自己的 profile)。不合格回 null
+ */
 export const parseInvite = (hash: string): Invite | null => {
   const p = new URLSearchParams(hash.replace(/^#/, ""));
   const code = p.get("join")?.toLowerCase() ?? "";
   if (!INVITE_UUID_RE.test(code)) return null;
-  return {
-    code,
-    name: p.get("n")?.slice(0, 30) || null,
-    handle: p.get("h")?.slice(0, 20) || null,
-  };
+  const field = (key: string, max: number) => safeText(p.get(key) ?? "").trim().slice(0, max) || null;
+  return { code, name: field("n", 30), handle: field("h", 20), team: field("t", 20) };
 };
 
 // ---- 政府登記公司(經濟部商工登記 open data)----

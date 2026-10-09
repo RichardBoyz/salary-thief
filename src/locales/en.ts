@@ -67,7 +67,10 @@ export const en: Strings = {
   invitePending: " invited you to join ",
   inviteSomeone: "A coworker",
   inviteIgnore: "Ignore",
-  inviteAfterLogin: "Sign in below first; you can confirm joining once you're in.",
+  inviteAfterLogin:
+    "Sign in below first, then hit \"Join\". If Google sign-in is blocked inside an app like LINE, choose \"Open in browser\" — the invite comes along.",
+  inviteWhere: "When they join from your link, they'll be in: ",
+  inviteLocalhost: "⚠ This is a local dev build: the link starts with localhost and only opens on this computer. Copy the invite from the live site instead.",
 
   employment: "Status",
   employmentCurrent: "Current",
@@ -130,7 +133,7 @@ export const en: Strings = {
     "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box pays 10 points a minute (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, worth 150 points. The pantry or couch also logs slack hours; your desk stops the clock.",
   helpTeam: "Bring coworkers",
   helpTeamBody:
-    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name; hit \"Invite coworkers\" and share the link — they open it, sign in, and land in your room. The board ranks hours.",
+    "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name. To bring people in, pick your team first (none = the lobby), then hit \"Invite coworkers\" and share the link: they open it, sign in and hit \"Join\", and they're in your company and team — you'll see each other in the office. The board ranks hours.",
   helpPrivacy: "Privacy floor",
   helpPrivacyBody:
     "This app doesn't know your salary — it never asks, so it can't leak it. The database stores no company names, only opaque codes; handles aren't tied to real names. Slack points are points: they say nothing about what you earn.",

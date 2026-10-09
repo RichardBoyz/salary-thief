@@ -3,6 +3,7 @@ import {
   buildInviteLink,
   companyName,
   type Invite,
+  inviteHash,
   isDirectoryCompany,
   normalizeCustom,
   type RegistryCompany,
@@ -42,14 +43,19 @@ const stateLabelOf = (): Record<MemberState, string> => ({
   offline: t.stateOffline,
 });
 
-/** 「<暱稱> 邀請你加入 [房間]」—— 三個入口(未登入/取代號/已有代號)共用,寫清楚是誰邀的 */
+/**
+ * 「<暱稱> 邀請你加入 [公司 › 隊伍]」—— 三個入口(未登入/取代號/已有代號)共用,
+ * 寫清楚是誰邀的、按下去會落在哪一間。舊連結(v16b 前)沒有隊伍,就是大廳
+ */
 function InviteHeadline({ invite }: { invite: Invite }) {
   return (
     <span className="text-crt-dim">
       <span className="text-crt-white">{invite.handle ?? t.inviteSomeone}</span>
       {t.invitePending}
-      <span className="ml-1 inline-block px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">
-        {invite.name ?? companyName(invite.code)}
+      <span className="ml-1 inline-block px-bevel-in bg-crt-deep px-2 py-1">
+        <span className="text-crt-gold">{invite.name ?? companyName(invite.code)}</span>
+        <span className="text-crt-dim"> › </span>
+        <span className="text-crt-white">{invite.team ?? t.lobby}</span>
       </span>
     </span>
   );
@@ -144,9 +150,10 @@ function Setup({ onDone }: { onDone: () => void }) {
     };
   }, [query]);
 
-  const join = (code: string, label: string) => {
+  // 自己選公司 = 從大廳開始;照邀請進來 = 直接進邀請人的隊
+  const join = (code: string, label: string, team: string | null = null) => {
     setCompanyLabel(label);
-    saveProfile(handle.trim(), code, null).then(onDone);
+    saveProfile(handle.trim(), code, team).then(onDone);
   };
 
   return (
@@ -169,7 +176,7 @@ function Setup({ onDone }: { onDone: () => void }) {
             disabled={!ok}
             onClick={() => {
               setPendingInvite(null);
-              join(invite.code, invite.name ?? companyName(invite.code));
+              join(invite.code, invite.name ?? companyName(invite.code), invite.team ?? null);
             }}
           >
             {t.companyJoin}
@@ -340,16 +347,32 @@ export default function Team({ onBack }: { onBack?: () => void }) {
   const me = session?.user.id;
   const profile = team?.profile ?? null;
 
-  // 已經在邀請的那間了(自己點自己的連結、或重複點)→ 邀請默默收掉
+  // 已經在邀請的那一間(同公司、同隊:自己點自己的連結、或重複點)→ 邀請默默收掉。
+  // 同公司但不同隊不收:那正是「進了公司卻在辦公室碰不到面」的情況,讓他一鍵換過去
+  const inviteTeam = pendingInvite?.team ?? null;
   useEffect(() => {
-    if (pendingInvite && profile?.company_code === pendingInvite.code) setPendingInvite(null);
-  }, [pendingInvite, profile?.company_code, setPendingInvite]);
+    if (
+      pendingInvite &&
+      profile?.company_code === pendingInvite.code &&
+      (profile?.team ?? null) === inviteTeam
+    )
+      setPendingInvite(null);
+  }, [pendingInvite, inviteTeam, profile?.company_code, profile?.team, setPendingInvite]);
 
-  // 有代號的人一鍵換到邀請的房;換公司 = 隊伍歸零,跟 Setup 換公司同規則
+  // 還沒登入、手上有邀請:把邀請放回網址列。LINE、IG 這類 App 的內建瀏覽器會擋
+  // Google 登入,使用者改用「以瀏覽器開啟」時帶走的就是這個網址 —— 一進站就洗掉的話,
+  // 邀請留在內建瀏覽器裡跟著消失。這是「網址列什麼都沒有」唯一的例外:還沒登入的
+  // 邀請畫面不是偽裝場景。登入之後照舊洗乾淨
+  useEffect(() => {
+    if (session === null && pendingInvite) history.replaceState(null, "", `#${inviteHash(pendingInvite)}`);
+    else if (session && location.hash.includes("join=")) history.replaceState(null, "", location.pathname);
+  }, [session, pendingInvite]);
+
+  // 有代號的人一鍵換到邀請人那一間:公司 + 隊伍都跟邀請人一樣
   const joinInvite = () => {
     if (!pendingInvite || !profile) return;
     setCompanyLabel(pendingInvite.name ?? companyName(pendingInvite.code));
-    saveProfile(profile.handle, pendingInvite.code, null, profile.employment).then(() => {
+    saveProfile(profile.handle, pendingInvite.code, inviteTeam, profile.employment).then(() => {
       setPendingInvite(null);
       team!.refresh();
     });
@@ -359,12 +382,12 @@ export default function Team({ onBack }: { onBack?: () => void }) {
     if (!profile?.company_code) return;
     navigator.clipboard
       .writeText(
-        buildInviteLink(
-          location.origin,
-          profile.company_code,
-          companyName(profile.company_code, companyLabel),
-          profile.handle,
-        ),
+        buildInviteLink(location.origin, {
+          code: profile.company_code,
+          name: companyName(profile.company_code, companyLabel),
+          handle: profile.handle,
+          team: profile.team,
+        }),
       )
       .then(() => {
         setInviteCopied(true);
@@ -449,6 +472,17 @@ export default function Team({ onBack }: { onBack?: () => void }) {
               {t.refresh}
             </button>
           </div>
+          {/* 邀請連結會把對方帶到哪:跟你同公司、同隊。要換隊就先換好再按「邀請同事」 */}
+          <p className="-mt-4 px-small text-crt-dim">
+            {t.inviteWhere}
+            <span className="text-crt-gold">{companyName(profile.company_code, companyLabel)}</span>
+            {" › "}
+            <span className="text-crt-white">{myTeam ?? t.lobby}</span>
+          </p>
+          {/* 本機開發版按出來的連結是 localhost,只有這台電腦打得開 —— 實測時很容易就這樣傳出去 */}
+          {/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (
+            <p className="-mt-4 px-small text-crt-red">{t.inviteLocalhost}</p>
+          )}
 
           <EmploymentToggle
             value={profile.employment}

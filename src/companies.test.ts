@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInviteLink,
+  inviteHash,
   COMPANIES,
   companyName,
   isDirectoryCompany,
@@ -107,10 +108,33 @@ describe("parseRegistry", () => {
 });
 
 describe("邀請連結", () => {
-  it("build → parse round-trip,中文名字與暱稱經得起 URL 編碼", () => {
+  it("build → parse round-trip,中文名字、暱稱、隊名經得起 URL 編碼", () => {
     const code = slugToUuid("tsmc");
-    const link = buildInviteLink("https://example.com", code, "台積電", "小明");
-    expect(parseInvite(new URL(link).hash)).toEqual({ code, name: "台積電", handle: "小明" });
+    const invite = { code, name: "台積電", handle: "小明", team: "後端 組" };
+    const link = buildInviteLink("https://example.com", invite);
+    expect(parseInvite(new URL(link).hash)).toEqual(invite);
+  });
+
+  it("隊伍跟著連結走:收件人跟邀請人同一隊;邀請人沒選隊 = 大廳(null)", () => {
+    const code = slugToUuid("tsmc");
+    const lobby = buildInviteLink("https://example.com", { code, name: "台積電", handle: "小明", team: null });
+    expect(new URL(lobby).hash).not.toContain("t=");
+    expect(parseInvite(new URL(lobby).hash)!.team).toBeNull();
+    // v16b 之前的舊連結沒有 t:一樣是大廳
+    expect(parseInvite(`#join=${code}&n=x&h=y`)!.team).toBeNull();
+  });
+
+  it("連結叫 LINE 直接開系統瀏覽器(內建瀏覽器擋 Google 登入),邀請內容仍只在 hash", () => {
+    const code = slugToUuid("tsmc");
+    const url = new URL(buildInviteLink("https://example.com", { code, name: "台積電", handle: "小明", team: "後端組" }));
+    expect(url.searchParams.get("openExternalBrowser")).toBe("1");
+    expect([...url.searchParams.keys()]).toEqual(["openExternalBrowser"]); // server 看得到的 query 不帶任何資訊
+    expect(url.hash).toContain(code);
+  });
+
+  it("登入前放回網址列的 hash 跟連結解出來的一模一樣", () => {
+    const invite = { code: slugToUuid("tsmc"), name: "台積電", handle: "小明", team: "後端組" };
+    expect(parseInvite(`#${inviteHash(invite)}`)).toEqual(invite);
   });
 
   it("hash 是不可信輸入:非 uuid 的 code 一律拒收", () => {
@@ -126,5 +150,15 @@ describe("邀請連結", () => {
     expect(parseInvite(`#join=${code}`)!.handle).toBeNull();
     expect(parseInvite(`#join=${code}&n=${"甲".repeat(99)}`)!.name).toHaveLength(30);
     expect(parseInvite(`#join=${code}&h=${"乙".repeat(99)}`)!.handle).toHaveLength(20);
+  });
+
+  it("隊名會存進收件人的 profile:剝隱形字元、去空白、截 20,空的就是大廳", () => {
+    const code = slugToUuid("tsmc");
+    const team = (raw: string) => parseInvite(`#join=${code}&t=${encodeURIComponent(raw)}`)!.team;
+    expect(team("後\u202e端\u200b組")).toBe("後端組");
+    expect(team("  後端組  ")).toBe("後端組");
+    expect(team("丙".repeat(99))).toHaveLength(20);
+    expect(team("   ")).toBeNull();
+    expect(team("\u200b")).toBeNull();
   });
 });

@@ -18,7 +18,8 @@ const consumeInvite = () => {
   const invite = parseInvite(location.hash);
   if (invite) {
     useStore.getState().setPendingInvite(invite);
-    history.replaceState(null, "", location.pathname + location.search);
+    // 連 ?openExternalBrowser=1(LINE 跳瀏覽器用,見 buildInviteLink)一起洗掉
+    history.replaceState(null, "", location.pathname);
   }
 };
 consumeInvite();
