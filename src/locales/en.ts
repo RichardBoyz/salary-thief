@@ -212,6 +212,12 @@ export const en: Strings = {
   chatPrivacyOffice:
     "Everyone on your team can see this (no team = the lobby room). Kept 24 hours. Don't mention real names or company business.",
   chatOffVisit: "You can't hear this room's chat while visiting — go back to your own room to talk to your team.",
+  whereNoCompany: "No company yet",
+  whereVisiting: " (visiting)",
+  aloneOffice:
+    "You're the only one here. The office only shows people from your company and team — if someone's missing, check on the Team page that you picked the same company and team (for a custom company, the \"Invite coworkers\" link is the sure way).",
+  aloneLounge:
+    "You're the only one here. The lounge shows every team in your company — if someone's missing, check on the Team page that you picked the same company (for a custom company, the \"Invite coworkers\" link is the sure way).",
   chatEmpty: "Nobody has said anything yet.",
   chatTooFast: "Too fast — one line every 3 seconds.",
   chatDuplicate: "Same as your last line — say something else.",

@@ -158,6 +158,19 @@ export const Remote = memo(function Remote({
 });
 
 /**
+ * 你在哪:公司 › 房間。看不到某個人,九成是兩個人不在同一間公司(或同一隊),
+ * 所以這一行永遠擺在標題下面。自訂公司的名字只記在這台裝置(DB 不存公司名),
+ * 換裝置看到的是短碼。
+ */
+export const Where = ({ company, room }: { company: string; room: string }) => (
+  <p className="-mt-2 px-small">
+    <span className="text-crt-gold">{company}</span>
+    <span className="text-crt-dim"> › </span>
+    <span className="text-crt-white">{room}</span>
+  </p>
+);
+
+/**
  * 門旁邊牆上的指示牌。點擊穿過去 —— 點門那一格本身就會走過去。不畫進 Scene:
  * Scene 是 memo,文字要跟著語言切換重畫
  */
@@ -309,12 +322,15 @@ export function ChatPanel({
   myId,
   now,
   privacy,
+  alone,
 }: {
   room: Room;
   names: Record<string, string>;
   myId: string;
   now: number;
   privacy: string;
+  /** 只有自己在場時的說明:這間看得到誰。null = 不顯示 */
+  alone: string | null;
 }) {
   const muted = useStore((s) => s.loungeMuted);
   const toggleMute = useStore((s) => s.toggleLoungeMute);
@@ -380,6 +396,8 @@ export function ChatPanel({
           )}
         </div>
       )}
+
+      {live && count === 1 && alone && <p className="px-small text-crt-gold">{alone}</p>}
 
       {room.status !== "off" && (
         <>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { companyName } from "../companies";
 import { displayNames } from "../lounge";
 import { useStore } from "../store";
 import { t } from "../strings";
@@ -7,7 +8,7 @@ import { useNow } from "../useNow";
 import Actor, { NameTag, STAND } from "./Actor";
 import { DOOR, LOUNGE, LOUNGE_DOOR, LOUNGE_SPAWN, TILE } from "./map";
 import { LOUNGE_SCENE } from "./props";
-import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote } from "./Room";
+import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
 import Scene from "./Scene";
 import { lookFor } from "./sprite";
 import { useWalker } from "./useWalker";
@@ -24,6 +25,7 @@ export default function Lounge({ onBack }: { onBack: () => void }) {
   const startSlacking = useStore((s) => s.startSlacking);
   const myAvatar = useStore((s) => s.myAvatar);
   const muted = useStore((s) => s.loungeMuted);
+  const companyLabel = useStore((s) => s.companyLabel);
   const myLook = lookFor(myId, myAvatar?.uid === myId ? myAvatar.code : null);
   // 點人物看他是誰:隊伍與本週戰績。排行榜同一份資料(同公司本來就看得到)
   const team = useTeam(45_000);
@@ -52,6 +54,12 @@ export default function Lounge({ onBack }: { onBack: () => void }) {
   const others = members.filter((m) => m.uid !== myId);
   const { say, emote } = bubbles(live, now);
   const myName = names[myId] ?? team?.profile?.handle;
+  const companyCode = team?.profile?.company_code;
+  const company = team?.profile
+    ? companyCode
+      ? companyName(companyCode, companyLabel)
+      : t.whereNoCompany
+    : null;
   const pickedMember = picked ? live.state.members[picked] : undefined;
 
   return (
@@ -62,6 +70,8 @@ export default function Lounge({ onBack }: { onBack: () => void }) {
           {t.loungeBack}
         </button>
       </header>
+
+      {company && <Where company={company} room={t.lounge} />}
 
       <div className="flex flex-wrap items-center gap-2 px-small">
         <span className="px-bevel-in bg-crt-deep px-3 py-1 text-crt-gold">{t.officeSlacking}</span>
@@ -112,7 +122,14 @@ export default function Lounge({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <ChatPanel room={live} names={names} myId={myId} now={now} privacy={t.chatPrivacy} />
+      <ChatPanel
+        room={live}
+        names={names}
+        myId={myId}
+        now={now}
+        privacy={t.chatPrivacy}
+        alone={t.aloneLounge}
+      />
 
       <p className="text-crt-dim">
         <span className="sm:hidden">{t.loungeHintMobile}</span>

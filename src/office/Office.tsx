@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { companyName } from "../companies";
 import Board from "../components/Board";
 import { dur, pts } from "../fmt";
 import { displayNames } from "../lounge";
@@ -37,7 +38,7 @@ import {
   type Pos,
 } from "./map";
 import { ART, OFFICE_SCENE } from "./props";
-import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote } from "./Room";
+import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
 import Scene from "./Scene";
 import {
   decodeAvatar,
@@ -149,8 +150,15 @@ export default function Office({
   const [boardOpen, setBoardOpen] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const muted = useStore((s) => s.loungeMuted);
+  const companyLabel = useStore((s) => s.companyLabel);
   const room = visitingRaw === "OWN" ? myTeam : visitingRaw;
   const isOwnRoom = room === myTeam;
+  const profile = team?.profile;
+  const company = profile
+    ? profile.company_code
+      ? companyName(profile.company_code, companyLabel)
+      : t.whereNoCompany
+    : null;
   const roomNames = [
     ...new Set((team?.rows ?? []).map((r) => r.team)),
   ].sort((a, b) => (a === myTeam ? -1 : b === myTeam ? 1 : (a ?? "").localeCompare(b ?? "")));
@@ -310,6 +318,10 @@ export default function Office({
           </button>
         </div>
       </header>
+
+      {company && (
+        <Where company={company} room={`${room ?? t.lobby}${isOwnRoom ? "" : t.whereVisiting}`} />
+      )}
 
       <div className="flex flex-wrap items-center gap-2 px-small">
         {activeSince === null ? (
@@ -510,7 +522,15 @@ export default function Office({
       )}
 
       {/* 辦公室的即時聊天:只有自己隊、人在這間的聽得到。串門子時面板只說為什麼不能聊 */}
-      <ChatPanel room={live} names={names} myId={myId} now={now} privacy={t.chatPrivacyOffice} />
+      <ChatPanel
+        room={live}
+        names={names}
+        myId={myId}
+        now={now}
+        privacy={t.chatPrivacyOffice}
+        // 座位上有照狀態站位的隊友,就不是「只有你」—— 他們只是沒開辦公室
+        alone={teammates.length === 0 ? t.aloneOffice : null}
+      />
 
       {/* 手機沒有鍵盤,叫人按方向鍵是空話 —— 兩份文案用斷點切,不用 JS 測裝置 */}
       <p className="text-crt-dim">
