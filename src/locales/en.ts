@@ -207,6 +207,7 @@ export const en: Strings = {
     "Every team in your company shares this room. Time here counts as slacking but earns no points. Tap the floor to walk; the door in the bottom wall goes back to the office. Tap someone to see who they are.",
   chatTitle: "Chat",
   chatPlaceholder: "Say something (100 chars max)",
+  chatHowTo: "Tap 💬 at the bottom-right of the game (or press Enter on a computer) to talk or send an emoji.",
   chatSend: "Say",
   chatPrivacy:
     "Everyone in your company can see this — including people you don't know. Kept 24 hours. Don't mention real names or company business.",

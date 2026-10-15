@@ -8,7 +8,7 @@ import { useNow } from "../useNow";
 import Actor, { NameTag, STAND } from "./Actor";
 import { DOOR, LOUNGE, LOUNGE_DOOR, LOUNGE_SPAWN, TILE } from "./map";
 import { LOUNGE_SCENE } from "./props";
-import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
+import { Bubble, bubbles, ChatBar, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
 import Scene from "./Scene";
 import { lookFor } from "./sprite";
 import { useWalker } from "./useWalker";
@@ -120,6 +120,7 @@ export default function Lounge({ onBack }: { onBack: () => void }) {
             onClose={() => setPicked(null)}
           />
         )}
+        <ChatBar room={live} now={now} />
       </div>
 
       <ChatPanel

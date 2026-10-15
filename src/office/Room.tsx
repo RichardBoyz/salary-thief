@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { dur, pts } from "../fmt";
 import { errorKind, type Facing, type Member } from "../lounge";
 import { useStore } from "../store";
@@ -313,7 +314,120 @@ export function PersonCard({
 }
 
 /**
- * 聊天面板:人數、表情、輸入框、最近的聊天(可靜音、檢舉)。連線狀態也寫在這裡 ——
+ * 說話的地方在遊戲畫面裡:右下角 💬(電腦按 Enter)打開,說完就收起來 —— 不用捲到
+ * 下面找輸入框,收起來之後 WASD 馬上回到走路。空的 Enter、Esc、「關閉」都是收起來。
+ * 聊天紀錄還在下面的面板。
+ */
+export function ChatBar({ room, now }: { room: Room; now: number }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const live = room.status === "live";
+  const muted = (room.mutedUntil ?? 0) > now;
+
+  // iOS 只有在使用者手勢的當下 focus 才會跳鍵盤:先同步把輸入框畫出來再 focus,不等 effect
+  const show = () => {
+    flushSync(() => setOpen(true));
+    input.current?.focus();
+  };
+  const hide = () => {
+    setOpen(false);
+    setErr(null);
+  };
+
+  // 電腦:沒在打字時按 Enter 打開。按鈕、連結上的 Enter 留給它們自己(那是在按它)
+  useEffect(() => {
+    if (!live) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.isComposing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      if ((e.target as Element).closest?.("input, textarea, select, button, a, [contenteditable]")) return;
+      e.preventDefault();
+      flushSync(() => setOpen(true));
+      input.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [live]);
+
+  // 斷線、被接手、串門子:收起來,不留一個送不出去的輸入框
+  useEffect(() => {
+    if (!live) setOpen(false);
+  }, [live]);
+
+  const send = async () => {
+    const body = draft.trim();
+    if (!body) return hide(); // 空的 Enter = 收起來(遊戲的習慣)
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    const e = await room.say(body);
+    setBusy(false);
+    if (e) return setErr(errText(e)); // 太快、重複…:留著讓人改
+    setDraft("");
+    hide();
+  };
+  const emote = async (emoji: string) => {
+    const e = await room.emote(emoji);
+    if (e) setErr(errText(e));
+    else hide();
+  };
+
+  if (!live) return null;
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={show}
+        aria-label={t.chatTitle}
+        className="px-btn absolute right-2 bottom-2 z-10 flex items-center gap-2 px-2"
+      >
+        💬<span className="hidden px-small text-crt-dim sm:inline">Enter</span>
+      </button>
+    );
+  return (
+    <div className="px-panel absolute inset-x-2 bottom-2 z-10 flex flex-col gap-2 p-2">
+      {err && <p className="px-small text-crt-red">{err}</p>}
+      <div className="flex flex-wrap gap-1">
+        {EMOJIS.map((e) => (
+          <button key={e} type="button" onClick={() => void emote(e)} className="px-btn px-2" aria-label={e}>
+            {e}
+          </button>
+        ))}
+      </div>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <input
+          ref={input}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.slice(0, 100))}
+          onKeyDown={(e) => e.key === "Escape" && hide()}
+          maxLength={100}
+          enterKeyHint="send"
+          placeholder={muted ? t.chatMuted : t.chatPlaceholder}
+          aria-label={t.chatPlaceholder}
+          disabled={muted}
+          className="px-input min-w-0 flex-1"
+        />
+        <button type="submit" className="px-btn text-crt-gold" disabled={busy || muted}>
+          {t.chatSend}
+        </button>
+        <button type="button" onClick={hide} className="px-btn">
+          {t.close}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * 聊天面板:人數、連線狀態、最近的聊天(可靜音、檢舉)。說話在遊戲畫面裡的 ChatBar。連線狀態也寫在這裡 ——
  * 兩間房的狀態訊息是同一套。privacy 是「誰看得到」那一句,兩間不一樣。
  */
 export function ChatPanel({
@@ -334,25 +448,14 @@ export function ChatPanel({
 }) {
   const muted = useStore((s) => s.loungeMuted);
   const toggleMute = useStore((s) => s.toggleLoungeMute);
-  const [draft, setDraft] = useState("");
+  // 檢舉的結果(成功或為什麼不行)
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const live = room.status === "live";
   const isMuted = (room.mutedUntil ?? 0) > now;
   const members = Object.keys(room.state.members);
   const count = members.includes(myId) ? members.length : members.length + 1;
   const banner = statusText(room.status);
 
-  const send = async () => {
-    const body = draft.trim();
-    if (!body || busy) return;
-    setBusy(true);
-    setErr(null);
-    const e = await room.say(body);
-    setBusy(false);
-    if (e) setErr(errText(e));
-    else setDraft("");
-  };
   const report = async (uid: string) => {
     if (!confirm(t.reportConfirm)) return;
     setErr(reportText(await room.report(uid)));
@@ -369,21 +472,6 @@ export function ChatPanel({
             </span>
           )}
         </span>
-        {room.status !== "off" && (
-          <span className="flex flex-wrap gap-1">
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => void room.emote(e)}
-                disabled={!live}
-                className="px-btn px-2"
-                aria-label={e}
-              >
-                {e}
-              </button>
-            ))}
-          </span>
-        )}
       </div>
 
       {banner && (
@@ -401,27 +489,8 @@ export function ChatPanel({
 
       {room.status !== "off" && (
         <>
+          {live && <p className="px-small text-crt-white">{t.chatHowTo}</p>}
           <p className="px-small text-crt-dim">{privacy}</p>
-
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value.slice(0, 100))}
-              maxLength={100}
-              placeholder={t.chatPlaceholder}
-              disabled={!live || isMuted}
-              className="px-input"
-            />
-            <button type="submit" className="px-btn text-crt-gold" disabled={!live || busy || !draft.trim()}>
-              {t.chatSend}
-            </button>
-          </form>
 
           {isMuted && (
             <p className="px-small px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{t.chatMuted}</p>

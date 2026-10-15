@@ -38,7 +38,7 @@ import {
   type Pos,
 } from "./map";
 import { ART, OFFICE_SCENE } from "./props";
-import { Bubble, bubbles, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
+import { Bubble, bubbles, ChatBar, ChatPanel, DoorSign, facingOf, PersonCard, Remote, Where } from "./Room";
 import Scene from "./Scene";
 import {
   decodeAvatar,
@@ -504,6 +504,7 @@ export default function Office({
             onClose={() => setPicked(null)}
           />
         )}
+        <ChatBar room={live} now={now} />
       </div>
 
       {draft && (
