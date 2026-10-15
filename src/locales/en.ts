@@ -69,7 +69,8 @@ export const en: Strings = {
   inviteSomeone: "A coworker",
   inviteIgnore: "Ignore",
   inviteAfterLogin:
-    "Sign in below first, then hit \"Join\". If Google sign-in is blocked inside an app like LINE, choose \"Open in browser\" — the invite comes along.",
+    "Sign in first, then just pick a nickname and hit \"Join\". If Google sign-in is blocked inside an app, choose \"Open in browser\".",
+  inviteHandle: "Your nickname",
   inviteWhere: "When they join from your link, they'll be in: ",
   inviteLocalhost: "⚠ This is a local dev build: the link starts with localhost and only opens on this computer. Copy the invite from the live site instead.",
 

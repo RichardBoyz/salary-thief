@@ -63,15 +63,18 @@ function InviteHeadline({ invite }: { invite: Invite }) {
   );
 }
 
-function Login() {
+// invited:點邀請連結進來的。上面已經有「誰邀請你加入哪裡」,只留登入方式,其他介紹先收起來
+function Login({ invited }: { invited: boolean }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-crt-white">{t.loginTitle}</h2>
-        <p className="mt-1 text-crt-dim">{t.loginDesc}</p>
-      </div>
+      {!invited && (
+        <div>
+          <h2 className="text-crt-white">{t.loginTitle}</h2>
+          <p className="mt-1 text-crt-dim">{t.loginDesc}</p>
+        </div>
+      )}
       <div>
         <button onClick={() => signInWithGoogle()} className="px-btn w-full py-2.5 text-crt-gold">
           {t.loginGoogle}
@@ -105,8 +108,70 @@ function Login() {
           </form>
         </details>
       )}
-      <p className="text-crt-dim">{t.loginPrivacy}</p>
+      {!invited && <p className="text-crt-dim">{t.loginPrivacy}</p>}
     </div>
+  );
+}
+
+/**
+ * 點邀請連結進來(已登入):只要確認暱稱、按「加入」。選公司、排行榜那些等加入或
+ * 忽略之後才出現 —— 第一次來的人一次看到整頁,不知道該按哪裡。已經有暱稱的人帶入
+ * 原本的(可以改);加入 = 換到邀請人的公司與隊伍
+ */
+function InviteJoin({
+  invite,
+  initialHandle,
+  employment,
+  onDone,
+}: {
+  invite: Invite;
+  initialHandle: string;
+  employment: Employment;
+  onDone: () => void;
+}) {
+  const [handle, setHandle] = useState(initialHandle);
+  const [busy, setBusy] = useState(false);
+  const setCompanyLabel = useStore((s) => s.setCompanyLabel);
+  const setPendingInvite = useStore((s) => s.setPendingInvite);
+  const ok = !busy && handle.trim().length >= 1 && handle.trim().length <= 20;
+  const join = () => {
+    setBusy(true);
+    setCompanyLabel(invite.name ?? companyName(invite.code));
+    saveProfile(handle.trim(), invite.code, invite.team ?? null, employment).then(() => {
+      setPendingInvite(null);
+      onDone();
+    });
+  };
+  return (
+    <form
+      className="px-panel flex flex-col gap-3 px-4 py-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ok) join();
+      }}
+    >
+      <InviteHeadline invite={invite} />
+      <label className="flex flex-col gap-1">
+        <span className="px-small text-crt-dim">{t.inviteHandle}</span>
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          maxLength={20}
+          placeholder={t.setupHandlePlaceholder}
+          className={input}
+        />
+      </label>
+      <button type="submit" className={`${btn} w-full`} disabled={!ok}>
+        {t.companyJoin}
+      </button>
+      <button
+        type="button"
+        onClick={() => setPendingInvite(null)}
+        className="self-start px-small text-crt-dim hover:text-crt-white"
+      >
+        {t.inviteIgnore}
+      </button>
+    </form>
   );
 }
 
@@ -121,8 +186,6 @@ function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: s
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const setCompanyLabel = useStore((s) => s.setCompanyLabel);
-  const invite = useStore((s) => s.pendingInvite);
-  const setPendingInvite = useStore((s) => s.setPendingInvite);
   const [registry, setRegistry] = useState<RegistryCompany[]>([]);
   const [searching, setSearching] = useState(false);
   const ok = handle.trim().length >= 1 && handle.trim().length <= 20;
@@ -154,10 +217,10 @@ function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: s
     };
   }, [query]);
 
-  // 自己選公司 = 從大廳開始;照邀請進來 = 直接進邀請人的隊
-  const join = (code: string, label: string, team: string | null = null) => {
+  // 自己選公司 = 從大廳開始(照邀請進來的走 InviteJoin)
+  const join = (code: string, label: string) => {
     setCompanyLabel(label);
-    saveProfile(handle.trim(), code, team).then(onDone);
+    saveProfile(handle.trim(), code, null).then(onDone);
   };
 
   return (
@@ -170,26 +233,6 @@ function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: s
         placeholder={t.setupHandlePlaceholder}
         className={input}
       />
-
-      {/* 點了邀請連結進來的:取完代號一鍵進同事的房,不用再搜公司 */}
-      {invite && (
-        <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 px-small">
-          <InviteHeadline invite={invite} />
-          <button
-            className={btn}
-            disabled={!ok}
-            onClick={() => {
-              setPendingInvite(null);
-              join(invite.code, invite.name ?? companyName(invite.code), invite.team ?? null);
-            }}
-          >
-            {t.companyJoin}
-          </button>
-          <button className={btnGhost} onClick={() => setPendingInvite(null)}>
-            {t.inviteIgnore}
-          </button>
-        </div>
-      )}
 
       <div className="flex flex-col gap-2">
         <span className="text-crt-dim">{t.companyPick}</span>
@@ -366,7 +409,6 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
 export default function Team({ onBack }: { onBack?: () => void }) {
   const session = useSession();
   const companyLabel = useStore((s) => s.companyLabel);
-  const setCompanyLabel = useStore((s) => s.setCompanyLabel);
   const pendingInvite = useStore((s) => s.pendingInvite);
   const setPendingInvite = useStore((s) => s.setPendingInvite);
   const team = useTeam(30_000);
@@ -401,15 +443,12 @@ export default function Team({ onBack }: { onBack?: () => void }) {
       history.replaceState(null, "", location.pathname);
   }, [session, pendingInvite]);
 
-  // 有代號的人一鍵換到邀請人那一間:公司 + 隊伍都跟邀請人一樣
-  const joinInvite = () => {
-    if (!pendingInvite || !profile) return;
-    setCompanyLabel(pendingInvite.name ?? companyName(pendingInvite.code));
-    saveProfile(profile.handle, pendingInvite.code, inviteTeam, profile.employment).then(() => {
-      setPendingInvite(null);
-      team!.refresh();
-    });
-  };
+  // 手上的邀請(已經在那一間的,上面的 effect 會收掉;收掉之前也不畫,免得閃一下)
+  const invite =
+    pendingInvite &&
+    !(profile?.company_code === pendingInvite.code && (profile?.team ?? null) === inviteTeam)
+      ? pendingInvite
+      : null;
 
   const copyInvite = () => {
     if (!profile?.company_code) return;
@@ -464,9 +503,21 @@ export default function Team({ onBack }: { onBack?: () => void }) {
           <span className="text-crt-dim">{t.inviteAfterLogin}</span>
         </div>
       )}
-      {!session && <Login />}
+      {!session && <Login invited={!!pendingInvite} />}
 
-      {session && team && (!profile?.company_code || changing) && (
+      {session && team && invite && (
+        <InviteJoin
+          invite={invite}
+          initialHandle={profile?.handle ?? ""}
+          employment={profile?.employment ?? "current"}
+          onDone={() => {
+            setChanging(false);
+            team.refresh();
+          }}
+        />
+      )}
+
+      {session && team && !invite && (!profile?.company_code || changing) && (
         <Setup
           initialHandle={profile?.handle ?? ""}
           onDone={() => {
@@ -476,21 +527,8 @@ export default function Team({ onBack }: { onBack?: () => void }) {
         />
       )}
 
-      {session && profile?.company_code && !changing && (
+      {session && profile?.company_code && !changing && !invite && (
         <>
-          {/* 有代號的人點了別人的邀請連結:一鍵換房 */}
-          {pendingInvite && (
-            <div className="px-panel flex flex-wrap items-center gap-2 px-3 py-2 px-small">
-              <InviteHeadline invite={pendingInvite} />
-              <button className={btn} onClick={joinInvite}>
-                {t.companyJoin}
-              </button>
-              <button className={btnGhost} onClick={() => setPendingInvite(null)}>
-                {t.inviteIgnore}
-              </button>
-            </div>
-          )}
-
           <div className="flex flex-wrap items-center gap-2 px-small">
             <span className="text-crt-dim">{t.companyMine}</span>
             <span className="px-bevel-in bg-crt-deep px-2 py-1 text-crt-gold">

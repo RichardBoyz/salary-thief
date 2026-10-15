@@ -63,8 +63,9 @@ export const zhTW = {
   invitePending: " 邀請你加入 ",
   inviteSomeone: "同事",
   inviteIgnore: "忽略",
-  inviteAfterLogin:
-    "先在下方登入,登入後按「加入」。在 LINE 之類的 App 裡開、Google 登入被擋的話,選「用瀏覽器開啟」,邀請會跟著過去。",
+  inviteAfterLogin: "先登入,之後填個暱稱、按「加入」就好。在 App 裡開、Google 登入被擋的話,選「用瀏覽器開啟」。",
+  inviteHandle: "你的暱稱",
+
   inviteWhere: "對方按連結加入後,會跟你在:",
   inviteLocalhost: "⚠ 這是本機開發版,連結開頭是 localhost,只有這台電腦打得開。要邀請別人,請從正式網站按「邀請同事」。",
 
