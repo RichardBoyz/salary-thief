@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInviteLink,
-  inviteHash,
+  inviteParams,
   COMPANIES,
   companyName,
   isDirectoryCompany,
@@ -157,29 +157,38 @@ describe("邀請連結", () => {
     const code = slugToUuid("tsmc");
     const invite = { code, name: "台積電", handle: "小明", team: "後端 組" };
     const link = buildInviteLink("https://example.com", invite);
-    expect(parseInvite(new URL(link).hash)).toEqual(invite);
+    expect(parseInvite(new URL(link).search)).toEqual(invite);
   });
 
   it("隊伍跟著連結走:收件人跟邀請人同一隊;邀請人沒選隊 = 大廳(null)", () => {
     const code = slugToUuid("tsmc");
     const lobby = buildInviteLink("https://example.com", { code, name: "台積電", handle: "小明", team: null });
-    expect(new URL(lobby).hash).not.toContain("t=");
-    expect(parseInvite(new URL(lobby).hash)!.team).toBeNull();
+    expect(new URL(lobby).searchParams.has("t")).toBe(false);
+    expect(parseInvite(new URL(lobby).search)!.team).toBeNull();
     // v16b 之前的舊連結沒有 t:一樣是大廳
     expect(parseInvite(`#join=${code}&n=x&h=y`)!.team).toBeNull();
   });
 
-  it("連結叫 LINE 直接開系統瀏覽器(內建瀏覽器擋 Google 登入),邀請內容仍只在 hash", () => {
+  it("邀請整段在 ? 不在 #:iOS 的 LINE 用外部瀏覽器開時會丟掉 # 後面;LINE 開關一起帶", () => {
     const code = slugToUuid("tsmc");
     const url = new URL(buildInviteLink("https://example.com", { code, name: "台積電", handle: "小明", team: "後端組" }));
+    expect(url.hash).toBe("");
     expect(url.searchParams.get("openExternalBrowser")).toBe("1");
-    expect([...url.searchParams.keys()]).toEqual(["openExternalBrowser"]); // server 看得到的 query 不帶任何資訊
-    expect(url.hash).toContain(code);
+    expect([...url.searchParams.keys()][0]).toBe("join"); // 被截短時公司碼最後才掉
+    // LINE 丟掉 # 之後的樣子(https://…/?…#)照樣解得出來
+    expect(parseInvite(new URL(`${url.href}#`).search)!.team).toBe("後端組");
   });
 
-  it("登入前放回網址列的 hash 跟連結解出來的一模一樣", () => {
+  it("v16d 之前放在 # 的舊連結照樣解得出來", () => {
+    const code = slugToUuid("tsmc");
+    expect(parseInvite(`#join=${code}&n=${encodeURIComponent("台積電")}&t=x`)).toEqual({
+      code, name: "台積電", handle: null, team: "x",
+    });
+  });
+
+  it("登入前放回網址列的參數跟連結解出來的一模一樣", () => {
     const invite = { code: slugToUuid("tsmc"), name: "台積電", handle: "小明", team: "後端組" };
-    expect(parseInvite(`#${inviteHash(invite)}`)).toEqual(invite);
+    expect(parseInvite(`?${inviteParams(invite)}`)).toEqual(invite);
   });
 
   it("hash 是不可信輸入:非 uuid 的 code 一律拒收", () => {

@@ -155,8 +155,10 @@ export const searchCompanies = (q: string): Company[] => {
 
 // ---- 邀請連結 ----
 // 自訂公司靠「打同名」同房太碰運氣,邀請連結把房間碼直接帶過去。
-// 邀請內容放 hash(#join=…)不放 path/query:app 活在單一 URL 上(偽裝考量),
-// hash 不會出現在任何 server log,連自家 worker 都看不到。名字放連結裡
+// 邀請內容放 query(?join=…)。v16d 之前放 hash(# 後面,不會進任何 server log),
+// 但 iOS 的 LINE 用「預設瀏覽器開啟」時會把 # 後面整段丟掉,收件人只拿到首頁。
+// 代價是自家網站的請求紀錄看得到 query;連結本來就以明文躺在聊天訊息裡,站上
+// 也設了 no-referrer 不外流,進站讀完立刻從網址列洗掉(偽裝考量)。名字放連結裡
 // 只是幫收件人設本機顯示標籤 —— DB 仍然不存公司名。
 
 // name = 房間顯示名(幫收件人設本機標籤);handle = 邀請人暱稱(給收件人看清楚
@@ -167,8 +169,8 @@ export type Invite = { code: string; name: string | null; handle: string | null;
 
 const INVITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** 邀請的 hash(不含 #)。連結本身、與登入前把邀請放回網址列(Team.tsx)共用 */
-export const inviteHash = (i: Invite): string => {
+/** 邀請參數(不含 ?)。連結本身、與登入前把邀請放回網址列(Team.tsx)共用 */
+export const inviteParams = (i: Invite): string => {
   const p = new URLSearchParams({ join: i.code });
   if (i.name) p.set("n", i.name.slice(0, 30));
   if (i.handle) p.set("h", i.handle.slice(0, 20));
@@ -177,19 +179,20 @@ export const inviteHash = (i: Invite): string => {
 };
 
 /**
- * 邀請連結。?openExternalBrowser=1 是 LINE 的開關:在 LINE 裡點開直接跳系統瀏覽器。
- * LINE 內建瀏覽器擋 Google 登入,使用者改用瀏覽器開時邀請常常就掉了。它不帶任何
- * 資訊;進站後 main.tsx 連同 hash 一起從網址列洗掉
+ * 邀請連結。openExternalBrowser=1 是 LINE 的開關:在 LINE 裡點開直接跳系統瀏覽器
+ * (LINE 內建瀏覽器擋 Google 登入)。join 放第一個 —— 萬一哪個 App 把連結截短,
+ * 至少公司碼還在。進站後 main.tsx 整段從網址列洗掉
  */
 export const buildInviteLink = (origin: string, invite: Invite): string =>
-  `${origin}/?openExternalBrowser=1#${inviteHash(invite)}`;
+  `${origin}/?${inviteParams(invite)}&openExternalBrowser=1`;
 
 /**
- * hash 是不可信輸入:code 必須是合法 uuid,其他欄位剝隱形字元、去頭尾空白、截長度
- * (隊名在收件人按「加入」後會存進他自己的 profile)。不合格回 null
+ * 解 location.search(新連結)或 location.hash(v16d 前的舊連結)。不可信輸入:
+ * code 必須是合法 uuid,其他欄位剝隱形字元、去頭尾空白、截長度(隊名在收件人按
+ * 「加入」後會存進他自己的 profile)。不合格回 null
  */
-export const parseInvite = (hash: string): Invite | null => {
-  const p = new URLSearchParams(hash.replace(/^#/, ""));
+export const parseInvite = (raw: string): Invite | null => {
+  const p = new URLSearchParams(raw.replace(/^[?#]/, ""));
   const code = p.get("join")?.toLowerCase() ?? "";
   if (!INVITE_UUID_RE.test(code)) return null;
   const field = (key: string, max: number) => safeText(p.get(key) ?? "").trim().slice(0, max) || null;

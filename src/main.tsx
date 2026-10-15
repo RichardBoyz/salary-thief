@@ -10,15 +10,15 @@ import { initSync } from "./sync";
 document.documentElement.lang = lang === "en" ? "en" : "zh-Hant";
 initSync();
 
-// 邀請連結:#join=… 進來就收進 store,馬上把網址洗乾淨 —— 這個 app 的
-// 網址列任何時候都不該有東西可看(偽裝考量)。supabase 的 OAuth hash
-// 不是合法邀請,parseInvite 會回 null,不會誤吃。
-// hashchange 也聽:把連結貼進「已經開著的分頁」不會重載頁面。
+// 邀請連結:?join=…(v16d 前的舊連結是 #join=…)進來就收進 store,馬上把網址
+// 洗乾淨 —— 這個 app 的網址列任何時候都不該有東西可看(偽裝考量)。supabase 的
+// OAuth 回傳(?code=、#access_token=)不是合法邀請,parseInvite 會回 null,不會誤吃。
+// hashchange 也聽:把舊連結貼進「已經開著的分頁」不會重載頁面。
 const consumeInvite = () => {
-  const invite = parseInvite(location.hash);
+  const invite = parseInvite(location.search) ?? parseInvite(location.hash);
   if (invite) {
     useStore.getState().setPendingInvite(invite);
-    // 連 ?openExternalBrowser=1(LINE 跳瀏覽器用,見 buildInviteLink)一起洗掉
+    // 連 openExternalBrowser=1(LINE 跳瀏覽器用,見 buildInviteLink)一起洗掉
     history.replaceState(null, "", location.pathname);
   }
 };

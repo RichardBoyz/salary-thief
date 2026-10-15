@@ -3,7 +3,7 @@ import {
   buildInviteLink,
   companyName,
   type Invite,
-  inviteHash,
+  inviteParams,
   isDirectoryCompany,
   normalizeCustom,
   orgCode,
@@ -395,8 +395,10 @@ export default function Team({ onBack }: { onBack?: () => void }) {
   // 邀請留在內建瀏覽器裡跟著消失。這是「網址列什麼都沒有」唯一的例外:還沒登入的
   // 邀請畫面不是偽裝場景。登入之後照舊洗乾淨
   useEffect(() => {
-    if (session === null && pendingInvite) history.replaceState(null, "", `#${inviteHash(pendingInvite)}`);
-    else if (session && location.hash.includes("join=")) history.replaceState(null, "", location.pathname);
+    // 放 query 不放 hash:iOS 的 LINE 交給外部瀏覽器時會把 # 後面丟掉(見 companies.ts)
+    if (session === null && pendingInvite) history.replaceState(null, "", `?${inviteParams(pendingInvite)}`);
+    else if (session && (location.search + location.hash).includes("join="))
+      history.replaceState(null, "", location.pathname);
   }, [session, pendingInvite]);
 
   // 有代號的人一鍵換到邀請人那一間:公司 + 隊伍都跟邀請人一樣
