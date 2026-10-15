@@ -17,8 +17,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export default function Settings({ onBack }: { onBack: () => void }) {
   const cfg = useStore((s) => s.config);
   const setConfig = useStore((s) => s.setConfig);
-  const autoDisguise = useStore((s) => s.autoDisguise);
-  const setAutoDisguise = useStore((s) => s.setAutoDisguise);
   const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
   const resetData = useStore((s) => s.resetData);
@@ -117,19 +115,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           </Field>
         </div>
       </div>
-
-      <label className="px-panel flex cursor-pointer items-start gap-3 px-3 py-3">
-        <input
-          type="checkbox"
-          checked={autoDisguise}
-          onChange={(e) => setAutoDisguise(e.target.checked)}
-          className="mt-0.5 size-4 accent-crt-gold"
-        />
-        <span>
-          <span className="text-crt-white">{t.autoDisguise}</span>
-          <span className="mt-0.5 block text-crt-dim">{t.autoDisguiseHint}</span>
-        </span>
-      </label>
 
       {error && (
         <p className="px-bevel-in bg-crt-deep px-3 py-2 text-crt-red">{error}</p>

@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Counter from "./components/Counter";
-import Disguise from "./components/Disguise";
 import Help from "./components/Help";
 import Settings from "./components/Settings";
 import Stats from "./components/Stats";
@@ -11,13 +10,6 @@ import Office from "./office/Office";
 import { useStore } from "./store";
 import { lang, onLangChange, t } from "./strings";
 import { useSession } from "./sync";
-
-const setFavicon = (emoji: string) => {
-  const link = document.querySelector<HTMLLinkElement>("link[rel=icon]");
-  if (!link) return;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
-  link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-};
 
 // 不裝 router:網址列出現 /salary-thief 是這個 app 最大的破綻。
 // 整個 app 活在同一個 URL 上,畫面切換一個 useState 就夠了。
@@ -40,13 +32,8 @@ export default function App() {
         ? "counter"
         : "help",
   );
-  const [disguised, setDisguised] = useState(false);
   // 從休息室走門回辦公室:辦公室的出生點在門口,不是座位
   const [atDoor, setAtDoor] = useState(false);
-  // 雙擊逃生口要讀「點下當刻是否已偽裝」,同步更新(render 早於 effect)
-  const disguisedRef = useRef(disguised);
-  disguisedRef.current = disguised;
-  const autoDisguise = useStore((s) => s.autoDisguise);
   // 語言切換不 reload:setLang 原地換 t 的內容後通知這裡,整棵樹重畫。
   // 全 app 沒有 memo,App 一重畫所有元件都會在 render 重讀 t.xxx
   const langNow = useSyncExternalStore(onLangChange, () => lang);
@@ -72,55 +59,10 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  // 老闆鍵。純網頁在分頁沒有 focus 時收不到鍵盤事件,所以這顆鍵只在你正
-  // 盯著這個分頁時有效 —— 而那正是你最不需要它的時候。要系統層級的全域
-  // 熱鍵得做成 Chrome 擴充或桌面 app。這裡真正實用的是下面的 blur。
+  // 分頁標題跟著語言走(index.html 寫死的是中文)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDisguised((d) => !d);
-    };
-    // 手機沒有 Esc,偽裝中快速點兩下當逃生口。用 click 自己數而不是 dblclick:
-    // 這是手機唯一的出口,不能賭 iOS 對 dblclick 的支援。
-    // 只在「已偽裝」時累計 —— 進入偽裝的那一下(老闆鍵按鈕)發生在未偽裝時,
-    // 會 reset 計數,所以連點按鈕不會進了又被馬上解除。
-    let last = 0;
-    const onClick = () => {
-      if (!disguisedRef.current) {
-        last = 0;
-        return;
-      }
-      const now = Date.now();
-      if (now - last < 400) setDisguised(false);
-      last = now;
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("click", onClick);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("click", onClick);
-    };
-  }, []);
-
-  // 你 alt-tab 走開的當下畫面就已經偽裝好了,回來才需要按鍵解除。
-  // 比熱鍵實用,因為它不需要你反應得夠快。
-  useEffect(() => {
-    if (!autoDisguise) return;
-    const hide = () => setDisguised(true);
-    window.addEventListener("blur", hide);
-    return () => window.removeEventListener("blur", hide);
-  }, [autoDisguise]);
-
-  // 分頁標題和 favicon 是比畫面本身更大的破綻:整個螢幕都是試算表,
-  // 分頁上卻寫著「薪水小偷」還掛著一個 💰。
-  useEffect(() => {
-    document.title = disguised ? t.disguiseTitle : t.appName;
-    setFavicon(disguised ? "📊" : "💰");
-  }, [disguised, langNow]);
-
-  // 偽裝時 Counter 整個 unmount,計時器跟著停。回來重新掛載時金額直接
-  // 從時鐘算出正確值 —— 這是 earnedToday 是純函式換來的。
-  // 偽裝殼在 px-crt 掃描線這層之外(early return)—— 假 Excel 必須是現代臉。
-  if (disguised) return <Disguise />;
+    document.title = t.appName;
+  }, [langNow]);
 
   // 還在問 supabase 有沒有 session:先不畫。undefined 跟 null 分開就是為了
   // 這一格 —— 不然已登入的人每次開頁都會先閃一下登入畫面。
@@ -149,7 +91,6 @@ export default function App() {
           onStocks={() => setView("stocks")}
           onTeam={() => setView("team")}
           onHelp={() => setView("help")}
-          onDisguise={() => setDisguised(true)}
         />
       )}
       {view === "settings" && <Settings onBack={() => setView("counter")} />}

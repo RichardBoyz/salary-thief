@@ -14,8 +14,6 @@ export const defaultConfig: Config = {
 type State = {
   /** money.ts 的輸入。純算錢用,不放偏好設定 —— 純函式不該知道偽裝的存在 */
   config: Config;
-  /** 離開分頁時自動切成偽裝殼 */
-  autoDisguise: boolean;
   /** append-only。只有 push,沒有 update 也沒有 delete */
   slackEvents: SlackEvent[];
   /** 正在摸魚中的起始時間。這是暫時狀態,按下結束才會變成一筆 SlackEvent */
@@ -57,7 +55,6 @@ type State = {
   loungeMuted: string[];
   toggleLoungeMute: (uid: string) => void;
   setConfig: (patch: Partial<Config>) => void;
-  setAutoDisguise: (v: boolean) => void;
   setCompanyLabel: (label: string | null) => void;
   startSlacking: () => void;
   stopSlacking: () => void;
@@ -72,7 +69,6 @@ export const useStore = create<State>()(
   persist(
     (set) => ({
       config: defaultConfig,
-      autoDisguise: true,
       slackEvents: [],
       activeSince: null,
       activeId: null,
@@ -101,7 +97,6 @@ export const useStore = create<State>()(
         })),
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
-      setAutoDisguise: (autoDisguise) => set({ autoDisguise }),
       setCompanyLabel: (companyLabel) => set({ companyLabel }),
 
       // 只清紀錄不清偏好。server 上的資料(有登入的話)另外靠登出處理

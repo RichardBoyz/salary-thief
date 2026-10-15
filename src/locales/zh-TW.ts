@@ -20,8 +20,6 @@ export const zhTW = {
   quipLunch: "午休不算工時,這段時間老闆沒在付你錢。",
   quipAfter: "今天的份全部到手了。可以走了。",
 
-  disguiseTitle: "Q3_forecast_v7_FINAL_修正版.xlsx - Excel",
-  bossKeyHint: "Esc 裝忙",
 
   startSlacking: "開始摸魚",
   stopSlacking: "結束摸魚",
@@ -122,9 +120,6 @@ export const zhTW = {
   helpSlack: "記你的摸魚時數",
   helpSlackBody:
     "主畫面按「開始摸魚」會開始記時數並直接帶你進辦公室,走去綠框賺幣;按「結束摸魚」收工。時數進「摸魚報告」熱力圖也上團隊排行榜,計時本身不生幣 —— 幣在辦公室賺(下一節)。",
-  helpBoss: "老闆來了",
-  helpBossBody:
-    "桌機按 Esc 瞬間切成一張假 Excel,分頁標題和 favicon 一起變裝;預設切走分頁就自動偽裝,回來按 Esc 或快速點兩下解除,可在設定關掉。手機上沒有這顆按鈕 —— 直接鎖螢幕比任何偽裝都快,而且老闆本來就不該看你的私人手機。",
   helpOffice: "辦公室 —— 摸魚幣在這裡賺",
   helpOfficeBody:
     "方向鍵 / WASD 或點格子移動。「今天已經偷到」只有兩個來源:站在綠框(外快區)裡每分鐘 10 點,每 10 分鐘換位;登入後每天 8 個魚點,站上去抓 🐟,一條魚 150 點。走到茶水間或沙發會順便記摸魚時數,回座位結束。",
@@ -253,8 +248,6 @@ export const zhTW = {
   theme: "主題",
   themeDark: "深色",
   themeLight: "亮色",
-  autoDisguise: "離開分頁時自動偽裝",
-  autoDisguiseHint: "alt-tab 走開的當下就切成試算表,回來按 Esc 或快速點兩下畫面解除。",
   shiftStart: "上班時間",
   shiftEnd: "下班時間",
   lunchStart: "午休開始",

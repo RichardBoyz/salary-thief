@@ -9,7 +9,6 @@ export default function Help({ onClose }: { onClose: () => void }) {
     [t.helpWhat, t.helpWhatBody],
     [t.helpSetup, t.helpSetupBody],
     [t.helpSlack, t.helpSlackBody],
-    [t.helpBoss, t.helpBossBody],
     [t.helpOffice, t.helpOfficeBody],
     [t.helpTeam, t.helpTeamBody],
     [t.helpPrivacy, t.helpPrivacyBody],

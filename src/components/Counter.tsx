@@ -42,7 +42,6 @@ export default function Counter({
   onStocks,
   onTeam,
   onHelp,
-  onDisguise,
 }: {
   onSettings: () => void;
   onStats: () => void;
@@ -50,7 +49,6 @@ export default function Counter({
   onStocks: () => void;
   onTeam: () => void;
   onHelp: () => void;
-  onDisguise: () => void;
 }) {
   const cfg = useStore((s) => s.config);
   const activeSince = useStore((s) => s.activeSince);
@@ -78,14 +76,6 @@ export default function Counter({
           <span className={s.text}>{s.label}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* 老闆鍵只在桌機出現。手機不需要:直接鎖螢幕比任何偽裝都快,
-              而且老闆本來就不該盯著你的私人手機看 —— 那不是這個 app 要解的問題 */}
-          <button
-            onClick={onDisguise}
-            className="px-bevel-in hidden bg-crt-deep px-2 py-1 text-crt-dim hover:text-crt-white sm:block"
-          >
-            {t.bossKeyHint}
-          </button>
           <button
             onClick={onOffice}
             className="px-btn"
