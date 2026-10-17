@@ -100,6 +100,10 @@ const safe = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0);
  *
  * 跟薪水完全脫鉤 —— 這正是它能上 DB 的原因:點數不含任何薪資資訊,存進
  * 資料庫也反推不出任何人賺多少。輸入是毫秒與條數,永遠是整數。
+ * fined = 今天被老闆扣掉的(伺服器算好的點數),扣到 0 為止。
  */
-export const points = (zoneMs: number, fishes: number): number =>
-  Math.floor(safe(zoneMs) / (MIN / POINTS_PER_MIN)) + safe(fishes) * FISH_POINTS;
+export const points = (zoneMs: number, fishes: number, fined = 0): number =>
+  Math.max(
+    0,
+    Math.floor(safe(zoneMs) / (MIN / POINTS_PER_MIN)) + safe(fishes) * FISH_POINTS - safe(fined),
+  );

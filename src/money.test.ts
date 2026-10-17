@@ -142,4 +142,10 @@ describe("points(摸魚幣)", () => {
     expect(points(0, NaN)).toBe(0);
     expect(points(60_000, -5)).toBe(POINTS_PER_MIN);
   });
+
+  it("被老闆扣的從總數扣,扣到 0 為止", () => {
+    expect(points(60_000, 1, 32)).toBe(POINTS_PER_MIN + FISH_POINTS - 32);
+    expect(points(0, 0, 50)).toBe(0);
+    expect(points(60_000, 0, NaN)).toBe(POINTS_PER_MIN);
+  });
 });

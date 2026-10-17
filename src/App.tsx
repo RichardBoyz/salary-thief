@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import Boss from "./components/Boss";
 import Counter from "./components/Counter";
 import Help from "./components/Help";
 import Settings from "./components/Settings";
@@ -113,6 +114,8 @@ export default function App() {
       )}
       {view === "team" && <Team onBack={() => setView("counter")} />}
       {view === "help" && <Help onClose={closeHelp} />}
+      {/* 老闆不管你在哪一頁都會找上門。只在登入後:扣款記在伺服器的帳上 */}
+      <Boss />
     </main>
   );
 }

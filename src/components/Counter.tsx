@@ -59,13 +59,18 @@ export default function Counter({
 
   const state = workState(cfg, now);
   const s = styleOf()[state];
-  // 大數字是摸魚幣:只來自辦公室外快區站立 + 漁獲獎勵,按鈕計時只記時數
-  // (下面兩格與報告/排行榜),不生幣。v8 起這裡跟薪水完全無關。
+  // 大數字是摸魚幣:只來自辦公室外快區站立 + 漁獲獎勵(減掉沒回老闆被扣的),
+  // 按鈕計時只記時數(下面兩格與報告/排行榜),不生幣。v8 起這裡跟薪水完全無關。
   const events = withActive(slackEvents, activeSince, now);
   const zoneMs = useStore((st) => st.zoneMs);
+  const fined = useStore((st) => st.fined);
   const { spots } = useSpots();
   const todayFishes = spots.filter((sp) => sp.caught).length;
-  const stolen = points(zoneMs.day === dayKey(now) ? zoneMs.ms : 0, todayFishes);
+  const stolen = points(
+    zoneMs.day === dayKey(now) ? zoneMs.ms : 0,
+    todayFishes,
+    fined.day === dayKey(now) ? fined.points : 0,
+  );
   const pct = progress(cfg, now) * 100;
 
   return (

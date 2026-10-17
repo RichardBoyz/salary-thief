@@ -84,7 +84,7 @@ export function holdings(trades: Trade[]): Holding[] {
 /**
  * 可用摸魚幣 = 累積偷到 − 買進 + 賣出。
  *
- * earnedPts 來自伺服器(zone_points + 漁獲),交易也來自伺服器。這個函式
+ * earnedPts 來自伺服器(zone_points − 老闆罰款 + 漁獲),交易也來自伺服器。這個函式
  * 不信任何本機狀態,所以它同時就是稽核公式:算出來是負的,代表帳被動過。
  */
 export function cashPts(earnedPts: number, trades: Trade[]): number {

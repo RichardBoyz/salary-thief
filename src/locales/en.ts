@@ -129,7 +129,7 @@ export const en: Strings = {
     "Hit \"Start slacking\" to begin logging hours and drop straight into the office — walk to the green box to earn; hit stop when you're done. Hours feed the report heatmap and the leaderboard; the timer itself mints no points (that's in the office, next section).",
   helpOffice: "The office — where points are made",
   helpOfficeBody:
-    "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box pays 10 points a minute (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, worth 150 points. The pantry or couch also logs slack hours; your desk stops the clock.",
+    "Move with arrows / WASD or tap a tile. \"Stolen today\" has exactly two sources: standing in the green box pays 10 points a minute (it moves every 10 minutes), and after signing in, 8 daily fish spots — stand on one to catch 🐟, worth 150 points. The pantry or couch also logs slack hours; your desk stops the clock. The boss also drops by at random: when the dialog pops up, hit \"Reply\" before the timer runs out — miss it and you lose 20% of what you stole today.",
   helpTeam: "Bring coworkers",
   helpTeamBody:
     "In Team, sign in with a personal email (never the work one), pick a handle and a company — from the directory, the business registry, or a custom name. To bring people in, pick your team first (none = the lobby), then hit \"Invite coworkers\" and share the link: they open it, sign in and hit \"Join\", and they're in your company and team — you'll see each other in the office. The board ranks hours.",
@@ -237,6 +237,24 @@ export const en: Strings = {
   reportLimit: "You've used today's reports.",
   cardHere: "here",
   cardWeek: "This week",
+
+  boss: "Boss",
+  bossCalling: "The boss wants you!",
+  bossLines: [
+    "Where's that report? Come see me.",
+    "Are you at your desk?",
+    "Swing by my office in a minute.",
+    "Are the meeting notes done yet?",
+    "Got a sec? I need you on something.",
+  ],
+  bossSec: "s",
+  bossReply: "Reply",
+  bossMissed: "You left the boss hanging!",
+  bossFined: "Docked",
+  bossFinedWhy: " — 20% of what you stole today.",
+  bossFinedNone: "Nothing to dock this time. Lucky you.",
+  bossFinedFail: "The fine never reached the server. You're off the hook this time.",
+  bossOk: "Got it",
 
   stats: "Slacking report",
   monthSlack: "This month",

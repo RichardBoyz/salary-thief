@@ -33,6 +33,15 @@ type State = {
   /** 外快區今天站了幾毫秒。跟其他數字一樣存時間不存錢,錢用時薪即時換算 */
   zoneMs: { day: string; ms: number };
   /**
+   * 今天被老闆扣掉幾點(伺服器回傳的數字,不是自己算的)。跟 zoneMs 一樣換日歸零。
+   * shortcut: 只記這台裝置被扣的,跟 zoneMs 一樣不跨裝置;要跨裝置就改讀 zone_points.fined
+   */
+  fined: { day: string; points: number };
+  addFined: (points: number, day: string) => void;
+  /** 老闆在等你回到幾點(epoch ms)。null = 沒在找你。存進 persist:重新整理躲不掉 */
+  bossUntil: number | null;
+  setBossUntil: (v: number | null) => void;
+  /**
    * 點了邀請連結還沒處理的邀請。要落地:點連結 → 去登入(OAuth 轉跳離站)
    * → 回來,這中間 hash 早就被清掉了,靠 persist 把邀請帶過整趟來回。
    */
@@ -74,6 +83,13 @@ export const useStore = create<State>()(
       activeId: null,
       companyLabel: null,
       zoneMs: { day: "", ms: 0 },
+      fined: { day: "", points: 0 },
+      addFined: (points, day) =>
+        set((s) => ({
+          fined: { day, points: (s.fined.day === day ? s.fined.points : 0) + points },
+        })),
+      bossUntil: null,
+      setBossUntil: (bossUntil) => set({ bossUntil }),
       pendingInvite: null,
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       helpSeen: false,
@@ -106,6 +122,8 @@ export const useStore = create<State>()(
           activeSince: null,
           activeId: null,
           zoneMs: { day: "", ms: 0 },
+          fined: { day: "", points: 0 },
+          bossUntil: null,
           companyLabel: null,
           pendingInvite: null,
         }),

@@ -162,6 +162,17 @@ describe("standings 摸魚幣", () => {
     expect(rows[0].points).toBe(40 + FISH_POINTS);
   });
 
+  it("被老闆扣的要扣掉;沒有 fined 欄位(沒跑 v17)當 0", () => {
+    const rows = standings(
+      [member("a", "阿明")],
+      [],
+      now,
+      [{ user_id: "a", caught_at: now - 60_000 }],
+      [{ ...zp("a", "2026-07-16", 100), fined: 70 }, zp("a", "2026-07-17", 40)],
+    );
+    expect(rows[0].points).toBe(100 - 70 + 40 + FISH_POINTS);
+  });
+
   it("沒有 zone_points(沒跑 v8 遷移)時只剩漁獲,其他欄位照常", () => {
     const rows = standings([member("a", "阿明")], [ev("a", 100, 30)], now, [
       { user_id: "a", caught_at: now - 60_000 },

@@ -264,8 +264,9 @@ export async function fetchTeam(now: number): Promise<TeamData> {
     sb.from("reactions").select("*").order("created_at", { ascending: false }).limit(30),
     // v3 表。還沒跑 migrate-v3 時這查詢會錯,data 是 null → 漁獲全 0,app 照常
     sb.from("catches").select("user_id,caught_at").gte("caught_at", weekStart(now)),
-    // v8 表。同理:沒跑 migrate-v8 → 摸魚幣欄位全 0,排行榜其他欄照常
-    sb.from("zone_points").select("user_id,day,points").gte("day", dayKey(weekStart(now))),
+    // v8 表。同理:沒跑 migrate-v8 → 摸魚幣欄位全 0,排行榜其他欄照常。
+    // select * 不點名欄位:v17 的 fined 沒跑遷移時不存在,點名會讓整個查詢失敗
+    sb.from("zone_points").select("*").gte("day", dayKey(weekStart(now))),
   ]);
   const rows = standings(
     members.data ?? [],
@@ -393,6 +394,21 @@ export async function syncZonePoints(todayPoints: number): Promise<number | null
   const { data, error } = await sb.rpc("sync_zone_points", { p_points: todayPoints });
   if (error) {
     warn("points")(error);
+    return null;
+  }
+  return data as number;
+}
+
+/**
+ * 沒回老闆:扣今天偷到的 20%,回傳伺服器實際扣掉的點數。扣多少由伺服器用它記的帳
+ * 算,client 只能說「我沒回」。null = 沒扣成(沒跑 v17、斷線)。
+ * 先把本機的外快總量送上去,伺服器算的才是畫面上那個數。
+ */
+export async function bossFine(todayZonePoints: number): Promise<number | null> {
+  await syncZonePoints(todayZonePoints);
+  const { data, error } = await sb.rpc("boss_fine");
+  if (error) {
+    warn("boss")(error);
     return null;
   }
   return data as number;

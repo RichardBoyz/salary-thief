@@ -33,8 +33,11 @@ export type ReactionRow = {
   created_at: number;
 };
 export type CatchRow = { user_id: string; caught_at: number };
-/** zone_points 一列。day 是伺服器的台北曆日,points 是伺服器夾制過的值 */
-export type ZonePointRow = { user_id: string; day: string; points: number };
+/**
+ * zone_points 一列。day 是伺服器的台北曆日,points 是伺服器夾制過的值,
+ * fined 是那天被老闆扣掉的(v17;沒跑遷移時沒有這欄)
+ */
+export type ZonePointRow = { user_id: string; day: string; points: number; fined?: number };
 
 /** 心跳超過這個歲數就當離線。斷線不用通知任何人,老化自然下線 */
 export const ONLINE_MS = 2 * 60_000;
@@ -52,7 +55,7 @@ export type Standing = {
   /** 本週漁獲。唯一伺服器驗證過的數字 —— 時數是自報的,魚是抓的 */
   fishes: number;
   /**
-   * 本週偷到的摸魚幣 = 外快區站立(伺服器夾制過)+ 漁獲 × 150。
+   * 本週偷到的摸魚幣 = 外快區站立(伺服器夾制過)+ 漁獲 × 150 − 被老闆扣的。
    *
    * 這是「賺到的」帳,跟之後股市的「資產」帳分開記,永遠不合併 —— 分開才
    * 有一條可稽核的不變式:資產 ≤ 累積偷到 + 交易損益。混帳之後差額從哪來
@@ -84,7 +87,7 @@ export function standings(
   const pointsByUser = new Map<string, number>();
   for (const z of zonePoints) {
     if (z.day >= fromDay)
-      pointsByUser.set(z.user_id, (pointsByUser.get(z.user_id) ?? 0) + z.points);
+      pointsByUser.set(z.user_id, (pointsByUser.get(z.user_id) ?? 0) + z.points - (z.fined ?? 0));
   }
   const byUser = new Map<string, EventRow[]>();
   for (const e of events) {

@@ -139,6 +139,7 @@ export default function Office({
   const stopSlacking = useStore((s) => s.stopSlacking);
   const zoneMs = useStore((s) => s.zoneMs);
   const addZoneMs = useStore((s) => s.addZoneMs);
+  const fined = useStore((s) => s.fined);
   const now = useNow();
   const session = useSession();
   const team = useTeam(45_000); // 沒登入回傳 null,辦公室就是單人版
@@ -334,8 +335,12 @@ export default function Office({
           </span>
         )}
         <span className="tabular-nums text-crt-dim" title={t.zoneHint}>
-          {/* 跟主畫面同一個數:摸魚幣 = 外快區站立(含進行中)+ 漁獲獎勵 */}
-          {t.todayStolen} {pts.format(points(zoneLiveMs, todayFishes))} {t.pointsUnit}
+          {/* 跟主畫面同一個數:摸魚幣 = 外快區站立(含進行中)+ 漁獲獎勵 − 老闆罰款 */}
+          {t.todayStolen}{" "}
+          {pts.format(
+            points(zoneLiveMs, todayFishes, fined.day === dayKey(now) ? fined.points : 0),
+          )}{" "}
+          {t.pointsUnit}
         </span>
         {/* 魚況:沒登入不顯示(魚點需要伺服器種子);沒跑 v3 遷移 = 沒有魚 */}
         {session && spots.length > 0 && (

@@ -65,4 +65,10 @@ select 'v16 即時房間(辦公室 + 門)',
    and to_regprocedure('public.lounge_my_topic()') is not null
    and exists (select 1 from information_schema.columns
                where table_schema = 'public' and table_name = 'lounge_members'
-                 and column_name = 'topic');
+                 and column_name = 'topic')
+union all
+select 'v17 老闆找你(扣款)',
+       to_regprocedure('public.boss_fine()') is not null
+   and exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'zone_points'
+                 and column_name = 'fined');
