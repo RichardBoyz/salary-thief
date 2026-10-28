@@ -91,6 +91,8 @@ export const zhTW = {
   noTeammates: "公司裡目前只有你。按「邀請同事」把連結丟出去,點開就同房。",
 
   lobby: "大廳",
+  myHandle: "我的暱稱",
+  handleSave: "改名",
   myTeam: "我的隊伍",
   teamNone: "還沒選隊 —— 你目前在大廳。",
   teamPickPlaceholder: "隊名,例如 後端組(打新名字就是開新隊)",

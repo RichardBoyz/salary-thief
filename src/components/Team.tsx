@@ -414,6 +414,7 @@ export default function Team({ onBack }: { onBack?: () => void }) {
   const team = useTeam(30_000);
   const [changing, setChanging] = useState(false);
   const [teamInput, setTeamInput] = useState("");
+  const [handleInput, setHandleInput] = useState("");
   const [boardMine, setBoardMine] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
 
@@ -560,6 +561,35 @@ export default function Team({ onBack }: { onBack?: () => void }) {
             value={profile.employment}
             onChange={(e) => setEmployment(e).then(() => team!.refresh())}
           />
+
+          {/* 只換暱稱,公司、隊伍、在職狀態照舊 —— 以前只能繞「換公司」,隊伍會被清回大廳 */}
+          <div className="flex flex-wrap items-center gap-2 px-small">
+            <span className="text-crt-dim">{t.myHandle}</span>
+            <span className="px-bevel-in bg-crt-deep px-2 py-1 px-small text-crt-white">{profile.handle}</span>
+            <form
+              className="flex flex-1 gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const name = handleInput.trim();
+                if (!name || !profile) return;
+                saveProfile(name, profile.company_code, profile.team, profile.employment).then(() => {
+                  setHandleInput("");
+                  team!.refresh();
+                });
+              }}
+            >
+              <input
+                value={handleInput}
+                onChange={(e) => setHandleInput(e.target.value)}
+                maxLength={20}
+                placeholder={t.setupHandlePlaceholder}
+                className={`${input} min-w-40 flex-1`}
+              />
+              <button type="submit" className={btn} disabled={!handleInput.trim()}>
+                {t.handleSave}
+              </button>
+            </form>
+          </div>
 
           {/* 我的隊伍:標籤即隊伍,datalist 給既有隊名,打新名字就是開新隊 */}
           <div className="flex flex-wrap items-center gap-2 px-small">

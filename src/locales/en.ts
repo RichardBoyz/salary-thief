@@ -97,6 +97,8 @@ export const en: Strings = {
   noTeammates: "You're the only one here. Hit \"Invite coworkers\" and share the link.",
 
   lobby: "Lobby",
+  myHandle: "My nickname",
+  handleSave: "Rename",
   myTeam: "My team",
   teamNone: "No team yet — you're in the lobby.",
   teamPickPlaceholder: "Team name, e.g. Backend (a new name opens a new team)",
