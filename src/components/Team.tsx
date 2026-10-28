@@ -404,9 +404,9 @@ function CrossCompany({ myCode }: { myCode: string | null }) {
   );
 }
 
-// onBack 省略 = 這頁現在是登入閘門(App 在沒 session 時只給這頁),
-// 沒有地方可以返回,所以那顆按鈕不該畫出來
-export default function Team({ onBack }: { onBack?: () => void }) {
+// onBack/onOffice 省略 = 這頁現在是登入閘門(App 在沒 session 時只給這頁),
+// 沒有地方可以去,所以那兩顆按鈕不該畫出來
+export default function Team({ onBack, onOffice }: { onBack?: () => void; onOffice?: () => void }) {
   const session = useSession();
   const companyLabel = useStore((s) => s.companyLabel);
   const pendingInvite = useStore((s) => s.pendingInvite);
@@ -450,6 +450,8 @@ export default function Team({ onBack }: { onBack?: () => void }) {
     !(profile?.company_code === pendingInvite.code && (profile?.team ?? null) === inviteTeam)
       ? pendingInvite
       : null;
+  // 暱稱、公司都有了,也沒在換公司或看邀請 = 下面主畫面出現的條件
+  const ready = !!profile?.company_code && !changing && !invite;
 
   const copyInvite = () => {
     if (!profile?.company_code) return;
@@ -482,9 +484,19 @@ export default function Team({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-6 py-12">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-[36px] text-crt-white">{t.team}</h1>
         <div className="flex items-center gap-2">
+          {/* 該填的填好才能進;能進就閃,告訴剛加入的人下一步去哪 */}
+          {onOffice && (
+            <button
+              onClick={onOffice}
+              disabled={!ready}
+              className={`${btnGhost} ${ready ? "px-nudge text-crt-gold" : ""}`}
+            >
+              {t.office}
+            </button>
+          )}
           {session && (
             <button onClick={() => signOut()} className={btnGhost}>
               {t.signOut}

@@ -45,6 +45,10 @@ export default function App() {
     setHelpSeen(true);
     setView("counter");
   };
+  const toOffice = () => {
+    setAtDoor(false);
+    setView("office");
+  };
 
   // 導向:點邀請連結進來 → 一律切到團隊頁看加入提示 / 登入。用 mount effect
   // 而不是只靠 useState 初值 —— persist 補水與 setPendingInvite 在首次載入的
@@ -85,10 +89,7 @@ export default function App() {
         <Counter
           onSettings={() => setView("settings")}
           onStats={() => setView("stats")}
-          onOffice={() => {
-            setAtDoor(false);
-            setView("office");
-          }}
+          onOffice={toOffice}
           onStocks={() => setView("stocks")}
           onTeam={() => setView("team")}
           onHelp={() => setView("help")}
@@ -112,7 +113,7 @@ export default function App() {
           }}
         />
       )}
-      {view === "team" && <Team onBack={() => setView("counter")} />}
+      {view === "team" && <Team onBack={() => setView("counter")} onOffice={toOffice} />}
       {view === "help" && <Help onClose={closeHelp} />}
       {/* 老闆不管你在哪一頁都會找上門。只在登入後:扣款記在伺服器的帳上 */}
       <Boss />

@@ -155,6 +155,11 @@
     animation: px-blink 1.1s steps(1) infinite;
   }
 
+  /* 提醒按鈕(團隊頁的「辦公室」):金底反白一格一格閃,不淡入淡出,也不整顆消失 —— 隨時按得到 */
+  .px-nudge {
+    animation: px-nudge 1.2s steps(1) infinite;
+  }
+
   /* 魚在水面一格一格晃 —— steps() 是像素動作的原生解,不是 tween */
   .px-bob {
     animation: px-bob 0.7s steps(2) infinite alternate;
@@ -284,6 +289,13 @@
   }
 }
 
+@keyframes px-nudge {
+  50% {
+    background: var(--color-crt-gold);
+    color: var(--color-crt-bg);
+  }
+}
+
 @keyframes px-heal {
   from {
     transform: translateY(0);
@@ -378,6 +390,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .px-cursor,
+  /* 進辦公室的提醒不閃,留金字 */
+  .px-nudge,
   .px-bob,
   /* 裝飾動畫全部關掉 —— 角色走路格不在這裡,那是功能不是裝飾 */
   .px-screen,
