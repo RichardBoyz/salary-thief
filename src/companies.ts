@@ -167,6 +167,16 @@ export const searchCompanies = (q: string): Company[] => {
 // 在辦公室永遠碰不到面。舊連結沒有 t,等於大廳(跟以前一樣)。
 export type Invite = { code: string; name: string | null; handle: string | null; team: string | null };
 
+/**
+ * 待過的公司/隊伍(換公司畫面一鍵回去)。只存本機 —— DB 只記你「現在」在哪、不存公司名;
+ * name 是當下畫面上顯示的名字。綁 uid:同一台電腦換帳號登入時不會列出別人的。
+ */
+export type Place = { uid: string; code: string; name: string; team: string | null };
+
+/** 最新的排最前面;同一人同公司同隊只留一筆(名字以最新為準);最多留 max 筆 */
+export const addPlace = (list: Place[], p: Place, max = 8): Place[] =>
+  [p, ...list.filter((x) => !(x.uid === p.uid && x.code === p.code && x.team === p.team))].slice(0, max);
+
 const INVITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** 邀請參數(不含 ?)。連結本身、與登入前把邀請放回網址列(Team.tsx)共用 */

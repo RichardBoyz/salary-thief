@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Invite } from "./companies";
+import { addPlace, type Invite, type Place } from "./companies";
 import type { Config } from "./money";
 import type { SlackEvent } from "./slack";
 
@@ -30,6 +30,9 @@ type State = {
    * 「不存公司名」—— 外洩看不出是哪家公司。
    */
   companyLabel: string | null;
+  /** 待過的公司/隊伍,換公司畫面列出來一鍵回去。跟 companyLabel 一樣只在本機,見 companies.ts 的 Place */
+  places: Place[];
+  rememberPlace: (p: Place) => void;
   /** 外快區今天站了幾毫秒。跟其他數字一樣存時間不存錢,錢用時薪即時換算 */
   zoneMs: { day: string; ms: number };
   /**
@@ -82,6 +85,8 @@ export const useStore = create<State>()(
       activeSince: null,
       activeId: null,
       companyLabel: null,
+      places: [],
+      rememberPlace: (p) => set((s) => ({ places: addPlace(s.places, p) })),
       zoneMs: { day: "", ms: 0 },
       fined: { day: "", points: 0 },
       addFined: (points, day) =>
@@ -125,6 +130,7 @@ export const useStore = create<State>()(
           fined: { day: "", points: 0 },
           bossUntil: null,
           companyLabel: null,
+          places: [],
           pendingInvite: null,
         }),
 

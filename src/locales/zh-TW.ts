@@ -44,6 +44,9 @@ export const zhTW = {
   loginPrivacy: "只用信箱登入,不設密碼。這個 app 從頭到尾不問你的薪水 —— 排行榜比的是時數。",
   setupTitle: "取個代號",
   setupHandlePlaceholder: "暱稱(同事認得出、老闆認不出的那種)",
+  placesTitle: "你待過的公司與隊伍(點一下就回去)",
+  placeHere: "現在",
+  cancel: "取消",
 
   companyPick: "選你的公司",
   companySearch: "搜尋公司、醫院、財團法人(台積電、台大醫院、工研院…)",

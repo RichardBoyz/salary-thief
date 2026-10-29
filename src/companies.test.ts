@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  addPlace,
+  type Place,
   buildInviteLink,
   inviteParams,
   COMPANIES,
@@ -214,5 +216,26 @@ describe("邀請連結", () => {
     expect(team("丙".repeat(99))).toHaveLength(20);
     expect(team("   ")).toBeNull();
     expect(team("\u200b")).toBeNull();
+  });
+});
+
+describe("addPlace", () => {
+  const a: Place = { uid: "u1", code: "c1", name: "台積電", team: "後端組" };
+  const b: Place = { ...a, code: "c2", name: "聯發科", team: null };
+
+  it("最新的排前面;同一處只留一筆,名字換成新的", () => {
+    const list = addPlace(addPlace([], a), b);
+    expect(list).toEqual([b, a]);
+    expect(addPlace(list, { ...a, name: "台積電(新)" })).toEqual([{ ...a, name: "台積電(新)" }, b]);
+  });
+
+  it("同公司不同隊、不同人的同一處都分開記", () => {
+    expect(addPlace([a], { ...a, team: null })).toHaveLength(2);
+    expect(addPlace([a], { ...a, uid: "u2" })).toHaveLength(2);
+  });
+
+  it("最多留 max 筆,丟掉最舊的", () => {
+    const list = ["t1", "t2", "t3", "t4"].reduce<Place[]>((l, team) => addPlace(l, { ...a, team }, 3), []);
+    expect(list.map((p) => p.team)).toEqual(["t4", "t3", "t2"]);
   });
 });

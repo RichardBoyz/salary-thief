@@ -7,6 +7,7 @@ import {
   isDirectoryCompany,
   normalizeCustom,
   orgCode,
+  type Place,
   type RegistryCompany,
   searchCompanies,
   searchOrgs,
@@ -179,8 +180,21 @@ function InviteJoin({
  * 取代號 + 選公司。公司從真實目錄選(或自訂),房間鍵由公司名決定性導出
  * —— 兩個同事各自選台積電就同房,不用互傳碼。DB 只存 uuid、不存公司名;
  * 自訂公司的顯示名只記在本機(setCompanyLabel)。
+ * 有 onCancel = 從主畫面按「換公司」進來:不再問暱稱(改名在主畫面),最上面先列待過的地方
  */
-function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: string }) {
+function Setup({
+  onDone,
+  onCancel,
+  initialHandle,
+  here,
+  places,
+}: {
+  onDone: () => void;
+  onCancel?: () => void;
+  initialHandle: string;
+  here: { company_code: string | null; team: string | null; employment: Employment } | null;
+  places: Place[];
+}) {
   // 換公司時帶入現在的代號 —— 空著的話搜尋結果全是灰的按不下去,看起來像壞掉
   const [handle, setHandle] = useState(initialHandle);
   const [query, setQuery] = useState("");
@@ -222,17 +236,60 @@ function Setup({ onDone, initialHandle }: { onDone: () => void; initialHandle: s
     setCompanyLabel(label);
     saveProfile(handle.trim(), code, null).then(onDone);
   };
+  // 回到待過的地方:公司、隊伍一起回去。同公司只是換隊,在職狀態不動;換公司就從在職開始(同 join)
+  const goBack = (p: Place) => {
+    setCompanyLabel(p.name);
+    const employment = here && p.code === here.company_code ? here.employment : "current";
+    saveProfile(handle.trim(), p.code, p.team, employment).then(onDone);
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-crt-white">{t.setupTitle}</h2>
-      <input
-        value={handle}
-        onChange={(e) => setHandle(e.target.value)}
-        maxLength={20}
-        placeholder={t.setupHandlePlaceholder}
-        className={input}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-crt-white">{onCancel ? t.changeCompany : t.setupTitle}</h2>
+        {onCancel && (
+          <button onClick={onCancel} className={btnGhost}>
+            {t.cancel}
+          </button>
+        )}
+      </div>
+      {!onCancel && (
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          maxLength={20}
+          placeholder={t.setupHandlePlaceholder}
+          className={input}
+        />
+      )}
+
+      {/* 像切換工作區:現在這一處標「現在」,其他點一下就回去 */}
+      {places.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-crt-dim">{t.placesTitle}</span>
+          <ul className="flex flex-col gap-1">
+            {places.map((p) => {
+              const isHere = !!here && p.code === here.company_code && p.team === here.team;
+              return (
+                <li key={`${p.code}|${p.team ?? ""}`}>
+                  <button
+                    disabled={!ok || isHere}
+                    onClick={() => goBack(p)}
+                    className={`${isHere ? "px-row-me" : "px-row hover:bg-crt-bg disabled:opacity-40"} flex w-full items-center gap-2 px-3 py-2 text-left px-small`}
+                  >
+                    <span className="flex-1 truncate">
+                      <span className="text-crt-gold">{p.name}</span>
+                      <span className="text-crt-dim"> › </span>
+                      <span className="text-crt-white">{p.team ?? t.lobby}</span>
+                    </span>
+                    {isHere && <span className="text-crt-dim">{t.placeHere}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <span className="text-crt-dim">{t.companyPick}</span>
@@ -420,6 +477,20 @@ export default function Team({ onBack, onOffice }: { onBack?: () => void; onOffi
 
   const me = session?.user.id;
   const profile = team?.profile ?? null;
+  const places = useStore((s) => s.places);
+  const rememberPlace = useStore((s) => s.rememberPlace);
+
+  // 記下現在待的公司/隊伍(只存本機),換公司時列出來。名字照畫面上顯示的記 ——
+  // 換公司時 setCompanyLabel 先於 saveProfile,profile 換過來時標籤已經是新的
+  useEffect(() => {
+    if (me && profile?.company_code)
+      rememberPlace({
+        uid: me,
+        code: profile.company_code,
+        name: companyName(profile.company_code, useStore.getState().companyLabel),
+        team: profile.team ?? null,
+      });
+  }, [me, profile?.company_code, profile?.team, rememberPlace]);
 
   // 已經在邀請的那一間(同公司、同隊:自己點自己的連結、或重複點)→ 邀請默默收掉。
   // 同公司但不同隊不收:那正是「進了公司卻在辦公室碰不到面」的情況,讓他一鍵換過去
@@ -533,6 +604,9 @@ export default function Team({ onBack, onOffice }: { onBack?: () => void; onOffi
       {session && team && !invite && (!profile?.company_code || changing) && (
         <Setup
           initialHandle={profile?.handle ?? ""}
+          here={profile}
+          places={places.filter((p) => p.uid === me)}
+          onCancel={changing ? () => setChanging(false) : undefined}
           onDone={() => {
             setChanging(false);
             team.refresh();

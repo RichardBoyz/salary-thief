@@ -47,6 +47,9 @@ export const en: Strings = {
     "Email login, no password. This app never asks what you earn — the board compares hours.",
   setupTitle: "Pick a codename",
   setupHandlePlaceholder: "Nickname (recognizable to coworkers, not to the boss)",
+  placesTitle: "Places you've been (tap to go back)",
+  placeHere: "Now",
+  cancel: "Cancel",
 
   companyPick: "Pick your company",
   companySearch: "Search company, hospital, foundation (TSMC, NTU Hospital, ITRI…)",
