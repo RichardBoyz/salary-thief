@@ -776,7 +776,7 @@ export default function Team({ onBack, onOffice }: { onBack?: () => void; onOffi
                 >
                   <span className="w-5 text-right px-small tabular-nums text-crt-dim">{i + 1}</span>
                   <span className={`size-2 ${stateDot[r.state]}`} title={stateLabelOf()[r.state]} />
-                  <span className="flex-1 truncate px-small text-crt-white">
+                  <span className="flex-1 truncate px-small text-crt-white" title={r.handle}>
                     {r.handle}
                     <span className="ml-2 bg-crt-deep px-1.5 py-0.5 px-small text-crt-dim">
                       {teamTag(r.team)}

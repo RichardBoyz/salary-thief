@@ -70,9 +70,10 @@ export default memo(function Actor({
   );
 });
 
-/** 名牌:頂在頭上,不擋腳下的格子(魚、綠框都在地上)。自己的是金色 */
+/** 名牌:頂在頭上,不擋腳下的格子(魚、綠框都在地上)。自己的是金色。太長截斷:滑鼠停著看 title,點人看卡片 */
 export const NameTag = ({ name, me = false }: { name: string; me?: boolean }) => (
   <span
+    title={name}
     className={`absolute bottom-full left-1/2 max-w-24 -translate-x-1/2 truncate bg-crt-deep/80 px-1 px-small leading-tight whitespace-nowrap ${
       me ? "text-crt-gold" : "text-crt-white"
     }`}

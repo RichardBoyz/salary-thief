@@ -268,7 +268,8 @@ export function PersonCard({
           <Actor look={look} pose={STAND} blink={1.7} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate text-crt-gold">{name}</span>
+          {/* 頭上的名牌太長會截斷,點開的卡片給全名:換行不截(暱稱最多 20 字,頂多兩行) */}
+          <span className="wrap-anywhere text-crt-gold">{name}</span>
           <span className="px-small text-crt-dim">{row ? (row.team ?? t.lobby) : "…"}</span>
           {row && (
             <span
